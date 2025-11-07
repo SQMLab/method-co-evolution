@@ -1,4 +1,5 @@
 import method_scanner as ms
+import method-history-jar-runner as ms
 import os
 
 
@@ -16,3 +17,6 @@ class MethodHistoryCollector:
         finally:
             ms.stop_java_parser()
 
+    def collect_method_history(self, repository_list: list, tool_names: list):
+        try:
+            # ms.start_java_parser(self.java_parser_location)

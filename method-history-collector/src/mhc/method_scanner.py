@@ -16,8 +16,11 @@ class Method:
         self.line = line
 
 
-
 def scan_method(repositories: list, repository_cache_directory: str, output_directory: str):
+    from com.github.javaparser import StaticJavaParser, ParserConfiguration
+    from com.github.javaparser.ast.visitor import VoidVisitorAdapter
+    from com.github.javaparser.ast.body import MethodDeclaration
+    from java.io import File
     for repository in repositories:
         name = repository['name']
         url = repository['url']
@@ -32,6 +35,7 @@ def scan_method(repositories: list, repository_cache_directory: str, output_dire
             methods = []
             errors = []
             for file in java_files:
+                file_without_base = file[len(repository_directory) + 1:]
                 try:
                     cu = StaticJavaParser.parse(File(file))
                     if cu is not None:
@@ -39,27 +43,23 @@ def scan_method(repositories: list, repository_cache_directory: str, output_dire
                         for mt in method_decls:
                             method_name = mt.getNameAsString()
                             line_number = mt.getName().getBegin().get().line
-                            method_type = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
-                            methods.append({'file': file, 'code_type': method_type, 'method_name': method_name, 'start_line': line_number})
+                            method_type = "test" if '/test/' in file_without_base.lower() or '/androidTest/'.lower() in file_without_base.lower() else "production"
+                            methods.append(
+                                {'file': file_without_base, 'code_type': method_type, 'method_name': method_name,
+                                 'start_line': line_number})
                 except Exception as e:
-                    errors.append({'file': file, 'error': str(e)})
+                    errors.append({'file': file_without_base, 'error': str(e)})
             if len(methods) > 0:
                 os.makedirs(os.path.dirname(output_method_file), exist_ok=True)
-                pd.DataFrame().to_csv(output_method_file, index=False)
+                pd.DataFrame(methods).to_csv(output_method_file, index=False)
             if len(errors) > 0:
                 os.makedirs(os.path.dirname(output_method_error_file), exist_ok=True)
-                pd.DataFrame().to_csv(output_method_error_file, index=False)
-
+                pd.DataFrame(errors).to_csv(output_method_error_file, index=False)
 
 
 def start_java_parser(java_parser_jar_location: str):
     if not jpype.isJVMStarted():
         jpype.startJVM(classpath=[java_parser_jar_location])
-        from com.github.javaparser import StaticJavaParser, ParserConfiguration
-        from com.github.javaparser.ast.visitor import VoidVisitorAdapter
-        from com.github.javaparser.ast.body import MethodDeclaration
-        from java.io import File
-
         # class MethodLister(VoidVisitorAdapter):
         #     def __init__(self):
         #         self.methods = []
@@ -72,17 +72,19 @@ def start_java_parser(java_parser_jar_location: str):
         #         method_type = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
         #         self.methods.append(Method(file, method_type, method_name, line_number))
 
+
 def stop_java_parser():
     if jpype.isJVMStarted():
         jpype.shutdownJVM()
+
+
 def collect_methods(repository_directory: str, path: str):
     return None
 
 
-
 def collect_files(repository_directory: str, file_pattern: str):
     path = Path(repository_directory)
-    return list(path.rglob(file_pattern))
+    return list(map(os.fspath, path.rglob(file_pattern)))
 
 
 def clone_and_checkout_commit(repo_url, repository_directory, commit_hash):
