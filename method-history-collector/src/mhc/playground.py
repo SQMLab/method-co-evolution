@@ -27,6 +27,6 @@ df = pd.read_csv("../../../data/repository.csv")
 # df.to_csv("../../../.cache/repository.csv", index=False)
 
 
-method_collector = MethodHistoryCollector('../../../.cache', '../../../.cache/javaparser-core-3.27.1.jar')
+method_collector = MethodHistoryCollector('../../../.cache', '../../../lib/javaparser-core-3.27.1.jar')
 print(df.to_dict('records'))
 method_collector.scan_method(df.to_dict('records')[:2])

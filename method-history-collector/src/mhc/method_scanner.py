@@ -19,28 +19,36 @@ class Method:
 
 def scan_method(repositories: list, repository_cache_directory: str, output_directory: str):
     for repository in repositories:
-        name = repository.name
-        url = repository.url
-        hash = repository.hash
+        name = repository['name']
+        url = repository['url']
+        hash = repository['hash']
         repository_directory = os.path.join(repository_cache_directory, name)
         output_method_file = os.path.join(f"{output_directory}/method", f"{name}--method.csv")
         output_method_error_file = os.path.join(f"{output_directory}/method/log", f"{name}--method-log.csv")
         if not os.path.exists(output_method_file):
-            clone_and_checkout_commit(url, output_directory, hash)
+            clone_and_checkout_commit(url, repository_directory, hash)
             java_files = collect_files(repository_directory, "*.java")
             print(java_files)
-            # methods = []
-            # errors = []
-            # for file in java_files:
-            #     try:
-            #         cu = StaticJavaParser.parse(File(file))
-            #         method_visitor = MethodLister()
-            #         if cu is not None:
-            #             method_visitor.visit(cu, file)
-            #             methods.extend(method_visitor.methods)
-            #     except Exception as e:
-            #         errors.append([file, str(e)])
-            # # pd.DataFrame().to_csv(output_method_error_file, index=False)
+            methods = []
+            errors = []
+            for file in java_files:
+                try:
+                    cu = StaticJavaParser.parse(File(file))
+                    if cu is not None:
+                        method_decls = cu.findAll(MethodDeclaration)
+                        for mt in method_decls:
+                            method_name = mt.getNameAsString()
+                            line_number = mt.getName().getBegin().get().line
+                            method_type = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
+                            methods.append({'file': file, 'code_type': method_type, 'method_name': method_name, 'start_line': line_number})
+                except Exception as e:
+                    errors.append({'file': file, 'error': str(e)})
+            if len(methods) > 0:
+                os.makedirs(os.path.dirname(output_method_file), exist_ok=True)
+                pd.DataFrame().to_csv(output_method_file, index=False)
+            if len(errors) > 0:
+                os.makedirs(os.path.dirname(output_method_error_file), exist_ok=True)
+                pd.DataFrame().to_csv(output_method_error_file, index=False)
 
 
 
@@ -52,17 +60,17 @@ def start_java_parser(java_parser_jar_location: str):
         from com.github.javaparser.ast.body import MethodDeclaration
         from java.io import File
 
-        class MethodLister(VoidVisitorAdapter):
-            def __init__(self):
-                self.methods = []
-
-            def visit(self, mt, file):
-                super(MethodLister, self).visit(mt, file)
-
-                method_name = mt.getNameAsString()
-                line_number = mt.getName().getBegin().get().line
-                method_type = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
-                self.methods.append(Method(file, method_type, method_name, line_number))
+        # class MethodLister(VoidVisitorAdapter):
+        #     def __init__(self):
+        #         self.methods = []
+        #
+        #     def visit(self, mt, file):
+        #         super(MethodLister, self).visit(mt, file)
+        #
+        #         method_name = mt.getNameAsString()
+        #         line_number = mt.getName().getBegin().get().line
+        #         method_type = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
+        #         self.methods.append(Method(file, method_type, method_name, line_number))
 
 def stop_java_parser():
     if jpype.isJVMStarted():
@@ -73,7 +81,6 @@ def collect_methods(repository_directory: str, path: str):
 
 
 def collect_files(repository_directory: str, file_pattern: str):
-    os.listdir(repository_directory)
     path = Path(repository_directory)
     return list(path.rglob(file_pattern))
 

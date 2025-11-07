@@ -11,6 +11,8 @@ class MethodHistoryCollector:
             ms.start_java_parser(self.java_parser_location)
             ms.scan_method(repository_list, os.path.join(self.cache_directory, 'repository'),
                            os.path.join(self.cache_directory, 'history'), )
+        except Exception as e:
+            print(e)
         finally:
             ms.stop_java_parser()
 
