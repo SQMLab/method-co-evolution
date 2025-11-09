@@ -11,14 +11,18 @@ class MyTestCase(unittest.TestCase):
         for name in ['jclouds', 'Essentials']:
             filtered_repositories.remove(name)
         # self.repositories = filtered_repositories
-        self.repositories = CODE_SHOVEL_REPOSITORIES
-        self.method_collector =  MethodHistoryCollector(cache_dir, os.path.join(cache_dir, 'repository'), cache_dir,
+        # self.repositories = CODE_SHOVEL_REPOSITORIES
+        self.repositories = ['checkstyle']
+        self.method_collector =  MethodHistoryCollector(cache_dir, os.path.join(cache_dir, 'repository'), os.path.join(cache_dir, "data"),
                                                         os.path.join(cache_dir, 'lib'))
     def test_method_listing(self):
         self.method_collector.scan_method(self.repositories)
 
     def test_history_collection(self):
-        self.method_collector.collect_method_history(self.repositories, ['codeShovel'])
+        self.method_collector.collect_method_history(self.repositories, ['historyFinder'])
+
+    def test_method_history_index(self):
+        self.method_collector.update_execute_index()
 
 if __name__ == '__main__':
     unittest.main()
