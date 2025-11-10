@@ -21,6 +21,9 @@ class MyTestCase(unittest.TestCase):
     def test_history_collection(self):
         self.method_collector.collect_method_history(self.repositories, ['historyFinder'])
 
+    def test_history_collection_with_command_line(self):
+        self.method_collector.collect_method_history(self.repositories, ['historyFinder'])
+
     def test_method_history_index(self):
         self.method_collector.update_execute_index()
 
