@@ -6,7 +6,7 @@ class MyTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(MyTestCase, self).__init__(*args, **kwargs)
         df = pd.read_csv("../../data/repository.csv")
-        cache_dir = '../../cache'
+        cache_dir = '../../.cache'
         filtered_repositories =  df['name'].tolist()
         for name in ['jclouds', 'Essentials']:
             filtered_repositories.remove(name)
