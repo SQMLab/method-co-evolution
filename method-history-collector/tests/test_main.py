@@ -8,7 +8,7 @@ from mhc import main as mhc_main
 
 class TestMhcScript(unittest.TestCase):
     def setUp(self):
-        self.cache_dir = '../../cache'
+        self.cache_dir = '../../.cache'
 
     @patch('mhc.main.MethodHistoryCollector')
     def test_history_command_success(self, mock_mhc_class):
