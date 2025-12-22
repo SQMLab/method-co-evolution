@@ -24,7 +24,7 @@ voldemort,65,2475,a7dbdea58032021361680faacf2782cf981c5332,https://github.com/vo
 spring-boot,828,56378,199cea206ffe316f60a91122207bcaea613878c9,https://github.com/spring-projects/spring-boot
 wicket,83,570,e3f3704888f08e32040f21cb41b116cce43acfce,https://github.com/apache/wicket
 ant,58,303,1ce1cc2317cb2b2773ab6b765f1a79ccd4806926,https://github.com/apache/ant
-jgit,140,983,855842af1934dd02f2bf20b4e723d63ba5786ba0,https://gerrit.googlesource.com/jgit
+jgit,140,983,855842af1934dd02f2bf20b4e723d63ba5786ba0,https://github.com/eclipse-jgit/jgit
 mongo-java-driver,151,2422,8ab109b31eba9ea99ea459a3ce0aad988442985e,https://github.com/mongodb/mongo-java-driver
 pmd,229,3482,d115ca59f73490c771abfe754414722512b4ac9b,https://github.com/pmd/pmd
 xerces2-j,3,38,cf0c517a41b31b0242b96ab1af9627a3ab07fcd2,https://github.com/apache/xerces2-j
