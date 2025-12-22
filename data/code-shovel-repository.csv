@@ -10,7 +10,7 @@ hibernate-search,58,390,5b778035965d7588ad1d1ae522c4bafebd3a0e16,https://github.
 intellij-community,1035,16800,cdf2efe8b88b87149784eae02241001ea60a8c29,https://github.com/JetBrains/intellij-community
 javaparser,157,3771,8f25c40918feaf5f66af5fae5b23d271edefbdfc,https://github.com/javaparser/javaparser
 jetty.project,159,3160,fc5dd874f3deda71e6cd42af994a5af5cb6be4af,https://github.com/eclipse/jetty.project
-jgit,140,983,855842af1934dd02f2bf20b4e723d63ba5786ba0,https://gerrit.googlesource.com/jgit
+jgit,140,983,855842af1934dd02f2bf20b4e723d63ba5786ba0,https://github.com/eclipse-jgit/jgit
 junit4,151,8160,50a285d3ce69b4556ac46d8633f6beb4527b4679,https://github.com/junit-team/junit4
 junit5,167,4691,be2aa2497a75dedceb37bc3297276e230fb4f293,https://github.com/junit-team/junit5
 lucene-solr,234,4400,b457c2ee2ea0180f3a11c5d0b4d443083316aa31,https://github.com/apache/lucene-solr

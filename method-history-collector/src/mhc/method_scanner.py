@@ -55,7 +55,7 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                                  'method_type': method_type,
                                  'method_name': mt.getNameAsString(),
                                  'start_line': start_line,
-                                 'end_line': mt.getName().getEnd().get().line,
+                                 'end_line': mt.getEnd().get().line,
                                  'hash': hash,
                                  'url': util.format_to_git_url(url, hash, file_without_base, start_line),
                                  'parser': 'javaparser'})

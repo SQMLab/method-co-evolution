@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from urllib.parse import urlparse
 import json
+
 DATA_DIRECTORY = ".cache/data"
 
 # %% Create Test Method Oracle for the CodeShovel and HistoryFinder repositories
@@ -51,6 +52,5 @@ for row in method_df.itertuples():
     oracle_file_path = f"{DATA_DIRECTORY}/oracle/{file}"
     os.makedirs(os.path.dirname(oracle_file_path), exist_ok=True)
     with open(oracle_file_path, "w") as output_stream:
-        output_stream.write(json.dumps(json_history))
+        output_stream.write(json.dumps(json_history, indent=4))
     counter += 1
-
