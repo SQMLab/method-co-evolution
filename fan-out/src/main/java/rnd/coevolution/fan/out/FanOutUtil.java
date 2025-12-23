@@ -36,4 +36,8 @@ public class FanOutUtil {
         Collections.sort(files);
         return files;
     }
+
+    public static String toMethodUri(String file, Integer lineNumber) {
+        return file + (lineNumber != null ? "#L" + lineNumber : "");
+    }
 }
