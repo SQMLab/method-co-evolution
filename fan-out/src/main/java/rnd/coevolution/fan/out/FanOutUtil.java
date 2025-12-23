@@ -40,4 +40,17 @@ public class FanOutUtil {
     public static String toMethodUri(String file, Integer lineNumber) {
         return file + (lineNumber != null ? "#L" + lineNumber : "");
     }
+
+    public static String stripFilePrefix(String prefix, String text) {
+        if (text.startsWith(prefix)) {
+            String fileSuffix = text.substring(prefix.length());
+            if (fileSuffix.startsWith("/")) {
+                return fileSuffix.substring(1);
+            } else {
+                return fileSuffix;
+            }
+        } else {
+            return text;
+        }
+    }
 }

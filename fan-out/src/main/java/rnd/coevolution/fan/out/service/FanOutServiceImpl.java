@@ -39,6 +39,7 @@ public class FanOutServiceImpl implements FanOutService {
                 typeSolver.add(new JavaParserTypeSolver(path.toFile()));
             }
         }
+        typeSolver.add(new JavaParserTypeSolver("/home/cs/grad/islams32/dev/project/repository/checkstyle/src/main/java/com/puppycrawl/tools/checkstyle/api"));
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(typeSolver);
         ParserConfiguration config = new ParserConfiguration()
                 .setSymbolResolver(symbolSolver);
@@ -88,7 +89,7 @@ public class FanOutServiceImpl implements FanOutService {
                                                                 return Stream.of(
                                                                         Method.builder()
                                                                                 .name(methodName)
-                                                                                .file(filePath)
+                                                                                .file(FanOutUtil.stripFilePrefix(repositoryPath, filePath))
                                                                                 .startLine(startLine)
                                                                                 .build()
                                                                 );
@@ -101,7 +102,7 @@ public class FanOutServiceImpl implements FanOutService {
 
                                         Fan fan = Fan.builder()
                                                 .method(Method.builder()
-                                                        .file(file)
+                                                        .file(FanOutUtil.stripFilePrefix(repositoryPath, file))
                                                         .name(method.getSignature().getName())
                                                         .startLine(method.getName().getBegin().get().line)
                                                         .build())

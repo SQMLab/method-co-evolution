@@ -24,8 +24,10 @@ public class FanOutTest {
 
     @TestFactory
     public DynamicNode testCheckStyle() {
-        return createDynamicTest("../../repository/checkstyle", List.of("src/main/java/com/puppycrawl/tools/checkstyle/Checker.java"/*,
+        return createDynamicTest("../../repository/checkstyle", List.of(
+                "src/main/java/com/puppycrawl/tools/checkstyle/AuditEventDefaultFormatter.java"/*,
                 "src/main/java/com/puppycrawl/tools/checkstyle/ModuleFactory.java",
+                "src/main/java/com/puppycrawl/tools/checkstyle/Checker.java",
                 "src/main/java/com/puppycrawl/tools/checkstyle/ant",
                 "src/main/java/com/puppycrawl/tools/checkstyle/utils"*/
         ));
