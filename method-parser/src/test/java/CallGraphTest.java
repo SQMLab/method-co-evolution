@@ -104,7 +104,8 @@ public class CallGraphTest {
         return createDynamicTest("https://github.com/checkstyle/checkstyle",
                 System.getenv().getOrDefault("REPOSITORY_DIRECTORY", "../../repository") + "/checkstyle", "164a755af951cf0fd459d70873e1c199210d9d8b",
                 List.of(
-                        "src/main/java/com/puppycrawl/tools/checkstyle/AuditEventDefaultFormatter.java"
+                        "src"
+//                        "src/main/java/com/puppycrawl/tools/checkstyle/AuditEventDefaultFormatter.java"
 //                        "src/main/java/com/puppycrawl/tools/checkstyle"
            /*             "src/main/java/com/puppycrawl/tools/checkstyle/AuditEventDefaultFormatter.java",
                 "src/main/java/com/puppycrawl/tools/checkstyle/ModuleFactory.java",
