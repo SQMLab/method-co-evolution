@@ -13,13 +13,11 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
 import rnd.coevolution.fan.out.FanOutUtil;
 import rnd.coevolution.fan.out.model.Fan;
 import rnd.coevolution.fan.out.model.Method;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -56,10 +54,10 @@ public class FanOutServiceImpl implements FanOutService {
         List<String> files = FanOutUtil.scanJavaFiles(repositoryLocation, targetPaths);
 
 
-        List<Fan> fanList = files.stream()
+        List<Fan> fanOutList = files.stream()
                 .flatMap(file -> {
                     try {
-                        var result = javaParser.parse(FileUtils.readFileToString(new File(file), StandardCharsets.UTF_8));
+                        var result = javaParser.parse(Paths.get(file));
                         if (result.isSuccessful()) {
                             return result.getResult().get()
                                     .findAll(MethodDeclaration.class)
@@ -86,6 +84,7 @@ public class FanOutServiceImpl implements FanOutService {
                                                                         .flatMap(cu -> cu.getStorage())
                                                                         .map(storage -> storage.getPath().toString())
                                                                         .orElse("<external>");
+
 
                                                                 int startLine = ast
                                                                         .flatMap(NodeWithRange::getBegin)
@@ -124,7 +123,7 @@ public class FanOutServiceImpl implements FanOutService {
                                                         .url(FanOutUtil.toMethodUrl(repositoryUrl, commitHash, targetMethodFileSuffix, targetMethodStartLine))
                                                         .name(method.getSignature().getName())
                                                         .startLine(targetMethodStartLine)
-                                                        .endLine(method.getName().getEnd().get().line)
+                                                        .endLine(method.getEnd().get().line)
                                                         .hash(commitHash)
                                                         .build())
                                                 .fanMethods(calledMethods)
@@ -143,11 +142,11 @@ public class FanOutServiceImpl implements FanOutService {
                 })
                 .toList();
 
-        File fanOutFile = Paths.get(outputPath, "fan-out", repositoryName, repositoryName + "-" + commitHash + ".csv").toFile();
-        FanOutUtil.toTable(fanList, fanOutFile.getAbsolutePath());
-        File fanInFile = Paths.get(outputPath, "fan-in", repositoryName, repositoryName + "-" + commitHash + ".csv").toFile();
-        List<Fan> fanInList = FanOutUtil.fanInFromFanOut(fanList);
-        FanOutUtil.toTable(fanInList, fanInFile.getAbsolutePath());
-        return fanList;
+        File fanOutFile = Paths.get(outputPath, "fan", repositoryName + "--fan-out--" + commitHash + ".csv").toFile();
+        FanOutUtil.toTable(fanOutList, fanOutFile.getAbsolutePath(), true);
+        File fanInFile = Paths.get(outputPath, "fan", repositoryName + "--fan-in--" + commitHash + ".csv").toFile();
+        List<Fan> fanInList = FanOutUtil.fanInFromFanOut(fanOutList);
+        FanOutUtil.toTable(fanInList, fanInFile.getAbsolutePath(), false);
+        return fanOutList;
     }
 }

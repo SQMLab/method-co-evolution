@@ -175,33 +175,35 @@ public class FanOutUtil {
         }
     }
 
-    public static void toTable(List<Fan> fans, String outputPath) {
-        StringColumn nameColumn = StringColumn.create("name");
-        IntColumn startLineColumn = IntColumn.create("start");
-        IntColumn endLineColumn = IntColumn.create("end");
-        StringColumn fileColumn = StringColumn.create("file");
-        StringColumn urlColumn = StringColumn.create("url");
+    public static void toTable(List<Fan> fans, String outputPath, boolean isFanIn) {
+        String focalMethodPrefix = isFanIn ? "caller_" : "callee_";
+        String otherMethodPrefix = isFanIn ? "callee_" : "caller_";
+        StringColumn focalMethodNameColumn = StringColumn.create(focalMethodPrefix + "name");
+        IntColumn focalMethodStartLineColumn = IntColumn.create(focalMethodPrefix + "start");
+        IntColumn focalMethodEndLineColumn = IntColumn.create(focalMethodPrefix + "end");
+        StringColumn focalMethodFileColumn = StringColumn.create(focalMethodPrefix + "file");
+        StringColumn focalMethodUrlColumn = StringColumn.create(focalMethodPrefix + "url");
 
-        StringColumn callNameColumn = StringColumn.create("call_name");
-        IntColumn callStartLineColumn = IntColumn.create("call_start");
-        IntColumn callEndLineColumn = IntColumn.create("call_end");
-        StringColumn callFileColumn = StringColumn.create("call_file");
-        StringColumn callUrlColumn = StringColumn.create("call_url");
-        Table table = Table.create(nameColumn, startLineColumn, endLineColumn, fileColumn, urlColumn, callNameColumn, callStartLineColumn, callEndLineColumn, callFileColumn, callUrlColumn);
+        StringColumn otherMethodNameColumn = StringColumn.create(otherMethodPrefix + "name");
+        IntColumn otherMethodStartLineColumn = IntColumn.create(otherMethodPrefix + "start");
+        IntColumn otherMethodEndLineColumn = IntColumn.create(otherMethodPrefix + "end");
+        StringColumn otherMethodFileColumn = StringColumn.create(otherMethodPrefix + "file");
+        StringColumn otherMethodUrlColumn = StringColumn.create(otherMethodPrefix + "url");
+        Table table = Table.create(focalMethodNameColumn, focalMethodStartLineColumn, focalMethodEndLineColumn, focalMethodFileColumn, focalMethodUrlColumn, otherMethodNameColumn, otherMethodStartLineColumn, otherMethodEndLineColumn, otherMethodFileColumn, otherMethodUrlColumn);
         for (Fan fan : fans) {
-            Method method = fan.getMethod();
-            for (Method callMethod : fan.getFanMethods()) {
-                nameColumn.append(method.getName());
-                startLineColumn.append(method.getStartLine());
-                endLineColumn.append(method.getEndLine());
-                fileColumn.append(method.getFile());
-                urlColumn.append(method.getUrl());
+            Method focalMethod = fan.getMethod();
+            for (Method otherMethod : fan.getFanMethods()) {
+                focalMethodNameColumn.append(focalMethod.getName());
+                focalMethodStartLineColumn.append(focalMethod.getStartLine());
+                focalMethodEndLineColumn.append(focalMethod.getEndLine());
+                focalMethodFileColumn.append(focalMethod.getFile());
+                focalMethodUrlColumn.append(focalMethod.getUrl());
 
-                callNameColumn.append(callMethod.getName());
-                callStartLineColumn.append(callMethod.getStartLine());
-                callEndLineColumn.append(callMethod.getEndLine());
-                callFileColumn.append(callMethod.getFile());
-                callUrlColumn.append(callMethod.getUrl());
+                otherMethodNameColumn.append(otherMethod.getName());
+                otherMethodStartLineColumn.append(otherMethod.getStartLine());
+                otherMethodEndLineColumn.append(otherMethod.getEndLine());
+                otherMethodFileColumn.append(otherMethod.getFile());
+                otherMethodUrlColumn.append(otherMethod.getUrl());
 
             }
 
@@ -214,11 +216,11 @@ public class FanOutUtil {
         Map<String, List<Method>> fanIn = new HashMap<>();
         Map<String, Method> methodMap = new HashMap<>();
         for (Fan fan : fanOutList) {
-            Method fromMethod = fan.getMethod();
-            for (Method toMethod : fan.getFanMethods()) {
-                fanIn.putIfAbsent(toMethod.getUrl(), new ArrayList<>());
-                methodMap.putIfAbsent(toMethod.getUrl(), toMethod);
-                fanIn.get(toMethod.getUrl()).add(fromMethod);
+            Method caller = fan.getMethod();
+            for (Method callee : fan.getFanMethods()) {
+                fanIn.putIfAbsent(callee.getUrl(), new ArrayList<>());
+                methodMap.putIfAbsent(callee.getUrl(), callee);
+                fanIn.get(callee.getUrl()).add(caller);
             }
         }
         return fanIn.entrySet().stream().map(entry -> Fan.builder()
