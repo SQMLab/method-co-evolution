@@ -95,76 +95,12 @@ class Method:
 
 
 def scan_method(repository_df: DataFrame, repository_directory: str, data_directory: str, cache_directory):
-    from com.github.javaparser import StaticJavaParser, ParserConfiguration
-    from com.github.javaparser.symbolsolver import JavaSymbolSolver
-    from com.github.javaparser.symbolsolver.resolution.typesolvers import (
-        CombinedTypeSolver,
-        ReflectionTypeSolver,
-        JavaParserTypeSolver
+    from jpype import JClass
+    MethodScannerImpl = JClass(
+        "rnd.method.parser.call.graph.service.MethodScannerImpl"
     )
-    from com.github.javaparser.ast.visitor import VoidVisitorAdapter
-    from com.github.javaparser.ast.body import MethodDeclaration
-    from java.io import File
-    from com.github.javaparser.ast.body import ClassOrInterfaceDeclaration
-    def has_test_annotation(method_decl, is_strict: bool) -> bool:
-        for ann in method_decl.getAnnotations():
-            if is_strict:
-                # STRICT: fully-qualified name via symbol solver
-                resolved = ann.resolve()
-                if resolved.getQualifiedName() in TEST_ANNOTATION_FQNS:
-                    return True
-            else:
-                # NON-STRICT: simple name only (no resolution)
-                if ann.getNameAsString() in {
-                    fqn.split(".")[-1] for fqn in TEST_ANNOTATION_NAMES
-                }:
-                    return True
-        return False
 
-    def get_package_name(compilation_unit):
-        if compilation_unit.getPackageDeclaration().isPresent():
-            return compilation_unit.getPackageDeclaration().get().getNameAsString()
-        return ""
-
-    def class_extends_test_fqn(class_decl):
-        resolved_class = class_decl.resolve()
-
-        # direct class itself
-        if resolved_class.getQualifiedName() in UNIT_TEST_SUPERCLASS_FQNS:
-            return True
-
-        # all ancestors
-        for ancestor in resolved_class.getAllAncestors():
-            if ancestor.getQualifiedName() in UNIT_TEST_SUPERCLASS_FQNS:
-                return True
-
-        return False
-
-    # TODO: improve logic with gradle and pom build file
-    def determine_method_type(file: str, package: str, mt, is_strict_check: bool) -> str:
-        bare_file_name = file.split("/")[-1]
-        package_with_slash = package.replace(".", "/")
-
-        suffix_with_package_and_file = "/" + bare_file_name if not package else "/" + package_with_slash + "/" + bare_file_name
-        method_type = "production"
-        if file.endswith(suffix_with_package_and_file):
-            prefix = file[:-len(suffix_with_package_and_file)]
-            for possible_package_root in TEST_PACKAGE_ROOT_DIRECTORY:
-                if prefix.endswith("/" + possible_package_root):
-                    method_type = "other"
-                    break
-
-        if has_test_annotation(mt, is_strict=is_strict_check):
-            method_type = "test"
-        else:
-            # Superclass inheritance (FQN only)
-            parent_class = mt.findAncestor(ClassOrInterfaceDeclaration)
-            if parent_class.isPresent():
-                if class_extends_test_fqn(parent_class.get()):
-                    method_type = "test"
-
-        return method_type
-
+    scanner = MethodScannerImpl()
     for _, repository in repository_df.iterrows():
         repository_name = repository['name']
         url = repository['url']
@@ -172,49 +108,35 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
         dot_file_directory = util.format_git_project_directory(repository_directory, repository_name)
         output_method_file = util.format_method_list_file(f"{data_directory}", repository_name)
         output_method_error_file = os.path.join(f"{cache_directory}/log", f"{repository_name}--method-scan-log.csv")
-        # if not os.path.exists(output_method_file):
-        if True:
+        if not os.path.exists(output_method_file):
+        # if True:
             clone_and_checkout_commit(url, dot_file_directory, hash)
             java_files = collect_files(dot_file_directory, "*.java")
             methods = []
             errors = []
             for file in java_files:
                 file_without_base = file[len(dot_file_directory) + 1:]
-                method_type = "todo"
-
                 try:
-                    type_solver = CombinedTypeSolver()
-                    # JDK classes (java.lang, etc.)
-                    type_solver.add(ReflectionTypeSolver())
-                    # Project source root
-                    # type_solver.add(JavaParserTypeSolver(dot_file_directory))
-                    symbol_solver = JavaSymbolSolver(type_solver)
-                    config = ParserConfiguration()
-                    config.setLanguageLevel(ParserConfiguration.LanguageLevel.BLEEDING_EDGE)
-                    config.setSymbolResolver(symbol_solver)
-                    StaticJavaParser.setConfiguration(config)
-                    cu = StaticJavaParser.parse(File(file))
-
-                    package_name = str(cu.getPackageDeclaration().get().getNameAsString()) if cu.getPackageDeclaration().isPresent() else ""
-
                     methods_in_file = []
-                    if cu is not None:
-                        method_decls = cu.findAll(MethodDeclaration)
-                        for mt in method_decls:
-                            method_type = determine_method_type(file_without_base, package_name, mt, True)
-                            start_line = mt.getName().getBegin().get().line
-                            methods_in_file.append(
-                                {'file': file_without_base,
-                                 'method_type': method_type,
-                                 'method_name': mt.getNameAsString(),
-                                 'start_line': start_line,
-                                 'end_line': mt.getEnd().get().line,
-                                 'hash': hash,
-                                 'url': util.format_to_git_url(url, hash, file_without_base, start_line),
-                                 'parser': 'javaparser'})
+                    java_methods = scanner.scanMethod(
+                        dot_file_directory,
+                        url,
+                        hash,
+                        file_without_base
+                    )
+                    for jm in java_methods:
+                        methods_in_file.append({
+                            "file": jm.getFile(),
+                            "method_type": jm.getMethodType(),
+                            "method_name": jm.getName(),
+                            "start_line": jm.getStartLine(),
+                            "end_line": jm.getEndLine(),
+                            "hash": jm.getHash(),
+                            "url": jm.getUrl(),
+                            "parser": "javaparser"
+                        })
                     methods.extend(methods_in_file)
                 except Exception as e:
-                    raise e
                     error_msg = str(e)
                     if not error_msg:
                         error_msg = f"{type(e).__module__}.{type(e).__name__}"
@@ -231,7 +153,7 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                                 start_line = node.position.line if node.position else None
                                 methods_in_file.append(
                                     {'file': file_without_base,
-                                     'method_type': method_type,
+                                     'method_type': "unknown",
                                      'method_name': node.name,
                                      'start_line': start_line,
                                      'end_line': -1, # Heuristically find end line

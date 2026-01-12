@@ -26,7 +26,7 @@ class MethodHistoryCollector:
     def scan_method(self, repositories: list[str]):
         try:
             assert 'javaParserCore' in self.jar_file_map
-            ms.start_java_jar([self.jar_file_map['javaParserCore'], self.jar_file_map['SymbolSolverCore']])
+            ms.start_java_jar([self.jar_file_map['methodParser']])
             ms.scan_method(self.repository_df[self.repository_df['name'].isin(repositories)], self.repository_directory, self.data_directory, self.cache_directory)
         except Exception as e:
             raise e
