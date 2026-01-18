@@ -7,7 +7,8 @@ import json
 import numpy as np
 from pathlib import Path
 
-CACHE_DIRECTORY = os.environ.get("METHOD_CO_EVOLUTION_CACHE_DIRECTORY", ".cache")
+CACHE_DIRECTORY = os.environ.get("METHOD_CO_EVOLUTION_CACHE_DIRECTORY")
+TEST_METHOD_ORACLE_DIRECTORY = os.environ.get("TEST_METHOD_ORACLE_DIRECTORY")
 
 # %% Create Test Method Oracle for the CodeShovel and HistoryFinder repositories
 
@@ -38,16 +39,21 @@ for repository_file in ["code-shovel-repository.csv", "history-finder-repository
             print(f"Missing file {repository}: {method_file}")
 all_test_method_df.to_csv(f"{CACHE_DIRECTORY}/data/oracle/test-method-oracle.csv", index=False)
 
-# %%
+
+# %% Generate Oracle Files
 method_df = pd.read_csv(f"{CACHE_DIRECTORY}/data/oracle/test-method-oracle.csv")
 counter = 1001
-shutil.rmtree(f"{CACHE_DIRECTORY}/oracle_files", ignore_errors=True)
+# target_oracle_directory = TEST_METHOD_ORACLE_DIRECTORY #f"{CACHE_DIRECTORY}/oracle_files"
+target_oracle_directory = f"{CACHE_DIRECTORY}/oracle_files"
+print(CACHE_DIRECTORY)
+print(target_oracle_directory)
+shutil.rmtree(target_oracle_directory, ignore_errors=True)
 for row in method_df.itertuples():
     parsed_url = urlparse(row.url)
     parts = parsed_url.path.split("/")
     owner_name = parts[1]
     repository_name = parts[2]
-    class_name = parts[-2].split(".")[0]
+    class_name = parts[-1].split(".")[0]
     file = f"{counter}-{repository_name}-{class_name}-{row.method_name}.json"
 
     json_history = {
@@ -63,54 +69,68 @@ for row in method_df.itertuples():
         "endLine": row.end_line,
         "commits": []
     }
-    oracle_file_path = f"{CACHE_DIRECTORY}/oracle_files/{file}"
+    oracle_file_path = f"{target_oracle_directory}/{file}"
     os.makedirs(os.path.dirname(oracle_file_path), exist_ok=True)
     with open(oracle_file_path, "w") as output_stream:
         output_stream.write(json.dumps(json_history, indent=4))
     counter += 1
-# %%
-ORACLE_FILE_DIR_WITH_COMMIT = os.environ.get("ORACLE_FILE_DIR_WITH_COMMIT")
-files = list(map(lambda path: str(path), Path(ORACLE_FILE_DIR_WITH_COMMIT).rglob("*.json")))
+
+# %% Ensure at least 3 commit counts
+files = list(map(lambda path: str(path), Path(TEST_METHOD_ORACLE_DIRECTORY).rglob("*.json")))
 files = list(filter(lambda f: int(f.split("/")[-1].split("-")[0]) > 1000, files))
-need_to_update = 0
 remove_urls = []
+print(files)
 
 for file in files:
     json_history = json.load(open(file))
     if len(json_history['commits']) < 3:
-        print(f"{len(json_history['commits'])}")
-        print(f"{json_history['file']}")
+        # print(f"{len(json_history['commits'])}")
+        # print(f"{json_history['file']}")
         remove_urls.append(json_history['url'])
-        need_to_update += 1
+        # shutil.rmtree(file)
 
-print(f"Need to update {need_to_update}/{len(files)}")
+print(f"Need to update {len(remove_urls)}/{len(files)}")
 all_taken_test_method_df = pd.read_csv(f"{CACHE_DIRECTORY}/data/oracle/test-method-oracle.csv")
 all_taken_test_method_df["url"] = all_taken_test_method_df["url"].astype(str)
+
+all_blacklisted_test_method_df = pd.read_csv(f"{CACHE_DIRECTORY}/data/oracle/blacklist-test-method-oracle.csv")
+all_blacklisted_test_method_df["url"] = all_blacklisted_test_method_df["url"].astype(str)
+
+
+all_blacklisted_test_method_df = all_blacklisted_test_method_df[~all_blacklisted_test_method_df["url"].isin(remove_urls)]
+all_blacklisted_test_method_df = pd.concat(
+    [all_blacklisted_test_method_df, all_taken_test_method_df[all_taken_test_method_df["url"].isin(remove_urls)]])
+all_blacklisted_test_method_df.to_csv(f"{CACHE_DIRECTORY}/data/oracle/blacklist-test-method-oracle.csv", index=False)
+
 all_taken_test_method_df = all_taken_test_method_df[~all_taken_test_method_df["url"].isin(remove_urls)]
-all_taken_test_method_df.to_csv(f"{CACHE_DIRECTORY}/data/oracle/test-method-oracle_new.csv", index=False)
+all_taken_test_method_df.to_csv(f"{CACHE_DIRECTORY}/data/oracle/test-method-oracle.csv", index=False)
 
-files = [file for file in files if file not in all_taken_test_method_df["url"].to_list()]
 
-# # %%
-# import pandas as pd
-# import subprocess
-# df = pd.read_csv(f"{CACHE_DIRECTORY}/data/oracle/test-method-oracle.csv")
-# x,y = list(map(int, input("Enter project index range : ").split(":")))
-# urls = df["url"].to_list()
-# print("Range: {x}-{y}".format(x=x, y=y))
-# for url in urls[x:y]:
-#     print(url)
-#     subprocess.Popen([
-#         "chromium-browser",
-#         url
-#     ])
+
 
 # %%
-# import pandas as pd
-# df = pd.read_csv(f"{CACHE_DIRECTORY}/data/method/jgit--method.csv")
-# df["url"] = df["url"].astype(str).str.replace(
-#     "https://gerrit.googlesource.com/",
-#     "https://github.com/eclipse-jgit/",
-#     regex=False
-# )
-# df.to_csv(f"{CACHE_DIRECTORY}/data/method/jgit--method.csv", index=False)
+import pandas as pd
+import subprocess
+df = pd.read_csv(f"{CACHE_DIRECTORY}/data/oracle/test-method-oracle.csv")
+x,y = list(map(int, input("Enter project index range : ").split(":")))
+urls = df["url"].to_list()
+print("Range: {x}-{y}".format(x=x, y=y))
+for url in urls[x:y]:
+    print(url)
+    subprocess.Popen([
+        "chromium-browser",
+        url
+    ])
+
+# %%
+import pandas as pd
+files = list(map(lambda path: str(path), Path(f"{CACHE_DIRECTORY}/data/method").rglob("*.csv")))
+for file in files:
+    print(f"processing {file}")
+    df = pd.read_csv(file)
+    df["url"] = df["url"].astype(str).str.replace(
+        "/#L",
+        "#L",
+        regex=False
+    )
+    df.to_csv(file, index=False)
