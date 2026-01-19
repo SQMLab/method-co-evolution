@@ -109,7 +109,7 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
         output_method_file = util.format_method_list_file(f"{data_directory}", repository_name)
         output_method_error_file = os.path.join(f"{cache_directory}/log", f"{repository_name}--method-scan-log.csv")
         if not os.path.exists(output_method_file):
-        # if True:
+            # if True:
             clone_and_checkout_commit(url, dot_file_directory, hash)
             java_files = collect_files(dot_file_directory, "*.java")
             methods = []
@@ -126,6 +126,7 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                     )
                     for jm in java_methods:
                         methods_in_file.append({
+                            "name": repository_name,
                             "file": jm.getFile(),
                             "method_type": jm.getMethodType(),
                             "method_name": jm.getName(),
@@ -152,11 +153,12 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                             if node.position:
                                 start_line = node.position.line if node.position else None
                                 methods_in_file.append(
-                                    {'file': file_without_base,
+                                    {"name": repository_name,
+                                     'file': file_without_base,
                                      'method_type': "unknown",
                                      'method_name': node.name,
                                      'start_line': start_line,
-                                     'end_line': -1, # Heuristically find end line
+                                     'end_line': -1,  # Heuristically find end line
                                      'hash': hash,
                                      'url': util.format_to_git_url(url, hash, file_without_base, start_line),
                                      'parser': 'javalang'})

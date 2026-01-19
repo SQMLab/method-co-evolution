@@ -18,7 +18,6 @@ class MyTestCase(unittest.TestCase):
             if name in filtered_repositories:
                 filtered_repositories.remove(name)
         # self.repositories = filtered_repositories
-        # # self.repositories = CODE_SHOVEL_REPOSITORIES
         self.repositories = ['checkstyle']
         self.method_collector = MethodHistoryCollector(cache_dir, os.path.join(cache_dir, 'repository'),
                                                        os.path.join(cache_dir, "data"), "repository.csv",
@@ -26,13 +25,10 @@ class MyTestCase(unittest.TestCase):
 
     def test_method_listing(self):
         self.method_collector.scan_method(self.repositories)
-    #
+
     # def test_history_collection(self):
     #     self.method_collector.collect_method_history(self.repositories, ['historyFinder'])
-    #
-    # def test_history_collection_with_command_line(self):
-    #     self.method_collector.collect_method_history(self.repositories, ['historyFinder'])
-    #
+
     # def test_method_history_index(self):
     #     self.method_collector.update_execute_index()
 
