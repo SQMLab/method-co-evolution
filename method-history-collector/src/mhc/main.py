@@ -30,6 +30,11 @@ def main():
             print("Error: tool_name and repository_name are required for call graph command.")
             sys.exit(1)
         mhc.generate_call_graph( [args.repository_name], [args.tool_name])
+    elif args.command.lower() == "scan-method":
+        if not args.repository_name:
+            print("Error: repository_name are required to scan methods.")
+            sys.exit(1)
+        mhc.scan_method( [args.repository_name])
     else:
         print(f"Unknown command: {args.command}")
         sys.exit(1)

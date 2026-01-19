@@ -21,6 +21,13 @@ pip install -e ./method-history-collector
 
 ### Run
 ```bash
+mhc scan-method \
+    --cache_directory ".cache" \
+    --repository_directory ".cache/repository" \
+    --data_directory ".cache/data" \
+    --jar_directory ".cache/jar" \
+    --repository_name "checkstyle"
+    
 mhc history \
     --cache_directory ".cache" \
     --repository_directory ".cache/repository" \
