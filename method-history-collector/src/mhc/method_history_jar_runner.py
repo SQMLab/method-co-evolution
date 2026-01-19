@@ -1,10 +1,10 @@
 import os
 import subprocess
 from pandas import DataFrame
-import util as util
-from zip import load_zip_index, merge_folder_into_tar_gz
+import mhc.util as util
+from mhc.zip import load_zip_index, merge_folder_into_tar_gz
 import pandas as pd
-import  method_scanner as ms
+import  mhc.method_scanner as ms
 from pathlib import Path
 def execute_method_history_if_missing(repository_df: DataFrame, repository_directory: str, data_directory: str,
                                       cache_directory: str, tool_names: list[str],
@@ -20,7 +20,8 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
             repository_name_prefix = f"{repository_name}/"
             zip_index =  util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz), repository_name_prefix) if os.path.exists(method_history_tar_gz) else set()
 
-            method_df = pd.read_csv(util.format_method_list_file(data_directory, repository_name))
+            method_df = pd.read_csv(util.format_method_list_file(data_directory, repository_name), keep_default_na=False, na_filter=False)
+            method_df = method_df.sample(frac=1, random_state=42).reset_index(drop=True)
             ms.clone_and_checkout_commit(url,os.path.join(repository_directory, repository_name),hash)
             repo_path = Path(method_history_path)
             unzip_index = set(str(p.relative_to(repo_path)) for p in repo_path.rglob("*.json"))
@@ -29,13 +30,14 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
                 method_name = method['method_name']
                 start_line = method['start_line']
                 file = method['file']
-                method_history_file_suffix = util.format_method_history_file_suffix(file, method_name, start_line)
-                method_history_file = os.path.join(method_history_path, method_history_file_suffix)
-                if method_history_file_suffix not in zip_index and method_history_file_suffix not in unzip_index:
-                    execute_cmd_method_history_jar(tool_name, jar_file_map[tool_name],
-                                                   os.path.join(repository_directory, repository_name),
-                                                   url, hash, file, method_name, start_line, method_history_file)
-                    unzip_index.add(method_history_file_suffix)
+                if pd.notna(method_name) and pd.notna(start_line):
+                    method_history_file_suffix = util.format_method_history_file_suffix(file, method_name, start_line)
+                    method_history_file = os.path.join(method_history_path, method_history_file_suffix)
+                    if method_history_file_suffix not in zip_index and method_history_file_suffix not in unzip_index:
+                        execute_cmd_method_history_jar(tool_name, jar_file_map[tool_name],
+                                                       os.path.join(repository_directory, repository_name),
+                                                       url, hash, file, method_name, start_line, method_history_file)
+                        unzip_index.add(method_history_file_suffix)
                 if len(unzip_index) >= 10000:
                     merge_folder_into_tar_gz(method_history_path)
                     zip_index =  util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz), repository_name_prefix)
