@@ -4,9 +4,9 @@ import unittest
 import pandas as pd
 
 
-class RepositoryNameTestCase(unittest.TestCase):
+class RepositoryDatasetTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(RepositoryNameTestCase, self).__init__(*args, **kwargs)
+        super(RepositoryDatasetTestCase, self).__init__(*args, **kwargs)
         self.cache_dir = os.environ.get("METHOD_CO_EVOLUTION_CACHE_DIRECTORY", ".cache")
         self.repositories_df = pd.read_csv(f"{self.cache_dir}/data/repository/repository.csv")
 

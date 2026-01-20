@@ -8,9 +8,9 @@ CODE_SHOVEL_REPOSITORIES = ["checkstyle", "commons-lang", "flink", "hibernate-or
                             "spring-boot"]
 
 
-class MyTestCase(unittest.TestCase):
+class MethodHistoryTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(MyTestCase, self).__init__(*args, **kwargs)
+        super(MethodHistoryTestCase, self).__init__(*args, **kwargs)
         cache_dir = os.environ.get("METHOD_CO_EVOLUTION_CACHE_DIRECTORY", ".cache")
         df = pd.read_csv(f"{cache_dir}/data/repository/repository.csv")
         filtered_repositories = df['name'].tolist()
@@ -23,14 +23,14 @@ class MyTestCase(unittest.TestCase):
                                                        os.path.join(cache_dir, "data"), "repository.csv",
                                                        os.path.join(cache_dir, 'jar'))
 
-    def test_method_listing(self):
-        self.method_collector.scan_method(self.repositories)
+    # def test_method_listing(self):
+    #     self.method_collector.scan_method(self.repositories)
 
     # def test_history_collection(self):
     #     self.method_collector.collect_method_history(self.repositories, ['historyFinder'])
 
-    # def test_method_history_index(self):
-    #     self.method_collector.update_execute_index()
+    def test_repository_index(self):
+        self.method_collector.update_repository_index()
 
 
 if __name__ == '__main__':

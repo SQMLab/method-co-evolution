@@ -1,11 +1,15 @@
 import os
 import subprocess
+from pathlib import Path
+
+import pandas as pd
 from pandas import DataFrame
+
+import mhc.method_scanner as ms
 import mhc.util as util
 from mhc.zip import load_zip_index, merge_folder_into_tar_gz
-import pandas as pd
-import  mhc.method_scanner as ms
-from pathlib import Path
+
+
 def execute_method_history_if_missing(repository_df: DataFrame, repository_directory: str, data_directory: str,
                                       cache_directory: str, tool_names: list[str],
                                       jar_file_map: dict[str, str]) -> None:
@@ -18,11 +22,14 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
 
             method_history_tar_gz = f"{method_history_path}.tar.gz"
             repository_name_prefix = f"{repository_name}/"
-            zip_index =  util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz), repository_name_prefix) if os.path.exists(method_history_tar_gz) else set()
+            zip_index = util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz),
+                                                     repository_name_prefix) if os.path.exists(
+                method_history_tar_gz) else set()
 
-            method_df = pd.read_csv(util.format_method_list_file(data_directory, repository_name), keep_default_na=False, na_filter=False)
+            method_df = pd.read_csv(util.format_method_list_file(data_directory, repository_name),
+                                    keep_default_na=False, na_filter=False)
             method_df = method_df.sample(frac=1, random_state=42).reset_index(drop=True)
-            ms.clone_and_checkout_commit(url,os.path.join(repository_directory, repository_name),hash)
+            ms.clone_and_checkout_commit(url, os.path.join(repository_directory, repository_name), hash)
             repo_path = Path(method_history_path)
             unzip_index = set(str(p.relative_to(repo_path)) for p in repo_path.rglob("*.json"))
 
@@ -40,37 +47,49 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
                         unzip_index.add(method_history_file_suffix)
                 if len(unzip_index) >= 10000:
                     merge_folder_into_tar_gz(method_history_path)
-                    zip_index =  util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz), repository_name_prefix)
+                    zip_index = util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz),
+                                                             repository_name_prefix)
                     unzip_index = set(str(p.relative_to(repo_path)) for p in repo_path.rglob("*.json"))
             merge_folder_into_tar_gz(method_history_path)
 
 
+def update_repository_index(repository_df: DataFrame, cache_dir: str) -> None:
+    repository_statistics = {}
+    for method_file in Path(f"{cache_dir}/data/method").rglob("*.csv"):
+        repository_name = method_file.stem.split("--")[0]
+        if repository_name not in repository_statistics:
+            repository_statistics[repository_name] = {}
+        repository_statistics[repository_name]["methods"] = len(pd.read_csv(method_file))
 
 
-def update_method_history_index(repository_df: DataFrame, data_directory: str, cache_directory: str,
-                           tool_names: list[str]) -> None:
-    records = []
-    for _, repository in repository_df.iterrows():
-        repository_name = repository['name']
-        method_list_file = util.format_method_list_file(data_directory, repository_name)
-        if os.path.exists(method_list_file):
-            method_df = pd.read_csv(method_list_file)
-            record = {'name': repository_name, 'methods': len(method_df)}
+    for tooName in os.listdir(f"{cache_dir}/history"):
+        for zip_file in Path(f"{cache_dir}/history/{tooName}").rglob("*.tar.gz"):
+            repository_name = zip_file.name[:-len(".tar.gz")]
+            if repository_name not in repository_statistics:
+                repository_statistics[repository_name] = {}
+            zip_index = load_zip_index(zip_file)
+            zip_index = set(filter(lambda file: file.endswith(".json"), zip_index))
+            repository_statistics[repository_name][f"history_{tooName}"] = len(zip_index)
+    for fan in ["fan-in", "fan-out"]:
+        for zip_file in Path(f"{cache_dir}/data/{fan}").rglob("*.tar.gz"):
+            repository_name = zip_file.name[:-len(".tar.gz")]
+            if repository_name not in repository_statistics:
+                repository_statistics[repository_name] = {}
+            zip_index = load_zip_index(zip_file)
+            zip_index = set(filter(lambda file: file.endswith(".csv"), zip_index))
+            repository_statistics[repository_name][f"{fan}"] = len(zip_index)
 
-            for tool_name in tool_names:
-                method_count = 0
-                method_history_path = util.format_method_history_path(cache_directory, tool_name, repository_name)
-                for _, method in method_df.iterrows():
-                    method_name = method['method_name']
-                    start_line = method['start_line']
-                    file = method['file']
-                    method_history_file_suffix = util.format_method_history_file_suffix(file, method_name, start_line)
-                    method_history_file = os.path.join(method_history_path, method_history_file_suffix)
-                    if os.path.exists(method_history_file):
-                        method_count += 1
-                record[tool_name] = method_count
-            records.append(record)
-    pd.DataFrame(records).to_csv(util.format_repository_history_index_file(cache_directory), index=False)
+    repository_index = []
+    for repo_name, stats in repository_statistics.items():
+        stats["name"] = repo_name
+        repository_index.append(stats)
+
+    index_df = pd.merge(repository_df, pd.DataFrame(repository_index), on="name", how="left")
+    num_cols = index_df.select_dtypes(include="number").columns
+    index_df[num_cols] = index_df[num_cols].astype("Int64")
+
+    index_df.to_csv(
+        util.format_repository_history_index_file(cache_dir), index=False)
 
 
 def execute_cmd_method_history_jar(tool_name: str,

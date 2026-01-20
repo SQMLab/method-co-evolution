@@ -34,8 +34,8 @@ class MethodHistoryCollector:
         execute_method_history_if_missing(self.repository_df[self.repository_df['name'].isin(repositories)],
                                           self.repository_directory, self.data_directory, self.cache_directory,
                                           tool_names, self.jar_file_map)
-    def update_execute_index(self):
-        update_method_history_index(self.repository_df, self.data_directory, self.cache_directory, self.TOOL_NAMES)
+    def update_repository_index(self):
+        update_repository_index(self.repository_df, self.cache_directory)
 
     def generate_call_graph(self, repositories: list[str], tool_names: list[str]):
         execute_call_graph_if_missing(self.repository_df[self.repository_df['name'].isin(repositories)],
