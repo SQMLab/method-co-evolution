@@ -44,6 +44,7 @@ for tooName in os.listdir(f"{CACHE_DIRECTORY}/history"):
                                 for subchange in commit_detail['subchanges']:
                                     if "diff" in subchange and subchange['diff']:
                                         diff_commit_count += 1
+                                        break
 
                         method_url = util.convert_method_file_to_method_url(repository_url, repository_hash, base_file)
                         method_history = {"url": method_url,
