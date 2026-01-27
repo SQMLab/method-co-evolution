@@ -2,13 +2,11 @@ import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-from ptc.constants import *
-
-from mhc.config import DATA_DIRECTORY, CACHE_DIRECTORY
 
 from graph_util import *
+from mhc.config import DATA_DIRECTORY, CACHE_DIRECTORY
+from ptc.constants import *
 
 code_shovel_unsupported_change_set = {f"ch_{change_type.name.lower()}" for change_type in
                                       CODE_SHOVEL_UNSUPPORTED_CHANGES}
@@ -54,7 +52,8 @@ for tool in tools:
             for mtype, g in pdf.groupby("method_type"):
                 # x, y = ecdf_with_rank(g[ch])
                 x, y = ecdf(g[ch])
-                ax.plot(x, y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)], ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)],
+                ax.plot(x, y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
+                        ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)],
                         label=mtype)
             ax.set_xlabel(ch.replace("ch_", "").capitalize(), fontsize=24)
             # ax.tick_params(axis="both", labelsize=18)
