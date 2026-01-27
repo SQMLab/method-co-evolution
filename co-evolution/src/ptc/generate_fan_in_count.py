@@ -1,4 +1,3 @@
-import os.path
 import tarfile
 from io import TextIOWrapper
 
@@ -25,9 +24,8 @@ for _, repo in repository_df.iterrows():
             if fan_in_file_suffix in fan_in_files:
                 member = tar.getmember(fan_in_file_suffix)
                 fan_in_file_content = tar.extractfile(member)
-                raw_fan_in_df = pd.read_csv(TextIOWrapper(fan_in_file_content, encoding="utf-8"), na_filter=False, keep_default_na=False)
-                # fan_in_count_df = raw_fan_in_df.groupby("callee_url").size().reset_index()
-                # fan_in_count_df = fan_in_count_df.rename({"callee_url": "url"})
+                raw_fan_in_df = pd.read_csv(TextIOWrapper(fan_in_file_content, encoding="utf-8"), na_filter=False,
+                                            keep_default_na=False)
                 fan_in_count_df = (
                     raw_fan_in_df["callee_url"]
                     .value_counts()
@@ -40,4 +38,3 @@ for _, repo in repository_df.iterrows():
                 os.makedirs(os.path.dirname(fan_in_count_file), exist_ok=True)
                 pd.merge(method_df, fan_in_count_df, on="url", how="inner").to_csv(
                     fan_in_count_file, index=False)
-                break
