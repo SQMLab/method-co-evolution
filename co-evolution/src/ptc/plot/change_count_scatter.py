@@ -7,6 +7,8 @@ import pandas as pd
 from graph_util import *
 from mhc.config import DATA_DIRECTORY, CACHE_DIRECTORY
 from ptc.constants import *
+from matplotlib.ticker import MultipleLocator, MaxNLocator
+
 
 CHANGE_CORRELATION = "Change Correlation"
 code_shovel_unsupported_change_set = {f"ch_{change_type.name.lower()}" for change_type in
@@ -38,8 +40,7 @@ for tool in tools:
 
     fig, axes = plt.subplots(
         n_rows, n_cols,
-        figsize=(4 * n_cols, 3.2 * n_rows),
-        sharey=True
+        figsize=(4 * n_cols, 3.2 * n_rows)
     )
 
     if n_rows == 1:
@@ -59,19 +60,29 @@ for tool in tools:
             ax = axes[repository_index][change_index] if n_cols > 1 else axes[repository_index]
 
             if project == CHANGE_CORRELATION:
-                ax.plot(range(len(pdf)), pdf[ch], linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
+                x, y = ecdf(pdf[ch])
+                ax.plot(x,y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
                         ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)])
+                ax.set_xscale("log")
             else:
                 g = pdf[(pdf["caller_method_type"] == "test") & (pdf["callee_method_type"] == "production")]
                 x, y = g[f"callee_{ch}"], g[f"caller_{ch}"]
 
-                ax.plot(x, y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
+                ax.scatter(x.values, y.values, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
                         ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)])
+                # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+                # ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+                ax.set_xscale("log")
+                ax.set_yscale("log")
 
-                ax.set_xlabel(f"production\n{ch.replace('ch_', '')}".capitalize(), fontsize=24)
-                ax.set_ylabel("test".capitalize(), fontsize=24)
-                correlation[ch] = corr = x.corr(y)
-                correlations.append(correlation)
+                if change_index == 0:
+                    ax.set_xlabel("production".capitalize(), fontsize=20)
+                    ax.set_ylabel("test".capitalize(), fontsize=20)
+                if x.std() == 0 or y.std() == 0:
+                    correlation[ch]  = np.nan
+                else:
+                    correlation[ch] = x.corr(y)
+            ax.set_title(f"{ch.replace('ch_', '')}".capitalize(), fontsize=24)
 
             if tool == 'codeShovel' and ch in code_shovel_unsupported_change_set:
                 ax.text(
@@ -84,8 +95,11 @@ for tool in tools:
                 ax.legend(loc="lower right", fontsize=20)
 
             if change_index == 0:
-                ax.set_ylabel(f"{project}", fontsize=24)
+                # ax.set_ylabel(f"{project}", fontsize=24)
+                ax.text(-0.30, 0.5, project, transform=ax.transAxes,
+                        rotation=90, va='center', ha='center', fontsize=24)
             ax.grid(True, alpha=0.25)
+        correlations.append(correlation)
 
     fig.tight_layout()
     fig_file = f"{CACHE_DIRECTORY}/figure/change-count-scatter-{tool}.pdf"

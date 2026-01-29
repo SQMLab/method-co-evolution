@@ -49,6 +49,8 @@ for repository_index, project in enumerate(projects):
             ax.plot(x, y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
                     ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)],
                     label=mtype)
+        ax.set_xscale("log")
+        # ax.set_yscale("log")
         ax.set_xlabel(ch.replace("_", " ").capitalize(), fontsize=24)
         if change_index == 0:
             ax.legend(loc="lower right", fontsize=20)
