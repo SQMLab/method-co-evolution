@@ -8,14 +8,14 @@ from mhc.config import *
 
 repository_df = pd.read_csv(f"{DATA_DIRECTORY}/repository/repository.csv")
 
-repository_name_map = {row["name"]: row for row in repository_df.to_dict(orient="records")}
+repository_name_map = {row["repo_name"]: row for row in repository_df.to_dict(orient="records")}
 for tooName in os.listdir(f"{CACHE_DIRECTORY}/history"):
     history_repository_dfs = [pd.read_csv(repository_history_file, keep_default_na=False, na_filter=False) for
                               repository_history_file in list(Path(f"{DATA_DIRECTORY}/history/{tooName}").rglob("*.csv"))]
     history_df = pd.concat(history_repository_dfs)
 
     for _, repo in repository_df.iterrows():
-        repository_name = repo["name"]
+        repository_name = repo["repo_name"]
         commit_hash = repo["updated_hash"]
         fan_out_zip_file = f"{DATA_DIRECTORY}/fan-out/{repository_name}.tar.gz"
         fan_out_file_suffix = f"{repository_name}/{repository_name}--fan-out--{commit_hash}.csv"
