@@ -58,7 +58,3 @@ for _, repo in repository_df.iterrows():
                 fan_in_count_file = f"{DATA_DIRECTORY}/pt-link/{repository_name}.csv"
                 os.makedirs(os.path.dirname(fan_in_count_file), exist_ok=True)
                 fan_out_df.to_csv(fan_in_count_file, index=False)
-pt_link_dfs = [pd.read_csv(file, keep_default_na=False, na_filter=False) for
-               file in list(Path(f"{DATA_DIRECTORY}/pt-link").rglob("*.csv"))]
-pt_link_df = pd.concat(pt_link_dfs)
-pt_link_df.to_csv(f"{DATA_DIRECTORY}/pt-link.csv", index=False)
