@@ -39,7 +39,7 @@ public class CallGraphServiceImpl implements CallGraphService {
         typeSolver.add(new ReflectionTypeSolver(false));
         Path repositoryPath = Paths.get(repositoryLocation);
         String absoluteRepositoryPath = repositoryPath.toFile().getAbsolutePath();
-        List<Path> allJavaSourceRoots = MethodParserUtil.findAllJavaSourceRoots(repositoryPath);
+        List<Path> allJavaSourceRoots = MethodParserUtil.findAllJavaSourceRootsFromPackageDeclarations(repositoryPath);
 
         for (Path path : allJavaSourceRoots) {
             typeSolver.add(new JavaParserTypeSolver(path.toFile()));
