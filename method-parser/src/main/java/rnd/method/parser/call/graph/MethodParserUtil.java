@@ -1,6 +1,9 @@
 package rnd.method.parser.call.graph;
 
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.ObjectId;
 import rnd.method.parser.call.graph.model.Method;
 import rnd.method.parser.call.graph.model.MethodCall;
 import tech.tablesaw.api.IntColumn;
@@ -93,6 +96,31 @@ public class MethodParserUtil {
         }
 
         return deduplicateRoots(roots);
+    }
+
+    public static void checkoutCommit(String repositoryPath, String commitHash) {
+        if (commitHash == null || commitHash.isBlank()) {
+            throw new IllegalArgumentException("Commit hash is required");
+        }
+
+        try (Git git = Git.open(Paths.get(repositoryPath).toFile())) {
+            ObjectId resolvedCommit = git.getRepository().resolve(commitHash);
+            if (resolvedCommit == null) {
+                throw new IllegalArgumentException("Unable to resolve commit hash: " + commitHash);
+            }
+
+            git.checkout()
+                    .setName(resolvedCommit.getName())
+                    .setForced(true)
+                    .call();
+
+            ObjectId headCommit = git.getRepository().resolve("HEAD");
+            if (headCommit == null || !headCommit.getName().equals(resolvedCommit.getName())) {
+                throw new IllegalStateException("Repository checkout failed for commit: " + commitHash);
+            }
+        } catch (IOException | GitAPIException exception) {
+            throw new IllegalStateException("Failed to checkout repository commit " + commitHash + " at " + repositoryPath, exception);
+        }
     }
 
     private static boolean isCandidateSourceRoot(Path dir) {
