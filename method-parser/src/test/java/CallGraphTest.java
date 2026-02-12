@@ -51,19 +51,19 @@ public class CallGraphTest {
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
     private static final Path OPTIONAL_ENV_FILE = Paths.get("..", ".cache", ".env");
-    private static final String DEFAULT_REPOSITORY_DIRECTORY = "../../repository";
+    private static final String DEFAULT_REPOSITORY_DIRECTORY = "../.cache/repository";
     private static final Map<String, String> RESOLVED_ENV = loadEnvironmentVariables();
 
     @Test
     public void testFanOut() throws FileNotFoundException {
-        String repositoryDirectory = getEnv("REPOSITORY_DIRECTORY", DEFAULT_REPOSITORY_DIRECTORY);
+        String repositoryDirectory = getEnv("METHOD_EVOLUTION_REPOSITORY_DIRECTORY", DEFAULT_REPOSITORY_DIRECTORY);
         Path path = Paths.get(repositoryDirectory, "checkstyle");
     }
 
     @Test
     public void testsymbolResolverTest() throws FileNotFoundException {
         JavaParser javaParser = new JavaParser();
-        String repositoryDirectory = Paths.get(getEnv("REPOSITORY_DIRECTORY", DEFAULT_REPOSITORY_DIRECTORY), "checkstyle").toString();
+        String repositoryDirectory = Paths.get(getEnv("METHOD_EVOLUTION_REPOSITORY_DIRECTORY", DEFAULT_REPOSITORY_DIRECTORY), "checkstyle").toString();
 
         ParseResult<CompilationUnit> cu = javaParser.parse(new File(repositoryDirectory + "/src/main/java/com/puppycrawl/tools/checkstyle/AuditEventDefaultFormatter.java"));
         MethodDeclaration md = cu.getResult()
@@ -142,7 +142,7 @@ public class CallGraphTest {
 
         while (matcher.find()) {
             String key = matcher.group(1);
-            String replacement = getEnv(key, "REPOSITORY_DIRECTORY".equals(key) ? DEFAULT_REPOSITORY_DIRECTORY : "");
+            String replacement = getEnv(key, "METHOD_EVOLUTION_REPOSITORY_DIRECTORY".equals(key) ? DEFAULT_REPOSITORY_DIRECTORY : "");
             matcher.appendReplacement(resolved, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(resolved);
@@ -176,7 +176,7 @@ public class CallGraphTest {
 
     @Test
     public void testCommandLineCallGraph() {
-        java.lang.String repositoryPath = getEnv("REPOSITORY_DIRECTORY", DEFAULT_REPOSITORY_DIRECTORY) + "/checkstyle";
+        java.lang.String repositoryPath = getEnv("METHOD_EVOLUTION_REPOSITORY_DIRECTORY", DEFAULT_REPOSITORY_DIRECTORY) + "/checkstyle";
         String[] args = {
                 "--command", "call-graph",
                 "--repository-url", "https://github.com/checkstyle/checkstyle",

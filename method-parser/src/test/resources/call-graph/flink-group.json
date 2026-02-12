@@ -3,7 +3,7 @@
     {
       "name": "flink",
       "repositoryUrl": "https://github.com/apache/flink",
-      "repositoryPath": "../../repository/flink",
+      "repositoryPath": "${METHOD_EVOLUTION_REPOSITORY_DIRECTORY}/flink",
       "commitHash": "261e72119b69c4fc3e22d9bcdec50f6ca2fdc2e9",
       "cases": [
         {
