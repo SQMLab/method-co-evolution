@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -10,7 +9,7 @@ repository_df = pd.read_csv(f"{DATA_DIRECTORY}/repository/repository.csv")
 repository_name_map = {row["repo_name"]: row for row in repository_df.to_dict(orient="records")}
 
 pt_link_dfs = [pd.read_csv(file, keep_default_na=False, na_filter=False) for
-               file in list(Path(f"{DATA_DIRECTORY}/pt-link").rglob("*.csv"))]
+               file in list(Path(f"{DATA_DIRECTORY}/m2m-link").rglob("*.csv"))]
 pt_link_df = pd.concat(pt_link_dfs)
 change_count_df_columns = ["url", "method_type", "ch_all", "ch_diff"] + [f"ch_{change_type.name.lower()}" for change_type in MethodChangeType]
 
@@ -18,12 +17,12 @@ for tooName in os.listdir(f"{CACHE_DIRECTORY}/history"):
     history_repository_dfs = [pd.read_csv(repository_history_file, keep_default_na=False, na_filter=False) for
                               repository_history_file in
                               list(Path(f"{DATA_DIRECTORY}/history/{tooName}").rglob("*.csv"))]
-    history_df = pd.concat(history_repository_dfs)
+    history_df = pd.concat(filter(lambda df: not df.empty, history_repository_dfs))
     for _, repo in repository_df.iterrows():
         repository_name = repo["repo_name"]
         commit_hash = repo["updated_hash"]
 
-        pt_link_file = f"{DATA_DIRECTORY}/pt-link/{repository_name}.csv"
+        pt_link_file = f"{DATA_DIRECTORY}/m2m-link/{repository_name}.csv"
 
         if os.path.exists(pt_link_file):
             pt_link_df = pd.read_csv(pt_link_file, keep_default_na=False, na_filter=False)
