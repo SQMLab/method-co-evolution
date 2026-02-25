@@ -8,7 +8,7 @@ def aggregate_csv_files(input_dir: str, output_file_name: str):
         df =  pd.concat(dfs)
         df.to_csv(f"{DATA_DIRECTORY}/aggregate/{output_file_name}", index=False)
 
-aggregate_csv_files(f"{DATA_DIRECTORY}/pt-link", "pt-link.csv")
+aggregate_csv_files(f"{DATA_DIRECTORY}/m2m-link", "m2m-link.csv")
 
 for tooName in os.listdir(f"{DATA_DIRECTORY}/pt-change"):
     for link_strategy in os.listdir(f"{DATA_DIRECTORY}/pt-change/{tooName}"):
