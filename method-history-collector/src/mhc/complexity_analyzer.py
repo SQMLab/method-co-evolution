@@ -5,7 +5,7 @@ import uuid
 import shutil
 import tarfile
 import subprocess
-import datetime
+from datetime import datetime
 
 
 class ComplexityAnalyzer:
