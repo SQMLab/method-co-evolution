@@ -44,5 +44,12 @@ mhc call-graph \
     --jar_directory ".cache/jar" \
     --tool_name "methodParser" \
     --repository_name "checkstyle"
-    
+
+mhc complexity-analyzer \
+    --cache_directory ".cache" \
+    --repository_directory ".cache/repository" \
+    --data_directory ".cache/data" \
+    --jar_directory ".cache/jar" \
+    --tool_name "complexityAnalyzer" \
+    --repository_name "checkstyle"
 ```
