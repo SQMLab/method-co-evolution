@@ -9,16 +9,18 @@ module load ipykernel/2025a
 module load arrow
 module load cuda
 module load java/21.0.1
+RELATIVE_CACHE_DIR=$1
+COMMAND_NAME=$2
+TOOL_NAME=$3
 export PROJECT_DIRECTORY="$HOME/projects/$SLURM_ACCOUNT/$USER/method-co-evolution"
-export CACHE_DIRECTORY="$PROJECT_DIRECTORY/.cache"
+export CACHE_DIRECTORY="$PROJECT_DIRECTORY/$RELATIVE_CACHE_DIR"
 LOG_DIR="$CACHE_DIRECTORY/log/job"
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_DIRECTORY"
 source "$PROJECT_DIRECTORY/.venv/bin/activate"
-#pip install -e ./method-history-collector
-COMMAND_NAME=$1
-TOOL_NAME=$2
-IFS=',' read -r -a REPOSITORIES <<< "$3"
+#pip install -e ./method-history-collector # (manual once)disabled : while running array job this causes causes module not found
+
+IFS=',' read -r -a REPOSITORIES <<< "$4"
 if [[ $SLURM_ARRAY_TASK_ID -le 0 || $SLURM_ARRAY_TASK_ID -gt ${#REPOSITORIES[@]} ]]; then
     echo "Invalid SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID"
     exit 1
