@@ -3,6 +3,8 @@ package rnd.method.parser.call.graph;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
@@ -18,12 +20,14 @@ import tech.tablesaw.columns.Column;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -239,12 +243,13 @@ public class MethodParserUtil {
             throw new IllegalStateException("Failed to clone repository " + repositoryUrl + " to " + repositoryPath, exception);
         }
     }
+
     private static List<Path> deduplicateRoots(List<Path> roots) {
         Set<String> takenSourceDirectory = new HashSet<>();
         List<Path> result = new ArrayList<>();
         for (Path root : roots) {
             String directory = root.toAbsolutePath().toString();
-            if (!takenSourceDirectory.contains(directory)){
+            if (!takenSourceDirectory.contains(directory)) {
                 result.add(root);
                 takenSourceDirectory.add(directory);
             }
@@ -271,8 +276,8 @@ public class MethodParserUtil {
     }
 
     public static void toTable(List<MethodCall> methodCalls, String outputPath, boolean isFanIn) {
-        String focalMethodPrefix = isFanIn ? "caller_" : "callee_";
-        String otherMethodPrefix = isFanIn ? "callee_" : "caller_";
+        String focalMethodPrefix = isFanIn ? "from_" : "to_";
+        String otherMethodPrefix = isFanIn ? "to_" : "from_";
         StringColumn focalMethodNameColumn = StringColumn.create(focalMethodPrefix + "name");
         IntColumn focalMethodStartLineColumn = IntColumn.create(focalMethodPrefix + "start");
         IntColumn focalMethodEndLineColumn = IntColumn.create(focalMethodPrefix + "end");
@@ -288,12 +293,38 @@ public class MethodParserUtil {
         StringColumn otherMethodUrlColumn = StringColumn.create(otherMethodPrefix + "url");
         StringColumn otherMethodPkgColumn = StringColumn.create(otherMethodPrefix + "pkg");
         StringColumn otherMethodFqnColumn = StringColumn.create(otherMethodPrefix + "fqn");
+
+        StringColumn repositoryNameColumn = StringColumn.create("repo_name");
+        IntColumn invocationLineColumn = IntColumn.create("invocation_line");
+        IntColumn lastAssertionLineColumn = IntColumn.create("last_assertion_line");
+
+        List<Column<?>> remainingColumns = Arrays.asList(invocationLineColumn, lastAssertionLineColumn);
         List<Column<?>> focalMethodColumns = Arrays.asList(focalMethodNameColumn, focalMethodStartLineColumn, focalMethodEndLineColumn, focalMethodFileColumn, focalMethodUrlColumn, focalPkgColumn, focalFqnColumn);
         List<Column<?>> otherMethodColumns = List.of(otherMethodNameColumn, otherMethodStartLineColumn, otherMethodEndLineColumn, otherMethodFileColumn, otherMethodUrlColumn, otherMethodPkgColumn, otherMethodFqnColumn);
-        Table table = Table.create(isFanIn ? Stream.concat(focalMethodColumns.stream(), otherMethodColumns.stream()).toList() : Stream.concat(otherMethodColumns.stream(), focalMethodColumns.stream()).toList());
+
+        Stream<Column<?>> orderedColumns = isFanIn
+                ? Stream.concat(
+                Stream.concat(focalMethodColumns.stream(), otherMethodColumns.stream()),
+                remainingColumns.stream()
+        )
+                : Stream.concat(
+                Stream.concat(otherMethodColumns.stream(), focalMethodColumns.stream()),
+                remainingColumns.stream()
+        );
+
+       ;
+        List<Column<?>> allColumns = new ArrayList<>();
+        allColumns.add(repositoryNameColumn);
+        allColumns.addAll(focalMethodColumns);
+        allColumns.addAll(otherMethodColumns);
+        allColumns.add(invocationLineColumn);
+        allColumns.add(lastAssertionLineColumn);
+        Table table = Table.create(allColumns);
         for (MethodCall methodCall : methodCalls) {
             Method focalMethod = methodCall.getMethod();
             for (Method otherMethod : methodCall.getFanMethods()) {
+                repositoryNameColumn.append(otherMethod.getRepositoryName());
+
                 focalMethodNameColumn.append(focalMethod.getName());
                 focalMethodStartLineColumn.append(focalMethod.getStartLine());
                 focalMethodEndLineColumn.append(focalMethod.getEndLine());
@@ -309,6 +340,9 @@ public class MethodParserUtil {
                 otherMethodUrlColumn.append(otherMethod.getUrl());
                 otherMethodPkgColumn.append(otherMethod.getPkg());
                 otherMethodFqnColumn.append(otherMethod.getFqn());
+
+                invocationLineColumn.append(Integer.max(focalMethod.getInvocationLine(), otherMethod.getInvocationLine()));
+                lastAssertionLineColumn.append(Integer.max(focalMethod.getLastAssertionLine(), otherMethod.getLastAssertionLine()));
 
             }
 
@@ -333,6 +367,59 @@ public class MethodParserUtil {
                         .fanMethods(entry.getValue())
                         .build())
                 .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+
+    public static String extractRepositoryName(String repoUrl) {
+        if (repoUrl == null || repoUrl.isBlank()) {
+            return null;
+        }
+
+        try {
+            String path = URI.create(repoUrl).getPath();   // e.g. /google/gson or /apache/commons-lang.git
+            if (path == null || path.isBlank()) {
+                return null;
+            }
+
+            String[] parts = path.replaceAll("/+$", "").split("/");
+            String repoName = parts[parts.length - 1];
+
+            if (repoName.endsWith(".git")) {
+                repoName = repoName.substring(0, repoName.length() - 4);
+            }
+
+            return repoName;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static String getMethodFqnSimpleParams(MethodDeclaration methodDeclaration) {
+        ResolvedMethodDeclaration resolved = methodDeclaration.resolve();
+
+        String classFqn = resolved.declaringType().getQualifiedName();
+        String methodName = resolved.getName();
+
+        String params = IntStream.range(0, resolved.getNumberOfParams())
+                .mapToObj(i -> toSimpleTypeName(resolved.getParam(i).describeType()))
+                .collect(Collectors.joining(", "));
+
+        return classFqn + "." + methodName + "(" + params + ")";
+    }
+
+    private static String toSimpleTypeName(String typeName) {
+        int genericStart = typeName.indexOf('<');
+        if (genericStart >= 0) {
+            typeName = typeName.substring(0, genericStart);
+        }
+
+        if (typeName.endsWith("[]")) {
+            String elementType = typeName.substring(0, typeName.length() - 2);
+            return toSimpleTypeName(elementType) + "[]";
+        }
+
+        int lastDot = typeName.lastIndexOf('.');
+        return lastDot >= 0 ? typeName.substring(lastDot + 1) : typeName;
     }
 
 }

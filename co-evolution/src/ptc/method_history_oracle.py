@@ -20,7 +20,7 @@ for repository_file in ["code-shovel-repository.csv", "history-finder-repository
     for row in repository_df.itertuples():
         repository = row.name
         url = row.url
-        method_file = f"{CACHE_DIRECTORY}/data/method/{repository}--method.csv"
+        method_file = f"{CACHE_DIRECTORY}/data/method/{repository}.csv"
         taken_test_method_df = all_taken_test_method_df[all_taken_test_method_df["url"].str.startswith(url)]
         if len(taken_test_method_df) > 0:
             all_test_method_df = pd.concat([all_test_method_df, taken_test_method_df])

@@ -10,26 +10,34 @@ import lombok.Data;
 @Data
 @Builder
 public class Method {
-    String hash;
+    String repositoryName;
     String name;
+    String pkg;
     String fqn;
     String file;
     String url;
     Integer startLine;
     Integer endLine;
+    Integer invocationLine;
     String methodType;
-    String pkg;
+    String hash;
     Integer lastAssertionLine;
 
     @Override
     public String toString() {
-        final StringBuffer sb = new StringBuffer("{");
-        sb.append("file='").append(file).append('\'');
-        sb.append(", name='").append(name).append('\'');
-        sb.append(", type='").append(methodType).append('\'');
-        sb.append(", startLine=").append(startLine);
-        sb.append(", endLine=").append(endLine);
-        sb.append('}');
-        return sb.toString();
+        return "Method{" +
+                "repositoryName='" + repositoryName + '\'' +
+                ", name='" + name + '\'' +
+                ", pkg='" + pkg + '\'' +
+                ", fqn='" + fqn + '\'' +
+                ", file='" + file + '\'' +
+                ", url='" + url + '\'' +
+                ", startLine=" + startLine +
+                ", endLine=" + endLine +
+                ", invocationLine=" + invocationLine +
+                ", methodType='" + methodType + '\'' +
+                ", hash='" + hash + '\'' +
+                ", lastAssertionLine=" + lastAssertionLine +
+                '}';
     }
 }

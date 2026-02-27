@@ -32,9 +32,9 @@ public class CallGraphServiceImpl implements CallGraphService {
     @Override
     public List<MethodCall> findFanOut(String repositoryUrl, String repositoryLocation, String commitHash, List<String> targetPaths, String fanInOutputFile, String fanOutOutputFile) {
 
-//        MethodParserUtil.prepareRepositoryForCommit(repositoryUrl, repositoryLocation, commitHash);
+        MethodParserUtil.prepareRepositoryForCommit(repositoryUrl, repositoryLocation, commitHash);
 
-        String repositoryName = Arrays.stream(repositoryUrl.split("/")).toList().getLast();
+        String repositoryName = MethodParserUtil.extractRepositoryName(repositoryUrl);
         CombinedTypeSolver typeSolver = new CombinedTypeSolver();
         typeSolver.add(new ReflectionTypeSolver(false));
         Path repositoryPath = Paths.get(repositoryLocation);
@@ -78,14 +78,15 @@ public class CallGraphServiceImpl implements CallGraphService {
 
                                                                 String className = resolved.declaringType().getQualifiedName();
 
-                                                                String fqn = className + "." + methodName;
 
                                                                 String filePath = ast
                                                                         .flatMap(md -> md.findCompilationUnit())
                                                                         .flatMap(cu -> cu.getStorage())
                                                                         .map(storage -> storage.getPath().toString())
                                                                         .orElse(null);
-
+                                                                int invocationStartLine = call.getBegin()
+                                                                        .map(p -> p.line)
+                                                                        .orElse(-1);
                                                                 if (filePath != null) {
 
                                                                     int startLine = ast
@@ -107,14 +108,17 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                                     String fileSuffix = MethodParserUtil.stripFilePrefix(absoluteRepositoryPath, filePath);
                                                                     return Stream.of(
                                                                             Method.builder()
+                                                                                    .repositoryName(repositoryName)
                                                                                     .name(methodName)
-                                                                                    .fqn(fqn)
+                                                                                    .pkg(pkg)
+                                                                                    .fqn(MethodParserUtil.getMethodFqnSimpleParams(ast.get()))
                                                                                     .url(MethodParserUtil.toMethodUrl(repositoryUrl, commitHash, fileSuffix, startLine))
                                                                                     .file(fileSuffix)
                                                                                     .startLine(startLine)
                                                                                     .endLine(endLine)
                                                                                     .hash(commitHash)
-                                                                                    .pkg(pkg)
+                                                                                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(ast.get()).orElse(-1))
+                                                                                    .invocationLine(invocationStartLine)
                                                                                     .build()
                                                                     );
                                                                 } else {
@@ -132,14 +136,17 @@ public class CallGraphServiceImpl implements CallGraphService {
                                         int targetMethodStartLine = method.getName().getBegin().get().line;
                                         MethodCall methodCall = MethodCall.builder()
                                                 .method(Method.builder()
+                                                        .repositoryName(repositoryName)
                                                         .file(targetMethodFileSuffix)
                                                         .url(MethodParserUtil.toMethodUrl(repositoryUrl, commitHash, targetMethodFileSuffix, targetMethodStartLine))
                                                         .name(method.getSignature().getName())
-                                                        .fqn(method.getType().getMetaModel().getQualifiedClassName() + "." + method.getSignature().getName())
+                                                        .pkg(method.findCompilationUnit().get().getPackageDeclaration().get().getNameAsString())
+                                                        .fqn(MethodParserUtil.getMethodFqnSimpleParams(method))
                                                         .startLine(targetMethodStartLine)
                                                         .endLine(method.getEnd().get().line)
                                                         .hash(commitHash)
-                                                        .pkg(method.findCompilationUnit().get().getPackageDeclaration().get().getNameAsString())
+                                                        .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(method).orElse(-1))
+                                                        .invocationLine(-1)
                                                         .build())
                                                 .fanMethods(calledMethods)
                                                 .build();
