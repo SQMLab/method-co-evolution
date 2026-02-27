@@ -149,7 +149,7 @@ for m2m_link_file in list(Path(f"{DATA_DIRECTORY}/m2m-confidence").rglob("*.csv"
     m2m_link_df = pd.read_csv(m2m_link_file, keep_default_na=False, na_filter=False)
     assert len(m2m_link_df["repo_name"].unique()) == 1, "Each file must be for the same repository_name"
     repository_name = m2m_link_df["repo_name"].iloc[0]
-    method_df = pd.read_csv(f"{DATA_DIRECTORY}/method/{repository_name}--method.csv", keep_default_na=False, na_filter=False)
+    method_df = pd.read_csv(f"{DATA_DIRECTORY}/method/{repository_name}.csv", keep_default_na=False, na_filter=False)
     method_df = method_df[["url", "method_type"]]
 
     t2p_link_df = (m2m_link_df.merge(method_df.add_prefix("caller_"), on="caller_url", how="inner")

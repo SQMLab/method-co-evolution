@@ -17,6 +17,7 @@ def execute_call_graph_if_missing(repository_df: DataFrame, repository_directory
         repository_path = os.path.join(repository_directory, repository_name)
         git.clone_and_checkout_commit(url, repository_path, hash)
         commits = git.get_all_commit_info(repository_path, hash)
+        assert commits[0]['hash'] == hash, "The first commit should be the commit hash in the repository file"
         commit_index = 1
         # fan_in_path = f"{data_directory}/fan-in-gz/{repository_name}"
         # fan_out_path = f"{data_directory}/fan-out-gz/{repository_name}"
@@ -31,9 +32,11 @@ def execute_call_graph_if_missing(repository_df: DataFrame, repository_directory
         fan_in_repo_path = Path(fan_in_path)
         fan_in_unzip_index = set(str(p.relative_to(fan_in_repo_path)) for p in fan_in_repo_path.rglob("*.csv"))
         for commit in commits:
-            fan_in_output_file_suffix = f"{repository_name}--fan-in--{commit['hash']}.csv"
+            # fan_in_output_file_suffix = f"{repository_name}--fan-in--{commit['hash']}.csv"
+            fan_in_output_file_suffix = f"{repository_name}.csv"
             fan_in_output_file = os.path.join(fan_in_path, fan_in_output_file_suffix)
-            fan_out_output_file_suffix = f"{repository_name}--fan-out--{commit['hash']}.csv"
+            # fan_out_output_file_suffix = f"{repository_name}--fan-out--{commit['hash']}.csv"
+            fan_out_output_file_suffix = f"{repository_name}.csv"
             fan_out_output_file = os.path.join(fan_out_path, fan_out_output_file_suffix)
 
             if fan_in_output_file_suffix not in fan_in_zip_index and fan_in_output_file_suffix not in fan_in_unzip_index:

@@ -6,7 +6,7 @@ def format_git_project_directory(repository_directory: str, repository_name: str
 
 
 def format_method_list_file(data_directory: str, repository_name: str) -> str:
-    return os.path.join(f"{data_directory}/method", f"{repository_name}--method.csv")
+    return os.path.join(f"{data_directory}/method", f"{repository_name}.csv")
 
 
 def format_repository_history_index_file(cache_dir: str) -> str:

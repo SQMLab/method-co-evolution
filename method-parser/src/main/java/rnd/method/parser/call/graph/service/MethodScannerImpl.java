@@ -99,6 +99,7 @@ public class MethodScannerImpl implements MethodScanner {
 
     @Override
     public List<Method> scanMethod(String repoRoot, String repoUrl, String commitHash, String file) {
+        String repositoryName = MethodParserUtil.extractRepositoryName(repoUrl);
         File javaFile = Path.of(repoRoot, file).toFile();
         CombinedTypeSolver solver = new CombinedTypeSolver();
         solver.add(new ReflectionTypeSolver());
@@ -132,14 +133,20 @@ public class MethodScannerImpl implements MethodScanner {
             int end = md.getEnd().map(p -> p.line).orElse(-1);
             String methodUrl = MethodParserUtil.toMethodUrl(repoUrl, commitHash, file, start);
             ;
+
             result.add(Method.builder()
+                    .repositoryName(repositoryName)
                     .name(md.getNameAsString())
+                    .pkg(cu.findCompilationUnit().get().getPackageDeclaration().get().getNameAsString())
+                    .fqn(MethodParserUtil.getMethodFqnSimpleParams(md))
                     .file(file)
                     .startLine(start)
                     .endLine(end)
                     .hash(commitHash)
                     .url(methodUrl)
                     .methodType(methodType)
+                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(md).orElse(-1))
+                    .invocationLine(-1)
                     .build()
             );
         }
