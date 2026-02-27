@@ -52,19 +52,19 @@ def select_one_stage_indices(
         return pt_link_df.loc[candidate_mask].index
 
     if stage == LinkStrategy.NC:
-        return pt_link_df.loc[pt_link_df["link_nc"] == 1].index
+        return pt_link_df.loc[pt_link_df["confidence_nc"] == 1].index
 
     if stage == LinkStrategy.NCC:
-        return pt_link_df.loc[pt_link_df["link_ncc"] == 1].index
+        return pt_link_df.loc[pt_link_df["confidence_ncc"] == 1].index
 
     if stage == LinkStrategy.LCBA:
-        return pt_link_df.loc[pt_link_df["link_lcs_b"] > 0].index
+        return pt_link_df.loc[pt_link_df["confidence_lcs_b"] > 0].index
 
     if stage == LinkStrategy.LC:
-        return pt_link_df.loc[pt_link_df["link_lc"] > 0].index
+        return pt_link_df.loc[pt_link_df["confidence_lc"] > 0].index
 
     if stage == LinkStrategy.MAX:
-        score_cols = ["link_nc", "link_ncc", "link_lcs_b", "link_lcs_u", "link_leven"]
+        score_cols = ["confidence_nc", "confidence_ncc", "confidence_lcs_b", "confidence_lcs_u", "confidence_leven"]
         candidates = pt_link_df.loc[pt_link_df[score_cols].max(axis=1) > 0]
         if candidates.empty:
             return candidates.index[:0]
@@ -144,44 +144,26 @@ def strategy_output_key(mask: LinkStrategy) -> str:
     parts = [s.name.lower() for s in iter_atomic_strategies(mask)]
     return "-".join(parts) if parts else "none"
 
-repository_df = pd.read_csv(f"{DATA_DIRECTORY}/repository/repository.csv")
-repository_name_map = {row["repo_name"]: row for row in repository_df.to_dict(orient="records")}
 
-pt_link_dfs = [pd.read_csv(file, keep_default_na=False, na_filter=False) for
-               file in list(Path(f"{DATA_DIRECTORY}/m2m-link").rglob("*.csv"))]
-pt_link_df = pd.concat(pt_link_dfs)
-change_count_df_columns = ["url", "method_type", "ch_all", "ch_diff"] + [f"ch_{change_type.name.lower()}" for change_type in MethodChangeType]
+for m2m_link_file in list(Path(f"{DATA_DIRECTORY}/m2m-confidence").rglob("*.csv")):
+    m2m_link_df = pd.read_csv(m2m_link_file, keep_default_na=False, na_filter=False)
+    assert len(m2m_link_df["repo_name"].unique()) == 1, "Each file must be for the same repository_name"
+    repository_name = m2m_link_df["repo_name"].iloc[0]
+    method_df = pd.read_csv(f"{DATA_DIRECTORY}/method/{repository_name}--method.csv", keep_default_na=False, na_filter=False)
+    method_df = method_df[["url", "method_type"]]
 
-for tooName in os.listdir(f"{CACHE_DIRECTORY}/history"):
-    history_repository_dfs = [pd.read_csv(repository_history_file, keep_default_na=False, na_filter=False) for
-                              repository_history_file in
-                              list(Path(f"{DATA_DIRECTORY}/history/{tooName}").rglob("*.csv"))]
-    history_df = pd.concat(filter(lambda df: not df.empty, history_repository_dfs))
-    for _, repo in repository_df.iterrows():
-        repository_name = repo["repo_name"]
-        commit_hash = repo["updated_hash"]
+    t2p_link_df = (m2m_link_df.merge(method_df.add_prefix("caller_"), on="caller_url", how="inner")
+                   .merge(method_df.add_prefix("callee_"), on="callee_url", how="inner"))
 
-        pt_link_file = f"{DATA_DIRECTORY}/m2m-link/{repository_name}.csv"
+    t2p_link_df = (t2p_link_df[(t2p_link_df["caller_method_type"] == "test") & (t2p_link_df["callee_method_type"] == "production")])
 
-        if os.path.exists(pt_link_file):
-            pt_link_df = pd.read_csv(pt_link_file, keep_default_na=False, na_filter=False)
-            for tool_name in history_df["tool_name"].unique():
-                tool_df = history_df[
-                    (history_df["repo_name"] == repository_name) & (history_df["tool_name"] == tool_name)][change_count_df_columns]
-
-                pt_link_change_df = (pt_link_df.merge(tool_df.add_prefix("caller_"), on="caller_url", how="inner")
-                 .merge(tool_df.add_prefix("callee_"), on="callee_url", how="inner"))
-
-                pt_link_change_df = (pt_link_change_df[(pt_link_change_df["caller_method_type"] == "test") & (pt_link_change_df["callee_method_type"] == "production")])
-
-                for link_strategy in METHOD_LINK_STRATEGIES:
-                    keep_mask = select_links_cascade(pt_link_change_df, link_strategy)
-                    change_df = pt_link_change_df.loc[keep_mask].copy()
-                    print(tool_name, repository_name, link_strategy, strategy_output_key(link_strategy), len(change_df))
-                    # Optional safety check: exactly one selected row per caller_url
-                    counts = change_df["caller_url"].value_counts()
-                    assert (counts == 1).all(), "Duplicate caller_url selections found"
-                    change_df = change_df.assign(tool_name=tool_name)
-                    fan_in_count_file = f"{DATA_DIRECTORY}/pt-change/{tooName}/{strategy_output_key(link_strategy)}/{repository_name}.csv"
-                    os.makedirs(os.path.dirname(fan_in_count_file), exist_ok=True)
-                    change_df.to_csv(fan_in_count_file, index=False)
+    for link_strategy in METHOD_LINK_STRATEGIES:
+        keep_mask = select_links_cascade(t2p_link_df, link_strategy)
+        change_df = t2p_link_df.loc[keep_mask].copy()
+        print(repository_name, link_strategy, strategy_output_key(link_strategy), len(change_df))
+        # Optional safety check: exactly one selected row per caller_url
+        counts = change_df["caller_url"].value_counts()
+        assert (counts == 1).all(), "Duplicate caller_url selections found"
+        t2p_file = f"{DATA_DIRECTORY}/t2p-link/{strategy_output_key(link_strategy)}/{repository_name}.csv"
+        os.makedirs(os.path.dirname(t2p_file), exist_ok=True)
+        change_df.to_csv(t2p_file, index=False)
