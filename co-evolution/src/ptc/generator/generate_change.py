@@ -58,7 +58,7 @@ for tooName in os.listdir(f"{CACHE_DIRECTORY}/history"):
                             method_history_list.append(method_history)
             method_list_df = pd.read_csv(util.format_method_list_file(DATA_DIRECTORY, repository_name),
                                          keep_default_na=False, na_filter=False)
-            repository_change_history_file = f"{DATA_DIRECTORY}/history/{tooName}/{repository_name}--history.csv"
+            repository_change_history_file = f"{DATA_DIRECTORY}/history/{tooName}/{repository_name}.csv"
             os.makedirs(os.path.dirname(repository_change_history_file), exist_ok=True)
             pd.merge(method_list_df, pd.DataFrame(method_history_list), on="url", how="inner").to_csv(
                 repository_change_history_file, index=False)
