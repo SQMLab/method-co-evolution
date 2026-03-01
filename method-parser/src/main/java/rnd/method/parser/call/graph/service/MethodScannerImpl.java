@@ -122,7 +122,7 @@ public class MethodScannerImpl implements MethodScanner {
 
         String packageName = cu.getPackageDeclaration()
                 .map(pd -> pd.getNameAsString())
-                .orElse("");
+                .orElse(null);
 
         List<Method> result = new ArrayList<>();
 
@@ -130,9 +130,8 @@ public class MethodScannerImpl implements MethodScanner {
             String methodType = determineMethodType(javaFile, packageName, md);
 
             int start = md.getName().getBegin().map(p -> p.line).orElse(-1);
-            int end = md.getEnd().map(p -> p.line).orElse(-1);
+            Integer end = md.getEnd().map(p -> p.line).orElse(null);
             String methodUrl = MethodParserUtil.toMethodUrl(repoUrl, commitHash, file, start);
-            ;
 
             result.add(Method.builder()
                     .repositoryName(repositoryName)
@@ -145,8 +144,8 @@ public class MethodScannerImpl implements MethodScanner {
                     .hash(commitHash)
                     .url(methodUrl)
                     .methodType(methodType)
-                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(md, typeResolver ).orElse(-1))
-                    .invocationLine(-1)
+                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(md, typeResolver ).orElse(null))
+                    .invocationLine(null)
                     .build()
             );
         }

@@ -132,8 +132,10 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                             "method_name": jm.getName(),
                             "start_line": jm.getStartLine(),
                             "end_line": jm.getEndLine(),
-                            "hash": jm.getHash(),
                             "url": jm.getUrl(),
+                            "fqn": jm.getFqn(),
+                            "pkg": jm.getPkg(),
+                            "hash": jm.getHash(),
                             "parser": "javaparser"
                         })
                     methods.extend(methods_in_file)
@@ -158,9 +160,11 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                                      'method_type': "unknown",
                                      'method_name': node.name,
                                      'start_line': start_line,
-                                     'end_line': -1,  # Heuristically find end line
-                                     'hash': hash,
+                                     'end_line': None,  # Heuristically find end line
                                      'url': util.format_to_git_url(url, hash, file_without_base, start_line),
+                                     'fqn': None,
+                                     "pkg": None,
+                                     'hash': hash,
                                      'parser': 'javalang'})
                         methods.extend(methods_in_file)
                     except Exception as e:
