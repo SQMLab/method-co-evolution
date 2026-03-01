@@ -101,11 +101,11 @@ public class MethodScannerImpl implements MethodScanner {
     public List<Method> scanMethod(String repoRoot, String repoUrl, String commitHash, String file) {
         String repositoryName = MethodParserUtil.extractRepositoryName(repoUrl);
         File javaFile = Path.of(repoRoot, file).toFile();
-        CombinedTypeSolver solver = new CombinedTypeSolver();
-        solver.add(new ReflectionTypeSolver());
-        solver.add(new JavaParserTypeSolver(new File(repoRoot)));
+        CombinedTypeSolver typeResolver = new CombinedTypeSolver();
+        typeResolver.add(new ReflectionTypeSolver());
+        typeResolver.add(new JavaParserTypeSolver(new File(repoRoot)));
 
-        JavaSymbolSolver symbolSolver = new JavaSymbolSolver(solver);
+        JavaSymbolSolver symbolSolver = new JavaSymbolSolver(typeResolver);
 
         ParserConfiguration config = new ParserConfiguration()
                 .setSymbolResolver(symbolSolver)
@@ -122,7 +122,7 @@ public class MethodScannerImpl implements MethodScanner {
 
         String packageName = cu.getPackageDeclaration()
                 .map(pd -> pd.getNameAsString())
-                .orElse("");
+                .orElse(null);
 
         List<Method> result = new ArrayList<>();
 
@@ -130,9 +130,8 @@ public class MethodScannerImpl implements MethodScanner {
             String methodType = determineMethodType(javaFile, packageName, md);
 
             int start = md.getName().getBegin().map(p -> p.line).orElse(-1);
-            int end = md.getEnd().map(p -> p.line).orElse(-1);
+            Integer end = md.getEnd().map(p -> p.line).orElse(null);
             String methodUrl = MethodParserUtil.toMethodUrl(repoUrl, commitHash, file, start);
-            ;
 
             result.add(Method.builder()
                     .repositoryName(repositoryName)
@@ -145,8 +144,8 @@ public class MethodScannerImpl implements MethodScanner {
                     .hash(commitHash)
                     .url(methodUrl)
                     .methodType(methodType)
-                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(md).orElse(-1))
-                    .invocationLine(-1)
+                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(md, typeResolver ).orElse(null))
+                    .invocationLine(null)
                     .build()
             );
         }
