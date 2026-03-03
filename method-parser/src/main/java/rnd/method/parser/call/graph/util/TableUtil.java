@@ -73,14 +73,14 @@ public class TableUtil {
         Table table = Table.create("methods")
                 .addColumns(
                         repoNameColumn,
-                        methodTypeColumn,
                         methodNameColumn,
+                        urlColumn,
+                        methodTypeColumn,
                         startLineColumn,
                         endLineColumn,
-                        urlColumn,
-                        fileColumn,
                         pkgColumn,
                         fqnColumn,
+                        fileColumn,
                         hashColumn,
                         parserColumn
 //                        ,
@@ -121,13 +121,40 @@ public class TableUtil {
         StringColumn commitHashColumn = StringColumn.create("hash");
 
 
-        List<Column<?>> fromMethodColumns = Arrays.asList(fromMethodNameColumn, fromMethodStartLineColumn, fromMethodEndLineColumn, fromMethodFileColumn, fromMethodUrlColumn, fromPkgColumn, fromFqnColumn, fromInvocationLineColumn, fromLastAssertionLineColumn);
-        List<Column<?>> toMethodColumns = List.of(toMethodNameColumn, toMethodStartLineColumn, toMethodEndLineColumn, toMethodFileColumn, toMethodUrlColumn, toMethodPkgColumn, toMethodFqnColumn, toInvocationLineColumn, toLastAssertionLineColumn);
-
         List<Column<?>> allColumns = new ArrayList<>();
         allColumns.add(repositoryNameColumn);
-        allColumns.addAll(fromMethodColumns);
-        allColumns.addAll(toMethodColumns);
+
+        allColumns.add(fromMethodNameColumn);
+        allColumns.add(toMethodNameColumn);
+
+        allColumns.add(fromMethodUrlColumn);
+        allColumns.add(toMethodUrlColumn);
+
+
+
+        allColumns.add(fromPkgColumn);
+        allColumns.add(toMethodPkgColumn);
+
+        allColumns.add(fromFqnColumn);
+        allColumns.add(toMethodFqnColumn);
+
+        allColumns.add(fromMethodStartLineColumn);
+        allColumns.add(fromMethodEndLineColumn);
+
+        allColumns.add(toMethodStartLineColumn);
+        allColumns.add(toMethodEndLineColumn);
+
+
+
+        allColumns.add(fromInvocationLineColumn);
+        allColumns.add(toInvocationLineColumn);
+
+        allColumns.add(fromLastAssertionLineColumn);
+        allColumns.add(toLastAssertionLineColumn);
+
+        allColumns.add(fromMethodFileColumn);
+        allColumns.add(toMethodFileColumn);
+
         allColumns.add(commitHashColumn);
         Table table = Table.create(allColumns);
         for (MethodCall mc : methodCalls) {

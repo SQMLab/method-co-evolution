@@ -6,8 +6,10 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.nodeTypes.NodeWithName;
 import com.github.javaparser.ast.nodeTypes.NodeWithRange;
+import com.github.javaparser.ast.nodeTypes.NodeWithSimpleName;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.model.SymbolReference;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
@@ -72,10 +74,10 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                                 SymbolReference<ResolvedMethodDeclaration> solution = JavaParserFacade.get(typeSolver)
                                                                         .solve(call);
 
-                                                                if (!solution.isSolved()){
+                                                                if (!solution.isSolved()) {
                                                                     return Stream.empty();
                                                                 }
-                                                                ResolvedMethodDeclaration resolved =  solution.getCorrespondingDeclaration();
+                                                                ResolvedMethodDeclaration resolved = solution.getCorrespondingDeclaration();
 
                                                                 Optional<MethodDeclaration> ast = resolved.toAst()
                                                                         .filter(MethodDeclaration.class::isInstance)
@@ -93,12 +95,13 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                                         .orElse(null);
                                                                 if (filePath != null) {
 
-                                                                    int startLine = ast
-                                                                            .flatMap(NodeWithRange::getBegin)
+                                                                    Integer startLine = ast
+                                                                            .map(NodeWithSimpleName::getName)
+                                                                            .flatMap(SimpleName::getBegin)
                                                                             .map(p -> p.line)
                                                                             .orElse(null);
 
-                                                                    int endLine = ast
+                                                                    Integer endLine = ast
                                                                             .flatMap(NodeWithRange::getEnd)
                                                                             .map(p -> p.line)
                                                                             .orElse(null);
@@ -121,7 +124,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                                                     .startLine(startLine)
                                                                                     .endLine(endLine)
                                                                                     .hash(commitHash)
-                                                                                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(ast.get(), typeSolver ).orElse(null))
+                                                                                    .lastAssertionLine(AssertionLineFinder.findLastAssertionLine(ast.get(), typeSolver).orElse(null))
                                                                                     .invocationLine(invocationStartLine)
                                                                                     .build()
                                                                     );
