@@ -115,6 +115,3 @@ result_df = pd.DataFrame(rows)
 result_df = convert_float_int_columns_to_nullable_int(result_df)
 result_df = result_df.sort_values(["project", "strategy"]).reset_index(drop=True)
 result_df.to_csv(output_file, index=False)
-
-print(f"Saved evaluation to {output_file}")
-print(f"Saved mismatch files to {mismatch_root_dir}")

@@ -19,9 +19,10 @@ METHOD_LINK_STRATEGIES: list[LinkStrategy] = [
     LinkStrategy.NC,
     LinkStrategy.NCC,
     LinkStrategy.LC,
+    LinkStrategy.LCBA,
     LinkStrategy.MAX,
     LinkStrategy.O2O | LinkStrategy.NC | LinkStrategy.NCC,
-    LinkStrategy.O2O | LinkStrategy.NC | LinkStrategy.NCC | LinkStrategy.LC,
+    LinkStrategy.O2O | LinkStrategy.NC | LinkStrategy.NCC | LinkStrategy.LCBA,
     LinkStrategy.O2O | LinkStrategy.NC | LinkStrategy.NCC | LinkStrategy.MAX,
 
 ]
@@ -51,19 +52,22 @@ def select_one_stage_indices(
         return pt_link_df.loc[candidate_mask].index
 
     if stage == LinkStrategy.NC:
-        return pt_link_df.loc[pt_link_df["confidence_nc"] == 1].index
+        return pt_link_df.loc[pt_link_df["tech_nc"] == 1].index
 
     if stage == LinkStrategy.NCC:
-        return pt_link_df.loc[pt_link_df["confidence_ncc"] == 1].index
+        return pt_link_df.loc[pt_link_df["tech_ncc"] == 1].index
 
     if stage == LinkStrategy.LCBA:
-        return pt_link_df.loc[pt_link_df["confidence_lcs_b"] > 0].index
+        return pt_link_df.loc[pt_link_df["tech_lcs_b"] > 0].index
 
     if stage == LinkStrategy.LC:
-        return pt_link_df.loc[pt_link_df["confidence_lc"] > 0].index
+        return pt_link_df.loc[pt_link_df["tech_lc"] > 0].index
+
+    if stage == LinkStrategy.LCBA:
+        return pt_link_df.loc[pt_link_df["tech_lcba"] > 0].index
 
     if stage == LinkStrategy.MAX:
-        score_cols = ["confidence_nc", "confidence_ncc", "confidence_lcs_b", "confidence_lcs_u", "confidence_leven"]
+        score_cols = ["tech_nc", "tech_ncc", "tech_lcs_b", "tech_lcs_u", "tech_leven", "tech_lcba"]
         candidates = pt_link_df.loc[pt_link_df[score_cols].max(axis=1) > 0]
         if candidates.empty:
             return candidates.index[:0]
@@ -141,7 +145,7 @@ def strategy_output_key(mask: LinkStrategy) -> str:
     return "-".join(parts) if parts else "none"
 
 
-for m2m_link_file in list(Path(f"{DATA_DIRECTORY}/m2m-confidence").rglob("*.csv")):
+for m2m_link_file in list(Path(f"{DATA_DIRECTORY}/m2m-tech").rglob("*.csv")):
     m2m_link_df = pd.read_csv(m2m_link_file, keep_default_na=False, na_filter=False)
     assert len(m2m_link_df["project"].unique()) == 1, "Each file must be for the same repository_name"
     repository_name = m2m_link_df["project"].iloc[0]

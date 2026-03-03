@@ -70,3 +70,12 @@ def convert_float_int_columns_to_nullable_int(df: pd.DataFrame) -> pd.DataFrame:
                 df[col] = np.round(s).astype("Int64")
 
     return df
+
+from pathlib import Path
+
+def find_root(start: Path) -> Path:
+    current = start.resolve()
+    for path in [current, *current.parents]:
+        if (path / ".git").exists():
+            return path
+    return current
