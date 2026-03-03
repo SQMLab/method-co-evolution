@@ -127,11 +127,11 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                     for jm in java_methods:
                         methods_in_file.append({
                             "repo_name": repository_name,
-                            "method_type": jm.getMethodType(),
                             "method_name": jm.getName(),
+                            "url": jm.getUrl(),
+                            "method_type": jm.getMethodType(),
                             "start_line": jm.getStartLine(),
                             "end_line": jm.getEndLine(),
-                            "url": jm.getUrl(),
                             "file": jm.getFile(),
                             "pkg": jm.getPkg(),
                             "fqn": jm.getFqn(),
@@ -156,11 +156,11 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                                 start_line = node.position.line if node.position else None
                                 methods_in_file.append(
                                     {"repo_name": repository_name,
-                                     'method_type': "unknown",
                                      'method_name': node.name,
+                                     'url': util.format_to_git_url(url, hash, file_without_base, start_line),
+                                     'method_type': "unknown",
                                      'start_line': start_line,
                                      'end_line': None,  # Heuristically find end line
-                                     'url': util.format_to_git_url(url, hash, file_without_base, start_line),
                                      "pkg": None,
                                      'fqn': None,
                                      'file': file_without_base,
