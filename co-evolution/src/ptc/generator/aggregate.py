@@ -13,6 +13,8 @@ def aggregate_csv_files(input_dir, output_file_name: str):
         df.to_csv(f"{DATA_DIRECTORY}/aggregate/{output_file_name}", index=False)
 
 aggregate_csv_files(f"{DATA_DIRECTORY}/t2p-ground-truth", "t2p-ground-truth.csv")
+aggregate_csv_files(f"{DATA_DIRECTORY}/t2p-ground-truth-missing", "t2p-ground-truth-missing.csv")
+aggregate_csv_files(f"{DATA_DIRECTORY}/ground-truth", "ground-truth.csv")
 aggregate_csv_files(f"{DATA_DIRECTORY}/method", "method.csv")
 
 aggregate_csv_files(f"{DATA_DIRECTORY}/m2m-tech", "m2m-tech.csv")
