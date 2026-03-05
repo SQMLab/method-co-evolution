@@ -24,11 +24,11 @@ def establish_confidence(row):
     test_name = row["from_name"]
     production_name = row["to_name"]
     return pd.Series({
-        "tech_nc": nc._compute_nc_score(production_method_name, test_method_name),
-        "tech_ncc": ncc._compute_nc_score(production_method_name, test_method_name),
-        "tech_lcs_b": lcsBoth._compute_lcs_score(production_method_name, test_method_name),
-        "tech_lcs_u": lcsUnit._compute_lcs_score(production_method_name, test_method_name),
-        "tech_leven": ld._compute_levenshtein_score(production_method_name, test_method_name)})
+        "tech_nc": nc._compute_nc_score(production_name, test_name),
+        "tech_ncc": ncc._compute_nc_score(production_name, test_name),
+        "tech_lcs_b": lcsBoth._compute_lcs_score(production_name, test_name),
+        "tech_lcs_u": lcsUnit._compute_lcs_score(production_name, test_name),
+        "tech_leven": ld._compute_levenshtein_score(production_name, test_name)})
 
 
 # repository_df = repository_df[repository_df["project"].str.startswith("Apktool")]
