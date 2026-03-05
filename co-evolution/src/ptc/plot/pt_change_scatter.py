@@ -24,10 +24,10 @@ for tool in tools:
         df = pd.concat(history_repository_dfs)
         CALLER_CALLEE_PREFIXES = ["caller_", "to_"]
         for prefix in CALLER_CALLEE_PREFIXES:
-            df[f"{prefix}method_type"] = df[f"{prefix}method_type"].map(lambda mt: "test" if mt == "test_util" else mt)
+            df[f"{prefix}artifact"] = df[f"{prefix}artifact"].map(lambda mt: "test" if mt == "test_util" else mt)
 
         ch_cols = [c[len("caller_"):] for c in df.columns if c.startswith("caller_ch_")]
-        method_types = sorted(df["caller_method_type"].unique())
+        artifacts = sorted(df["caller_artifact"].unique())
 
         tool_df = df[df["tool_name"] == tool]
 
@@ -75,7 +75,7 @@ for tool in tools:
                         ax.plot(x, y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
                                 ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)])
                     else:
-                        g = pdf[(pdf["caller_method_type"] == "test") & (pdf["to_method_type"] == "production")]
+                        g = pdf[(pdf["caller_artifact"] == "test") & (pdf["to_artifact"] == "production")]
                         x, y = g[f"to_{ch}"], g[f"caller_{ch}"]
 
                         ax.scatter(x.values, y.values, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],

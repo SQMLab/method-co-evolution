@@ -12,14 +12,19 @@ import lombok.Data;
 public class Method {
     String repositoryName;
     String name;
+    String expression;
     String pkg;
     String fqn;
+    String fqs;
+    String fqsAlt;
     String file;
     String url;
+    String callerUrl;
+    String callDepth;
     Integer startLine;
     Integer endLine;
     Integer invocationLine;
-    String methodType;
+    String artifact;
     String hash;
     Integer lcba;
 
@@ -35,7 +40,7 @@ public class Method {
                 ", startLine=" + startLine +
                 ", endLine=" + endLine +
                 ", invocationLine=" + invocationLine +
-                ", methodType='" + methodType + '\'' +
+                ", methodType='" + artifact + '\'' +
                 ", hash='" + hash + '\'' +
                 ", lastAssertionLine=" + lcba +
                 '}';

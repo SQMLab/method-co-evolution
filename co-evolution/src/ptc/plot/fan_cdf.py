@@ -13,9 +13,9 @@ code_shovel_unsupported_change_set = {f"ch_{change_type.name.lower()}" for chang
 
 df = pd.concat([pd.read_csv(file, keep_default_na=False, na_filter=False) for
                 file in list(Path(f"{DATA_DIRECTORY}/fan-in-out-count").rglob("*.csv"))[:]])
-df["method_type"] = df["method_type"].map(lambda mt: "test" if mt == "test_util" else mt)
+df["artifact"] = df["artifact"].map(lambda mt: "test" if mt == "test_util" else mt)
 
-method_types = sorted(df["method_type"].unique())
+artifacts = sorted(df["artifact"].unique())
 
 projects = sorted(
     df["project"].unique(),
@@ -44,7 +44,7 @@ for repository_index, project in enumerate(projects):
     for change_index, ch in enumerate(in_out_types):
         ax = axes[repository_index][change_index] if n_cols > 1 else axes[repository_index]
 
-        for mtype, g in pdf.groupby("method_type"):
+        for mtype, g in pdf.groupby("artifact"):
             x, y = ecdf(g[ch])
             ax.plot(x, y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
                     ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)],

@@ -26,7 +26,7 @@ for repository_file in ["code-shovel-repository.csv", "history-finder-repository
             all_test_method_df = pd.concat([all_test_method_df, taken_test_method_df])
         if os.path.exists(method_file):
             method_df = pd.read_csv(method_file)
-            test_method_df = method_df[method_df["method_type"] == "test"]
+            test_method_df = method_df[method_df["artifact"] == "test"]
             if len(test_method_df) > 0 and len(taken_test_method_df) < 3:
                 seed = np.random.randint(0, 2 ** 32 - 1)
                 required_samples = 3 - len(taken_test_method_df)
@@ -54,7 +54,7 @@ for row in method_df.itertuples():
     owner_name = parts[1]
     repository_name = parts[2]
     class_name = parts[-1].split(".")[0]
-    file = f"{counter}-{repository_name}-{class_name}-{row.method_name}.json"
+    file = f"{counter}-{repository_name}-{class_name}-{row.name}.json"
 
     json_history = {
         "repositoryName": repository_name,
@@ -64,7 +64,7 @@ for row in method_df.itertuples():
         "url": row.url,
         "language": "Java",
         "elementType": "method",
-        "element": row.method_name,
+        "element": row.name,
         "startLine": row.start_line,
         "endLine": row.end_line,
         "commits": []
