@@ -86,9 +86,6 @@ public class MethodGenerationTest extends TestConfigurationBase {
         MethodScannerImpl methodScanner = new MethodScannerImpl();
         List<Method> methods = methodScanner.scanMethod(Path.of(REPOSITORY_DIRECTORY, "checkstyle").toFile().getAbsolutePath(), "https://github.com/checkstyle/checkstyle",
                 "164a755af951cf0fd459d70873e1c199210d9d8b", "src");
-        for (Method method : methods) {
-            log.info("{}", method);
-        }
 
     }
 

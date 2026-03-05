@@ -34,7 +34,7 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
             unzip_index = set(str(p.relative_to(repo_path)) for p in repo_path.rglob("*.json"))
 
             for _, method in method_df.iterrows():
-                method_name = method['method_name']
+                name = method['name']
                 start_line = method['start_line']
                 file = method['file']
                 if pd.notna(method_name) and pd.notna(start_line):

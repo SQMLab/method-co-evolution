@@ -21,8 +21,8 @@ repository_name_map = {row["project"]: row for row in repository_df.to_dict(orie
 
 
 def establish_confidence(row):
-    test_method_name = row["from_name"]
-    production_method_name = row["to_name"]
+    test_name = row["from_name"]
+    production_name = row["to_name"]
     return pd.Series({
         "tech_nc": nc._compute_nc_score(production_method_name, test_method_name),
         "tech_ncc": ncc._compute_nc_score(production_method_name, test_method_name),

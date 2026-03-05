@@ -13,11 +13,11 @@ code_shovel_unsupported_change_set = {f"ch_{change_type.name.lower()}" for chang
 history_repository_dfs = [pd.read_csv(repository_history_file, keep_default_na=False, na_filter=False) for
                           repository_history_file in list(Path(f"{DATA_DIRECTORY}/history").rglob("*.csv"))[:]]
 df = pd.concat(history_repository_dfs)
-df["method_type"] = df["method_type"].map(lambda mt: "test" if mt == "test_util" else mt)
+df["artifact"] = df["artifact"].map(lambda mt: "test" if mt == "test_util" else mt)
 df = df.sort_values(by="project", key=lambda s: s.str.lower())
 
 ch_cols = [c for c in df.columns if c.startswith("ch_")]
-method_types = sorted(df["method_type"].unique())
+artifacts = sorted(df["artifact"].unique())
 tools = sorted(df["tool_name"].unique())
 
 for tool in tools:
@@ -52,7 +52,7 @@ for tool in tools:
             ax = axes[repository_index][change_index] if n_cols > 1 else axes[repository_index]
 
             max_x = 0
-            for mtype, g in pdf.groupby("method_type"):
+            for mtype, g in pdf.groupby("artifact"):
                 x, y = ecdf(g[ch])
                 max_x = max(max(x), max_x)
                 ax.plot(x, y, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
@@ -86,7 +86,7 @@ for tool in tools:
     # )
 
     # handles, labels = axes[0][0].get_legend_handles_labels()
-    # fig.legend(handles, labels, loc="upper left", ncol=len(method_types) + 1, bbox_to_anchor=(0,1))
+    # fig.legend(handles, labels, loc="upper left", ncol=len(artifacts) + 1, bbox_to_anchor=(0,1))
 
     fig.tight_layout()
     fig_file = f"{CACHE_DIRECTORY}/figure/method-change-cdf-{tool}.pdf"

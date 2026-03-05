@@ -150,12 +150,12 @@ for m2m_link_file in list(Path(f"{DATA_DIRECTORY}/m2m-tech").rglob("*.csv")):
     assert len(m2m_link_df["project"].unique()) == 1, "Each file must be for the same repository_name"
     repository_name = m2m_link_df["project"].iloc[0]
     method_df = pd.read_csv(f"{DATA_DIRECTORY}/method/{repository_name}.csv", keep_default_na=False, na_filter=False)
-    method_df = method_df[["url", "method_type"]]
+    method_df = method_df[["url", "artifact"]]
 
     t2p_link_df = (m2m_link_df.merge(method_df.add_prefix("from_"), on="from_url", how="inner")
                    .merge(method_df.add_prefix("to_"), on="to_url", how="inner"))
 
-    t2p_link_df = (t2p_link_df[(t2p_link_df["from_method_type"] == "test") & (t2p_link_df["to_method_type"] == "production")])
+    t2p_link_df = (t2p_link_df[(t2p_link_df["from_artifact"] == "test") & (t2p_link_df["to_artifact"] == "production")])
 
     for link_strategy in METHOD_LINK_STRATEGIES:
         keep_mask = select_links_cascade(t2p_link_df, link_strategy)

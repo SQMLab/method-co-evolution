@@ -87,9 +87,9 @@ TEST_ANNOTATION_NAMES = set(map(lambda x: x.split(".")[-1], TEST_ANNOTATION_FQNS
 
 
 class Method:
-    def __init__(self, file: str, method_type: str, name: str, line: int):
+    def __init__(self, file: str, artifact: str, name: str, line: int):
         self.file = file
-        self.method_type = method_type
+        self.artifact = artifact
         self.name = name
         self.line = line
 
@@ -127,14 +127,16 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                     for jm in java_methods:
                         methods_in_file.append({
                             "project": repository_name,
-                            "method_name": jm.getName(),
+                            "name": jm.getName(),
                             "url": jm.getUrl(),
-                            "method_type": jm.getMethodType(),
+                            "artifact": jm.getMethodType(),
                             "start_line": jm.getStartLine(),
                             "end_line": jm.getEndLine(),
                             "file": jm.getFile(),
                             "pkg": jm.getPkg(),
                             "fqn": jm.getFqn(),
+                            "fqs": jm.getFqs(),
+                            "fqs_alt": jm.getFqsAlt(),
                             "hash": jm.getHash(),
                             "parser": "javaparser"
                         })
@@ -156,13 +158,15 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
                                 start_line = node.position.line if node.position else None
                                 methods_in_file.append(
                                     {"project": repository_name,
-                                     'method_name': node.name,
+                                     'name': node.name,
                                      'url': util.format_to_git_url(url, hash, file_without_base, start_line),
-                                     'method_type': "unknown",
+                                     'artifact': "unknown",
                                      'start_line': start_line,
                                      'end_line': None,  # Heuristically find end line
                                      "pkg": None,
                                      'fqn': None,
+                                     'fqs':None,
+                                     'fqs_alt': None,
                                      'file': file_without_base,
                                      'hash': hash,
                                      'parser': 'javalang'})
@@ -197,8 +201,8 @@ def start_java_jar(jars: [str]):
         #
         #         method_name = mt.getNameAsString()
         #         line_number = mt.getName().getBegin().get().line
-        #         method_type = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
-        #         self.methods.append(Method(file, method_type, method_name, line_number))
+        #         artifact = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
+        #         self.methods.append(Method(file, artifact, method_name, line_number))
 
 
 def stop_java_jar():

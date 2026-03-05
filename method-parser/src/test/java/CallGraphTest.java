@@ -116,7 +116,6 @@ public class CallGraphTest extends TestConfigurationBase {
                                     String.format(Locale.CANADA, "%s/fan-in/%s/%s--%s.csv", outputDirectory, projectConfig.name, testCase.name, projectConfig.commitHash),
                                     String.format(Locale.CANADA, "%s/fan-out/%s/%s--%s.csv", outputDirectory, projectConfig.name, testCase.name, projectConfig.commitHash)
                             );
-                            methodCallOut.forEach(System.out::println);
                             Assertions.assertFalse(methodCallOut.isEmpty());
                         })))));
     }
