@@ -124,20 +124,47 @@ public class CallGraphTest extends TestConfigurationBase {
 
         return DynamicContainer.dynamicContainer("call-graph-configs",
                 configurations.stream().map(projectConfig -> DynamicContainer.dynamicContainer(projectConfig.name,
-                        projectConfig.cases.stream().map(testCase -> DynamicTest.dynamicTest(testCase.name, () -> {
-                            CallGraphServiceImpl fanOutService = new CallGraphServiceImpl();
+                        projectConfig.cases.stream().map(testCase -> {
+                            java.util.List<DynamicNode> caseNodes = new java.util.ArrayList<>();
                             String outputDirectory = TestConfigurationBase.resolvePlaceholders(testCase.outputDirectory);
+                            String fanOutFile = String.format(Locale.CANADA, "%s/fan-out/%s/%s--%s.csv", outputDirectory, projectConfig.name, testCase.name, projectConfig.commitHash);
+                            String fanInFile = String.format(Locale.CANADA, "%s/fan-in/%s/%s--%s.csv", outputDirectory, projectConfig.name, testCase.name, projectConfig.commitHash);
 
-                            List<MethodCall> methodCallOut = fanOutService.findFanOut(
-                                    TestConfigurationBase.resolvePlaceholders(projectConfig.repositoryUrl),
-                                    TestConfigurationBase.resolvePlaceholders(projectConfig.repositoryPath),
-                                    projectConfig.commitHash,
-                                    List.of(testCase.targetPath),
-                                    String.format(Locale.CANADA, "%s/fan-in/%s/%s--%s.csv", outputDirectory, projectConfig.name, testCase.name, projectConfig.commitHash),
-                                    String.format(Locale.CANADA, "%s/fan-out/%s/%s--%s.csv", outputDirectory, projectConfig.name, testCase.name, projectConfig.commitHash)
-                            );
-                            Assertions.assertFalse(methodCallOut.isEmpty());
-                        })))));
+                            caseNodes.add(DynamicTest.dynamicTest("Execution", () -> {
+                                CallGraphServiceImpl fanOutService = new CallGraphServiceImpl();
+                                List<MethodCall> methodCallOut = fanOutService.findFanOut(
+                                        TestConfigurationBase.resolvePlaceholders(projectConfig.repositoryUrl),
+                                        TestConfigurationBase.resolvePlaceholders(projectConfig.repositoryPath),
+                                        projectConfig.commitHash,
+                                        List.of(testCase.targetPath),
+                                        fanInFile,
+                                        fanOutFile
+                                );
+                                Assertions.assertFalse(methodCallOut.isEmpty());
+                            }));
+
+                            if (testCase.asserts != null && !testCase.asserts.isEmpty()) {
+                                for (int i = 0; i < testCase.asserts.size(); i++) {
+                                    AssertionConfig assertionConfig = testCase.asserts.get(i);
+                                    String testName = "Assertion " + (i + 1) + (assertionConfig.projection != null ? ": " + assertionConfig.projection : "");
+                                    caseNodes.add(DynamicTest.dynamicTest(testName, () -> {
+                                        tech.tablesaw.api.Table table = tech.tablesaw.api.Table.read().csv(fanOutFile);
+                                        tech.tablesaw.api.Table filtered = table;
+                                        if (assertionConfig.projection != null) {
+                                            for (java.util.Map.Entry<String, String> entry : assertionConfig.projection.entrySet()) {
+                                                filtered = filtered.where(filtered.stringColumn(entry.getKey()).isEqualTo(entry.getValue()));
+                                            }
+                                        }
+
+                                        if (assertionConfig.expected != null && assertionConfig.expected.size != null) {
+                                            Assertions.assertEquals(assertionConfig.expected.size.intValue(), filtered.rowCount(), "Assertion failed for " + assertionConfig.projection);
+                                        }
+                                    }));
+                                }
+                            }
+
+                            return DynamicContainer.dynamicContainer(testCase.name, caseNodes);
+                        }))));
     }
 
 

@@ -118,5 +118,16 @@ public class TestConfigurationBase {
         public String targetPath;
         public String outputDirectory;
         public String fanOutFile;
+        @com.fasterxml.jackson.annotation.JsonProperty("assertions")
+        public List<AssertionConfig> asserts;
+    }
+
+    public static class AssertionConfig {
+        public Map<String, String> projection;
+        public ExpectedConfig expected;
+    }
+
+    public static class ExpectedConfig {
+        public Integer size;
     }
 }
