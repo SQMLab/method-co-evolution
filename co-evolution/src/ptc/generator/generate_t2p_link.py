@@ -148,6 +148,14 @@ for m2m_link_file in list(Path(f"{DATA_DIRECTORY}/m2m-tech").rglob("*.csv")):
 
     t2p_link_df = (t2p_link_df[(t2p_link_df["from_artifact"] == "test") & (t2p_link_df["to_artifact"] == "production")])
 
+
+    # Remove constructor unless all the to_url are constructors
+    is_constructor = t2p_link_df["to_expression"].str.contains("constructor", case=False, na=False)
+    groups_with_methods = t2p_link_df.groupby("from_url")["to_expression"].transform(
+        lambda x: (~x.str.contains("constructor", case=False, na=False)).any()
+    )
+    t2p_link_df = t2p_link_df[~(is_constructor & groups_with_methods)]
+
     for link_strategy in METHOD_LINK_STRATEGIES:
         keep_mask = select_links_cascade(t2p_link_df, link_strategy)
         change_df = t2p_link_df.loc[keep_mask].copy()

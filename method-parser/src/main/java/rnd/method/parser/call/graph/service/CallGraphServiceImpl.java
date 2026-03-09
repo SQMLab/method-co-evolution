@@ -73,14 +73,20 @@ public class CallGraphServiceImpl implements CallGraphService {
                                     .findAll(MethodDeclaration.class)
                                     .stream()
                                     .flatMap(fromMd -> {
-                                        if (fromMd.getSignature().getName().contains("testObjectRecursiveCycleSelfreference")) {
-//                                            log.info(fromMd.getSignature().getName().toString());
+                                        if (fromMd.getSignature().getName().contains("testIncrement")) {
+                                            log.info(fromMd.getSignature().getName().toString());
 
                                         }
 
                                         Set<String> lcbaMetodUrlSet = new HashSet<>();
 
                                         List<Method> calledMethods = new ArrayList<>();
+                                         /*For handling method just before assertion
+                                         e.g. mutNum.increment
+                                         https://github.com/apache/commons-lang/blob/425d8085cfcaab5a78bf0632f9ae77b7e9127cf8/src/test/java/org/apache/commons/lang3/mutable/MutableIntTest.java#L146
+*/
+                                        Stack<Method> lcbaCandidateMethod = new Stack<>();
+
 
                                         fromMd.walk(Node.TreeTraversal.POSTORDER, node -> {
 
@@ -90,11 +96,12 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                 boolean isAssertionMethod = node instanceof MethodCallExpr && AssertionLineFinder.isAssertionCall(((MethodCallExpr) node).getNameAsString());
 
                                                 if (isAssertionMethod) {
-                                                    if (!calledMethods.isEmpty()) {
-//                                                        caveat: when assertion statement have both preceding non-assertion metohd call and asserton parametrized method call it will only consider the parameter method calls.
-                                                        https://github.com/apache/commons-lang/blob/425d8085cfcaab5a78bf0632f9ae77b7e9127cf8/src/test/java/org/apache/commons/lang3/mutable/MutableIntTest.java#L146
-
-                                                        lcbaMetodUrlSet.add(calledMethods.getLast().getUrl());
+                                                    while (!lcbaCandidateMethod.isEmpty()) {
+                                                        Method preceededMethod = lcbaCandidateMethod.pop();
+                                                        if (preceededMethod.getInvocationLine() < node.getBegin().get().line){
+                                                            lcbaMetodUrlSet.add(preceededMethod.getUrl());
+                                                            lcbaCandidateMethod.clear();
+                                                        }
                                                     }
 
                                                     ((MethodCallExpr) node).getArguments().forEach(argNode -> {
@@ -120,6 +127,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                 Method methodInfo = getMethodInfo(repositoryUrl, commitHash, node, typeSolver, absoluteRepositoryPath, repositoryName);
                                                 if (methodInfo != null) {
                                                     calledMethods.add(methodInfo);
+                                                    lcbaCandidateMethod.add(methodInfo);
                                                 }
                                             }
                                         });
