@@ -57,19 +57,6 @@ class HuggingFaceTextGenerationProvider(ModelProvider):
         if self._pipeline is not None:
             return self._pipeline
 
-        missing_packages = [
-            package_name
-            for package_name in ("transformers", "torch")
-            if importlib.util.find_spec(package_name) is None
-        ]
-        if missing_packages:
-            raise ImportError(
-                "Missing Hugging Face runtime dependencies: "
-                f"{', '.join(missing_packages)}. "
-                "Install them in the active environment before running ptc-llm. "
-                "For example: `pip install transformers torch`."
-            )
-
         import torch
         from transformers import pipeline
 

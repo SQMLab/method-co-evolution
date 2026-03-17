@@ -20,6 +20,14 @@ pip install -e ./method-history-collector --upgrade
 pip install -e ./co-evolution --upgrade
 ```
 
+For LLM method-to-method linking:
+
+```bash
+pip install -e ./co-evolution[llm] --upgrade
+```
+
+The `llm` extra includes `torch`, `transformers`, and `accelerate`. On some GPU systems you may still prefer installing a cluster-specific `torch` wheel manually first if you need a particular CUDA build.
+
 ### Run
 ```bash
 mhc scan-method \
