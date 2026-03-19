@@ -7,13 +7,14 @@ set -euo pipefail
 usage() {
     cat <<'EOF'
 Usage:
-  method-history-collector-job.sh --command history --tool-name codeShovel --projects "checkstyle,commons-io"
-  method-history-collector-job.sh --command llm-m2m-link --model-name-or-path openai/gpt-oss-20b --projects "commons-io" --input-kind t2p
+  job.sh --command history --tool-name codeShovel --projects "checkstyle,commons-io"
+  job.sh --command llm-m2m-link --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --projects "commons-io" --input-kind t2p
 
 Options:
   --command               Command to run: history, call-graph, scan-method, complexity-analyzer, llm-m2m-link
   --tool-name             Tool name for non-LLM commands
   --model-name-or-path    Hugging Face model id or local path for llm-m2m-link
+  --short-model-name      Short model directory name for llm-m2m-link outputs
   --projects              Comma-separated project list for the array job
   --input-kind            LLM input kind: t2p or p2t (default: t2p)
   --cache-directory       Relative or absolute cache directory (default: .cache)
@@ -32,6 +33,7 @@ export PROJECT_DIRECTORY="$HOME/projects/$SLURM_ACCOUNT/$USER/method-co-evolutio
 COMMAND_NAME=""
 TOOL_NAME=""
 MODEL_NAME_OR_PATH=""
+SHORT_MODEL_NAME=""
 PROJECTS_CSV=""
 INPUT_KIND="t2p"
 CACHE_DIRECTORY="$PROJECT_DIRECTORY/.cache"
@@ -48,6 +50,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --model-name-or-path)
             MODEL_NAME_OR_PATH="$2"
+            shift 2
+            ;;
+        --short-model-name)
+            SHORT_MODEL_NAME="$2"
             shift 2
             ;;
         --projects)
@@ -112,6 +118,7 @@ if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
     srun ptc-llm llm-m2m-link \
         --cache-directory "$CACHE_DIRECTORY" \
         --model-name-or-path "$MODEL_NAME_OR_PATH" \
+        --short-model-name "$SHORT_MODEL_NAME" \
         --input-kind "$INPUT_KIND" \
         --project "$PROJECT"
     echo "Task started on $(hostname) at $(date) for model $MODEL_NAME_OR_PATH, input kind $INPUT_KIND, and project $PROJECT"
