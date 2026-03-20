@@ -147,7 +147,7 @@ else
         --data-directory "$CACHE_DIRECTORY/data" \
         --jar-directory "$CACHE_DIRECTORY/jar" \
         --tool-name "$TOOL_NAME" \
-        --java-options "$JAVA_OPTIONS" \
+        --java-options="$JAVA_OPTIONS" \
         --timeout-seconds "$TIMEOUT_SECONDS" \
         --command-options "$COMMAND_OPTIONS" \
         --project "$PROJECT"
