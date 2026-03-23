@@ -50,14 +50,17 @@ class FakeProvider(ModelProvider):
     def __init__(self):
         self.calls = 0
 
+    def prompt_mode(self):
+        return "structured_json"
+
     def generate_batch(self, prompts, generation_config):
         self.calls += 1
         return [
             ProviderGeneration(
                 id=prompt.id,
                 output_text=(
-                    '{"label":"match","candidate_ids":["c1"],'
-                    '"candidate_confidences":{"c1":0.8},"confidence":0.8,'
+                    '{"candidate_ids":["c1"],'
+                    '"confidence":0.8,'
                     '"rationale":"stub"}'
                 ),
             )
@@ -88,8 +91,10 @@ class TestDataFrameMethodLinker(unittest.TestCase):
             prediction_csv = Path(tmpdir) / "t2p" / "gpt-oss-20b" / "prediction" / "commons-io.csv"
             self.assertTrue(prediction_csv.exists())
             prediction_text = prediction_csv.read_text(encoding="utf-8")
-            self.assertIn("llm_predicted_sigs", prediction_text)
-            self.assertIn("llm_predicted_candidate_confidences", prediction_text)
+            self.assertIn("llm_pred", prediction_text)
+            self.assertIn("llm_fqses", prediction_text)
+            self.assertIn("llm_confidences", prediction_text)
+            self.assertNotIn("llm_predicted_sigs", prediction_text)
 
             linker.link_dataframe(edge_df, "t2p", GenerationConfig())
             self.assertEqual(1, provider.calls)

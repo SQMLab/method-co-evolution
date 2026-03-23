@@ -21,6 +21,7 @@ llm = [
     "torch",
     "transformers",
     "accelerate",
+    "openai",
 ]
 
 [project.scripts]

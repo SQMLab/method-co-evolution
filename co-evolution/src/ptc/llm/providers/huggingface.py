@@ -25,6 +25,9 @@ class HuggingFaceTextGenerationProvider(ModelProvider):
         self.config = config
         self._pipeline = None
 
+    def prompt_mode(self) -> str:
+        return "conventional_text"
+
     def generate_batch(
         self,
         prompts: list[PromptInput],

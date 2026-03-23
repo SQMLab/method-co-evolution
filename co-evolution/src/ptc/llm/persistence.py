@@ -46,28 +46,53 @@ class CsvRunStore:
             return {}
 
         predictions: dict[str, LinkPrediction] = {}
+        source_prefix = "from" if self.input_kind == "t2p" else "to"
         with self.predictions_file.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
                 row_id = row.get("llm_id", "")
-                if not row_id or not row.get("llm_label", ""):
+                if not row_id:
                     continue
-                predictions[row_id] = LinkPrediction(
-                    id=row_id,
-                    fqs=row.get("llm_fqs", ""),
-                    url=row.get("llm_url", ""),
-                    label=row.get("llm_label", ""),
-                    raw_output_text=row.get("llm_raw_output", ""),
-                    confidence=_coerce_float(row.get("llm_confidence", "")),
-                    selected_candidate_ids=_split_pipe(row.get("llm_predicted_candidate_ids", "")),
-                    selected_candidate_confidences=_coerce_float_list(
-                        row.get("llm_predicted_candidate_confidences", "")
-                    ),
-                    selected_candidate_sigs=_split_pipe(row.get("llm_predicted_sigs", "")),
-                    selected_candidate_urls=_split_pipe(row.get("llm_predicted_urls", "")),
-                    rationale=row.get("llm_rationale", ""),
-                    metadata={},
-                )
+                if "llm_output" in row:
+                    selected_candidate_fqses = _coerce_string_list(row.get("llm_fqses", ""))
+                    selected_candidate_confidences = _coerce_float_list(row.get("llm_confidences", ""))
+                    selected_candidate_rationales = _coerce_string_list(row.get("llm_rationales", ""))
+                    output_count = _coerce_int(row.get("llm_output_count", "")) or len(selected_candidate_fqses)
+                    llm_pred = _coerce_int(row.get("llm_pred", ""))
+                    predictions[row_id] = LinkPrediction(
+                        id=row_id,
+                        fqs=row.get(f"{source_prefix}_fqs", ""),
+                        url=row.get(f"{source_prefix}_url", ""),
+                        label="match" if llm_pred == 1 or output_count > 0 else "none",
+                        raw_output_text=row.get("llm_output", ""),
+                        confidence=max(selected_candidate_confidences) if selected_candidate_confidences else None,
+                        selected_candidate_ids=[f"c{index}" for index in range(1, output_count + 1)],
+                        selected_candidate_confidences=selected_candidate_confidences,
+                        selected_candidate_fqses=selected_candidate_fqses,
+                        selected_candidate_sigs=selected_candidate_fqses,
+                        selected_candidate_urls=[],
+                        rationale="\n\n".join(selected_candidate_rationales),
+                        selected_candidate_rationales=selected_candidate_rationales,
+                        metadata={},
+                    )
+                elif row.get("llm_label", ""):
+                    predictions[row_id] = LinkPrediction(
+                        id=row_id,
+                        fqs=row.get("llm_fqs", ""),
+                        url=row.get("llm_url", ""),
+                        label=row.get("llm_label", ""),
+                        raw_output_text=row.get("llm_raw_output", ""),
+                        confidence=_coerce_float(row.get("llm_confidence", "")),
+                        selected_candidate_ids=_split_pipe(row.get("llm_predicted_candidate_ids", "")),
+                        selected_candidate_confidences=_coerce_float_list(
+                            row.get("llm_predicted_candidate_confidences", "")
+                        ),
+                        selected_candidate_fqses=_split_pipe(row.get("llm_predicted_fqses", "")),
+                        selected_candidate_sigs=_split_pipe(row.get("llm_predicted_sigs", "")),
+                        selected_candidate_urls=_split_pipe(row.get("llm_predicted_urls", "")),
+                        rationale=row.get("llm_rationale", ""),
+                        metadata={},
+                    )
         return predictions
 
     def load_completed_example_ids(self) -> set[str]:
@@ -81,6 +106,7 @@ class CsvRunStore:
                 "fqs",
                 "url",
                 "prompt_text",
+                "messages_json",
                 "metadata_json",
             ],
             {
@@ -88,6 +114,19 @@ class CsvRunStore:
                 "fqs": prompt_input.fqs,
                 "url": prompt_input.url,
                 "prompt_text": prompt_input.prompt_text,
+                "messages_json": json.dumps(
+                    [
+                        {
+                            "role": message.role,
+                            "content": [
+                                {"type": block.type, "text": block.text}
+                                for block in message.content
+                            ],
+                        }
+                        for message in prompt_input.messages
+                    ],
+                    ensure_ascii=True,
+                ),
                 "metadata_json": json.dumps(prompt_input.metadata, ensure_ascii=True),
             },
         )
@@ -100,7 +139,44 @@ class CsvRunStore:
         )
 
     def write_prediction_snapshot(self, result_df) -> None:
-        result_df.to_csv(self.predictions_file, index=False)
+        snapshot_df = result_df.copy()
+        minimal_columns = [
+            "project",
+            "from_name",
+            "to_name",
+            "from_url",
+            "to_url",
+            "from_fqs",
+            "to_fqs",
+            "llm_id",
+            "llm_pred",
+            "llm_confidences",
+            "llm_fqses",
+            "llm_output_count",
+            "llm_rationales",
+            "llm_output",
+        ]
+        defaults = {
+            "project": Path(self.input_file_name).stem,
+            "from_name": "",
+            "to_name": "",
+            "from_url": "",
+            "to_url": "",
+            "from_fqs": "",
+            "to_fqs": "",
+            "llm_id": "",
+            "llm_pred": 0,
+            "llm_confidences": "[]",
+            "llm_fqses": "[]",
+            "llm_output_count": 0,
+            "llm_rationales": "[]",
+            "llm_output": "",
+        }
+        for column_name, default_value in defaults.items():
+            if column_name not in snapshot_df.columns:
+                snapshot_df[column_name] = default_value
+        snapshot_df.loc[:, "project"] = snapshot_df["project"].replace("", Path(self.input_file_name).stem)
+        snapshot_df.loc[:, minimal_columns].to_csv(self.predictions_file, index=False)
 
     @staticmethod
     def _append_csv_row(file_path: Path, fieldnames: list[str], row: dict[str, object]) -> None:
@@ -137,6 +213,27 @@ def _coerce_float_list(value: str) -> list[float | None]:
     if not isinstance(raw_values, list):
         return []
     return [_coerce_float("" if item is None else str(item)) for item in raw_values]
+
+
+def _coerce_string_list(value: str) -> list[str]:
+    if not value:
+        return []
+    try:
+        raw_values = json.loads(value)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    if not isinstance(raw_values, list):
+        return []
+    return [str(item) for item in raw_values if str(item)]
+
+
+def _coerce_int(value: str) -> int | None:
+    if value == "":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
 
 
 def model_directory_name(model_name_or_path: str, short_model_name: str | None = None) -> str:

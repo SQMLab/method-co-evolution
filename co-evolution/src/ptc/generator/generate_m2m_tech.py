@@ -60,7 +60,7 @@ def apply_llm_techniques(
             continue
 
         prediction_df = pd.read_csv(prediction_file, keep_default_na=False, na_filter=False)
-        required_columns = {"from_url", "to_url", "llm_predicted_match"}
+        required_columns = {"from_url", "to_url", "llm_pred"}
         missing_columns = required_columns.difference(prediction_df.columns)
         if missing_columns:
             raise ValueError(
@@ -68,9 +68,9 @@ def apply_llm_techniques(
             )
 
         llm_match_df = (
-            prediction_df.loc[:, ["from_url", "to_url", "llm_predicted_match"]]
+            prediction_df.loc[:, ["from_url", "to_url", "llm_pred"]]
             .drop_duplicates(subset=["from_url", "to_url"], keep="last")
-            .rename(columns={"llm_predicted_match": column_name})
+            .rename(columns={"llm_pred": column_name})
         )
         llm_match_df[column_name] = pd.to_numeric(llm_match_df[column_name], errors="coerce").astype("Int64")
         enriched_df = enriched_df.merge(llm_match_df, on=["from_url", "to_url"], how="left")

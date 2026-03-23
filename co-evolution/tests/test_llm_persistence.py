@@ -2,11 +2,13 @@ import tempfile
 import unittest
 from pathlib import Path
 import sys
+import csv
 
 SRC_DIRECTORY = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SRC_DIRECTORY))
 
+from ptc.llm.models import PromptContentText, PromptInput, PromptMessage
 from ptc.llm.persistence import CsvRunStore
 
 
@@ -20,31 +22,39 @@ class TestCsvRunStore(unittest.TestCase):
                 writer = csv.DictWriter(
                     handle,
                     fieldnames=[
+                        "project",
+                        "from_name",
+                        "to_name",
+                        "from_url",
+                        "to_url",
+                        "from_fqs",
+                        "to_fqs",
                         "llm_id",
-                        "llm_fqs",
-                        "llm_url",
-                        "llm_label",
-                        "llm_confidence",
-                        "llm_predicted_candidate_ids",
-                        "llm_predicted_sigs",
-                        "llm_predicted_urls",
-                        "llm_rationale",
-                        "llm_raw_output",
+                        "llm_pred",
+                        "llm_confidences",
+                        "llm_fqses",
+                        "llm_output_count",
+                        "llm_rationales",
+                        "llm_output",
                     ],
                 )
                 writer.writeheader()
                 writer.writerow(
                     {
+                        "project": "commons-io",
+                        "from_name": "testSaveItem",
+                        "to_name": "saveItem",
+                        "from_url": "https://example/source#L1",
+                        "to_url": "https://example/prod#L10",
+                        "from_fqs": "org.example.Test.testSaveItem()",
+                        "to_fqs": "org.example.Prod.saveItem()",
                         "llm_id": "https://example/source#L1",
-                        "llm_fqs": "org.example.Test.testSaveItem()",
-                        "llm_url": "https://example/source#L1",
-                        "llm_label": "match",
-                        "llm_confidence": "0.9",
-                        "llm_predicted_candidate_ids": "c1|c2",
-                        "llm_predicted_sigs": "org.example.Prod.one()|org.example.Prod.two()",
-                        "llm_predicted_urls": "https://example/prod#L10|https://example/prod#L20",
-                        "llm_rationale": "test rationale",
-                        "llm_raw_output": "{}",
+                        "llm_pred": "1",
+                        "llm_confidences": "[0.9]",
+                        "llm_fqses": "[\"org.example.Prod.one()\", \"org.example.Prod.two()\"]",
+                        "llm_output_count": "2",
+                        "llm_rationales": "[\"test rationale\"]",
+                        "llm_output": "{}",
                     }
                 )
 
@@ -52,7 +62,7 @@ class TestCsvRunStore(unittest.TestCase):
             csv_text = store.predictions_file.read_text(encoding="utf-8")
             self.assertIn("llm_id", csv_text)
             self.assertIn("https://example/source#L1", csv_text)
-            self.assertIn("c1|c2", csv_text)
+            self.assertIn("org.example.Prod.one()", csv_text)
             self.assertEqual("t2p", store.input_kind)
             self.assertEqual(
                 Path(tmpdir) / "t2p" / "gpt-oss-20b" / "prediction" / "commons-io.csv",
@@ -81,6 +91,29 @@ class TestCsvRunStore(unittest.TestCase):
                 Path(tmpdir) / "t2p" / "gpt_oss_20b" / "prediction" / "commons-io.csv",
                 store.predictions_file,
             )
+
+    def test_append_request_persists_messages_json(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = CsvRunStore(tmpdir, "t2p", "openai/gpt-oss-20b", "commons-io.csv")
+            prompt = PromptInput(
+                id="id-1",
+                fqs="org.example.Test.testThing()",
+                url="https://example/test#L1",
+                prompt_text="SYSTEM:\nhello",
+                messages=[
+                    PromptMessage(
+                        role="system",
+                        content=[PromptContentText(type="text", text="hello")],
+                    )
+                ],
+            )
+
+            store.append_request(prompt)
+
+            with store.requests_file.open("r", encoding="utf-8", newline="") as handle:
+                row = next(csv.DictReader(handle))
+
+            self.assertIn('"role": "system"', row["messages_json"])
 
 
 if __name__ == "__main__":

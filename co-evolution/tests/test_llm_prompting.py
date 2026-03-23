@@ -49,25 +49,43 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
 
         prompt = MethodLinkingPromptFactory().build_prompt(case_df, "t2p")
 
-        self.assertIn("linking test methods to production methods", prompt.prompt_text)
+        self.assertEqual(2, len(prompt.messages))
+        self.assertEqual("system", prompt.messages[0].role)
+        self.assertEqual("user", prompt.messages[1].role)
+        self.assertIn("careful java method-linking analyst", prompt.prompt_text.lower())
+        self.assertIn("test-to-production linking", prompt.prompt_text.lower())
         self.assertIn(
-            "Test method FQS: org.apache.commons.io.ByteOrderMarkTestCase.charsetName()",
+            "Source test method fully qualified signature (FQS): "
+            "org.apache.commons.io.ByteOrderMarkTestCase.charsetName()",
             prompt.prompt_text,
         )
         self.assertIn("Candidate production methods called by the test method:", prompt.prompt_text)
         self.assertIn("fqs=org.apache.commons.io.ByteOrderMark.getCharsetName()", prompt.prompt_text)
-        self.assertNotIn("sig=", prompt.prompt_text)
-        self.assertNotIn("url=", prompt.prompt_text)
-        self.assertNotIn("lcba=", prompt.prompt_text)
+        self.assertEqual("json_schema", prompt.response_format["type"])
+        self.assertEqual("method_link_prediction", prompt.response_format["name"])
+
+    def test_t2p_conventional_prompt_requests_labeled_output(self):
+        case_df = _load_group(FAN_OUT_FILE, "from_url", T2P_SOURCE_URL)
+
+        prompt = MethodLinkingPromptFactory().build_prompt(case_df, "t2p", prompt_format="text")
+
+        self.assertIsNone(prompt.response_format)
+        self.assertIn("METHOD: <exact candidate method text from the list above or NONE>", prompt.prompt_text)
+        self.assertIn("CONFIDENCE: <confidence between 0 and 1>", prompt.prompt_text)
+        self.assertIn("RATIONALE: <short explanation>", prompt.prompt_text)
+        self.assertNotIn("c1:", prompt.prompt_text)
 
     def test_p2t_prompt_contains_real_commons_io_methods(self):
         case_df = _load_group(FAN_IN_FILE, "to_url", P2T_SOURCE_URL)
 
         prompt = MethodLinkingPromptFactory().build_prompt(case_df, "p2t")
 
-        self.assertIn("linking production methods to test methods", prompt.prompt_text)
+        self.assertEqual(2, len(prompt.messages))
+        self.assertIn("careful java method-linking analyst", prompt.prompt_text.lower())
+        self.assertIn("production-to-test linking", prompt.prompt_text.lower())
         self.assertIn(
-            "Production method FQS: org.apache.commons.io.FileUtils.byteCountToDisplaySize(long)",
+            "Source production method fully qualified signature (FQS): "
+            "org.apache.commons.io.FileUtils.byteCountToDisplaySize(long)",
             prompt.prompt_text,
         )
         self.assertIn("Candidate test methods that call this production method:", prompt.prompt_text)
@@ -79,9 +97,7 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
             "fqs=org.apache.commons.io.FileUtilsTestCase.testByteCountToDisplaySizeLong()",
             prompt.prompt_text,
         )
-        self.assertNotIn("sig=", prompt.prompt_text)
-        self.assertNotIn("url=", prompt.prompt_text)
-        self.assertNotIn("lcba=", prompt.prompt_text)
+        self.assertEqual("json_schema", prompt.response_format["type"])
 
 
 class TestJsonPredictionParser(unittest.TestCase):
@@ -93,14 +109,13 @@ class TestJsonPredictionParser(unittest.TestCase):
             prompt_input,
             (
                 '{"candidate_ids":["c1"],'
-                '"candidate_confidences":{"c1":0.91},"confidence":0.93,'
-                '"rationale":"Real commons-io example"}'
+                '"confidence":0.93,"rationale":"Real commons-io example"}'
             ),
         )
 
         self.assertEqual("match", prediction.label)
         self.assertEqual(["c1"], prediction.selected_candidate_ids)
-        self.assertEqual([0.91], prediction.selected_candidate_confidences)
+        self.assertEqual([], prediction.selected_candidate_confidences)
         self.assertEqual(
             ["org.apache.commons.io.ByteOrderMark.getCharsetName()"],
             prediction.selected_candidate_sigs,
@@ -131,23 +146,21 @@ class TestJsonPredictionParser(unittest.TestCase):
     def test_placeholder_schema_payload_is_not_treated_as_prediction(self):
         placeholder_payload = {
             "candidate_ids": [],
-            "candidate_confidences": {},
             "confidence": 0.0,
             "rationale": "short explanation",
         }
 
         self.assertFalse(JsonPredictionParser._looks_like_prediction_payload(placeholder_payload))
 
-    def test_parse_prediction_ignores_extra_label_field_from_tiny_model(self):
+    def test_parse_prediction_accepts_candidate_ids_without_label(self):
         case_df = _load_group(FAN_OUT_FILE, "from_url", T2P_SOURCE_URL)
         prompt_input = MethodLinkingPromptFactory().build_prompt(case_df, "t2p")
 
         prediction = JsonPredictionParser().parse(
             prompt_input,
             (
-                '{"label":"match|one|partial","candidate_ids":["c1","c2"],'
-                '"candidate_confidences":null,"confidence":0.0,'
-                '"rationale":"Both c1 and c2 are used for testing ByteOrderMark equals()."}'
+                '{"candidate_ids":["c1","c2"],'
+                '"confidence":0.0,"rationale":"Both c1 and c2 are used for testing ByteOrderMark equals()."}'
             ),
         )
 
@@ -162,6 +175,43 @@ class TestJsonPredictionParser(unittest.TestCase):
 
         self.assertEqual("match", prediction.label)
         self.assertEqual(["c1", "c2"], prediction.selected_candidate_ids)
+
+    def test_parse_prediction_accepts_repeated_method_blocks(self):
+        case_df = _load_group(FAN_OUT_FILE, "from_url", T2P_SOURCE_URL)
+        prompt_input = MethodLinkingPromptFactory().build_prompt(case_df, "t2p", prompt_format="text")
+        first_candidate = prompt_input.candidate_lookup["c1"]["fqs"]
+        second_candidate = prompt_input.candidate_lookup["c2"]["fqs"]
+
+        prediction = JsonPredictionParser().parse(
+            prompt_input,
+            (
+                f"METHOD: {first_candidate}\n"
+                "CONFIDENCE: 0.75\n"
+                "RATIONALE: conventional output for the first method\n"
+                f"METHOD: {second_candidate}\n"
+                "CONFIDENCE: 0.60\n"
+                "RATIONALE: conventional output for the second method"
+            ),
+        )
+
+        self.assertEqual("match", prediction.label)
+        self.assertEqual(["c1", "c2"], prediction.selected_candidate_ids)
+        self.assertAlmostEqual(0.75, prediction.confidence)
+        self.assertIn("first method", prediction.rationale)
+        self.assertIn("second method", prediction.rationale)
+
+    def test_parse_prediction_accepts_method_none_for_no_match(self):
+        case_df = _load_group(FAN_OUT_FILE, "from_url", T2P_SOURCE_URL)
+        prompt_input = MethodLinkingPromptFactory().build_prompt(case_df, "t2p", prompt_format="text")
+
+        prediction = JsonPredictionParser().parse(
+            prompt_input,
+            "METHOD: NONE\nCONFIDENCE: 0.20\nRATIONALE: none of the listed methods are under test",
+        )
+
+        self.assertEqual("none", prediction.label)
+        self.assertEqual([], prediction.selected_candidate_ids)
+        self.assertAlmostEqual(0.20, prediction.confidence)
 
 
 if __name__ == "__main__":
