@@ -119,8 +119,8 @@ def render_messages_as_text(messages: list[PromptMessage]) -> str:
 def _t2p_system_text(prompt_format: str) -> str:
     return (
         "You are an expert in identifying which production methods are being tested by a given test method in a Java codebase. "
-        "The input consists of a test method and a list of candidate production methods that are called within the test method. "
-        "your task is to determine which of these candidate production methods are actually under test. "
+        "You will be given a test method and a list of candidate production methods that are called within the test method. "
+        "your task is to determine which one of these candidate production methods is actually being tested. "
         f"{_return_requirement(prompt_format)}"
     )
 
@@ -143,9 +143,7 @@ def _output_instruction(prompt_format: str) -> str:
         "Return exactly this format:\n"
         "METHOD: <exact candidate method from the list above or NONE>\n"
         "CONFIDENCE: <confidence between 0 and 1>\n"
-        "RATIONALE: <short explanation>\n"
-        "\n"
-        "Repeat these three lines for each selected method."
+        "RATIONALE: <short explanation>"
     )
 
 
