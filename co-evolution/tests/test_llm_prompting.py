@@ -60,7 +60,7 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
             prompt.prompt_text,
         )
         self.assertIn("Candidate production methods called by the test method:", prompt.prompt_text)
-        self.assertIn("fqs=org.apache.commons.io.ByteOrderMark.getCharsetName()", prompt.prompt_text)
+        self.assertIn("c1: org.apache.commons.io.ByteOrderMark.getCharsetName()", prompt.prompt_text)
         self.assertEqual("json_schema", prompt.response_format["type"])
         self.assertEqual("method_link_prediction", prompt.response_format["name"])
 
@@ -73,6 +73,8 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
         self.assertIn("METHOD: <exact candidate method text from the list above or NONE>", prompt.prompt_text)
         self.assertIn("CONFIDENCE: <confidence between 0 and 1>", prompt.prompt_text)
         self.assertIn("RATIONALE: <short explanation>", prompt.prompt_text)
+        self.assertIn("Start immediately with METHOD:", prompt.prompt_text)
+        self.assertIn("Do not include analysis", prompt.prompt_text)
         self.assertNotIn("c1:", prompt.prompt_text)
 
     def test_p2t_prompt_contains_real_commons_io_methods(self):
@@ -90,11 +92,11 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
         )
         self.assertIn("Candidate test methods that call this production method:", prompt.prompt_text)
         self.assertIn(
-            "fqs=org.apache.commons.io.FileUtilsTestCase.testByteCountToDisplaySizeBigInteger()",
+            "c1: org.apache.commons.io.FileUtilsTestCase.testByteCountToDisplaySizeBigInteger()",
             prompt.prompt_text,
         )
         self.assertIn(
-            "fqs=org.apache.commons.io.FileUtilsTestCase.testByteCountToDisplaySizeLong()",
+            "c2: org.apache.commons.io.FileUtilsTestCase.testByteCountToDisplaySizeLong()",
             prompt.prompt_text,
         )
         self.assertEqual("json_schema", prompt.response_format["type"])
@@ -115,7 +117,7 @@ class TestJsonPredictionParser(unittest.TestCase):
 
         self.assertEqual("match", prediction.label)
         self.assertEqual(["c1"], prediction.selected_candidate_ids)
-        self.assertEqual([], prediction.selected_candidate_confidences)
+        self.assertEqual([0.93], prediction.selected_candidate_confidences)
         self.assertEqual(
             ["org.apache.commons.io.ByteOrderMark.getCharsetName()"],
             prediction.selected_candidate_sigs,
@@ -177,8 +179,8 @@ class TestJsonPredictionParser(unittest.TestCase):
         self.assertEqual(["c1", "c2"], prediction.selected_candidate_ids)
 
     def test_parse_prediction_accepts_repeated_method_blocks(self):
-        case_df = _load_group(FAN_OUT_FILE, "from_url", T2P_SOURCE_URL)
-        prompt_input = MethodLinkingPromptFactory().build_prompt(case_df, "t2p", prompt_format="text")
+        case_df = _load_group(FAN_IN_FILE, "to_url", P2T_SOURCE_URL)
+        prompt_input = MethodLinkingPromptFactory().build_prompt(case_df, "p2t", prompt_format="text")
         first_candidate = prompt_input.candidate_lookup["c1"]["fqs"]
         second_candidate = prompt_input.candidate_lookup["c2"]["fqs"]
 
@@ -212,6 +214,27 @@ class TestJsonPredictionParser(unittest.TestCase):
         self.assertEqual("none", prediction.label)
         self.assertEqual([], prediction.selected_candidate_ids)
         self.assertAlmostEqual(0.20, prediction.confidence)
+
+    def test_parse_prediction_ignores_preamble_and_resolves_unique_truncated_method(self):
+        case_df = _load_group(FAN_OUT_FILE, "from_url", T2P_SOURCE_URL)
+        prompt_input = MethodLinkingPromptFactory().build_prompt(case_df, "t2p", prompt_format="text")
+        first_candidate = prompt_input.candidate_lookup["c1"]["fqs"]
+        truncated_candidate = first_candidate.split("(", 1)[0] + "("
+
+        prediction = JsonPredictionParser().parse(
+            prompt_input,
+            (
+                "We need to determine which production method is under test.\n"
+                "The test likely focuses on the first candidate.\n\n"
+                f"METHOD: {truncated_candidate}\n"
+                "CONFIDENCE: 0.88\n"
+                "RATIONALE: The test name and assertions point to this candidate."
+            ),
+        )
+
+        self.assertEqual("match", prediction.label)
+        self.assertEqual(["c1"], prediction.selected_candidate_ids)
+        self.assertAlmostEqual(0.88, prediction.confidence)
 
 
 if __name__ == "__main__":

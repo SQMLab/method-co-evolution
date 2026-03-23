@@ -150,7 +150,11 @@ def _output_instruction(prompt_format: str) -> str:
 def _return_requirement(prompt_format: str) -> str:
     if prompt_format == "json":
         return "Return valid JSON only that follows the provided schema. Only return candidate IDs such as c1 or c2."
-    return "Return only the requested labeled fields. Use the exact candidate method text from the list."
+    return (
+        "Return only the requested labeled fields. Start immediately with METHOD:. "
+        "Do not include analysis, chain-of-thought, restatements, bullet points, markdown, or any extra text. "
+        "Use the exact candidate method text from the list."
+    )
 
 
 class JsonPredictionParser:
@@ -371,12 +375,34 @@ class JsonPredictionParser:
 
         for method_text in candidate_methods:
             normalized_method = cls._normalize_method_text(method_text)
-            if normalized_method:
-                for candidate_id, candidate_texts in normalized_lookup.items():
-                    if normalized_method in candidate_texts and candidate_id not in seen_candidate_ids:
-                        resolved_candidate_ids.append(candidate_id)
-                        seen_candidate_ids.add(candidate_id)
-                        break
+            if not normalized_method:
+                continue
+
+            exact_match_id = None
+            for candidate_id, candidate_texts in normalized_lookup.items():
+                if normalized_method in candidate_texts and candidate_id not in seen_candidate_ids:
+                    exact_match_id = candidate_id
+                    break
+
+            if exact_match_id is not None:
+                resolved_candidate_ids.append(exact_match_id)
+                seen_candidate_ids.add(exact_match_id)
+                continue
+
+            prefix_matches = [
+                candidate_id
+                for candidate_id, candidate_texts in normalized_lookup.items()
+                if candidate_id not in seen_candidate_ids
+                and any(
+                    candidate_text.startswith(normalized_method)
+                    or normalized_method.startswith(candidate_text)
+                    for candidate_text in candidate_texts
+                    if candidate_text
+                )
+            ]
+            if len(prefix_matches) == 1:
+                resolved_candidate_ids.append(prefix_matches[0])
+                seen_candidate_ids.add(prefix_matches[0])
         return resolved_candidate_ids
 
     @staticmethod
