@@ -131,7 +131,7 @@ public class MethodScannerImpl implements MethodScanner {
         try {
             cu = parserWithSymbolResolver.parse(javaFile).getResult().get();
         } catch (ParseProblemException | FileNotFoundException e) {
-            log.error("Failed to parse file {}", javaFile);
+//            log.error("Failed to parse file {}", javaFile);
             return Collections.emptyList();
         }
 
@@ -152,7 +152,7 @@ public class MethodScannerImpl implements MethodScanner {
                     fqn = resolvedDec.getQualifiedName();
                     fqs = resolvedDec.getQualifiedSignature();
                 } catch (Exception ignored) {
-                    log.error("Failed to resolve method {}", md.getNameAsString());
+//                    log.error("Failed to resolve method {}", md.getNameAsString());
                 }
                 
                 int start = md.getName().getBegin().map(p -> p.line).orElse(-1);

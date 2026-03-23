@@ -1,18 +1,17 @@
-import os.path
 import os
+import os.path
 import shlex
-import traceback
+import time
 from pathlib import Path
-from git import Repo, GitCommandError
-from pandas import DataFrame
+
+import javalang
 import jpype
 import jpype.imports
-from jpype.types import *
 import pandas as pd
+from git import GitCommandError, Repo
+from pandas import DataFrame
+
 import mhc.util as util
-import javalang
-import datetime
-import traceback
 
 TEST_ANNOTATION_FQNS = {
     # JUnit 4
@@ -85,6 +84,25 @@ UNIT_TEST_SUPERCLASS_FQNS = {
 }
 TEST_PACKAGE_ROOT_DIRECTORY = {"test", "androidTest"}
 TEST_ANNOTATION_NAMES = set(map(lambda x: x.split(".")[-1], TEST_ANNOTATION_FQNS))
+METHOD_SCAN_COLUMNS = [
+    "project",
+    "name",
+    "url",
+    "artifact",
+    "start_line",
+    "end_line",
+    "expression",
+    "file",
+    "pkg",
+    "fqn",
+    "fqs",
+    "fqs_alt",
+    "hash",
+    "parser",
+]
+SCAN_METHOD_FLUSH_INTERVAL_SECONDS = 1 * 60 * 60
+SCAN_MARKER_PARSER = "__scan_marker__"
+SCAN_MARKER_EXPRESSION = "__file_scanned__"
 
 
 class Method:
@@ -95,7 +113,176 @@ class Method:
         self.line = line
 
 
-def scan_method(repository_df: DataFrame, repository_directory: str, data_directory: str, cache_directory):
+def _write_dataframe_csv(output_file: str, dataframe: pd.DataFrame, columns: list[str]) -> None:
+    output_directory = os.path.dirname(output_file)
+    if output_directory:
+        os.makedirs(output_directory, exist_ok=True)
+
+    temporary_output_file = f"{output_file}.tmp"
+    dataframe.reindex(columns=columns).to_csv(temporary_output_file, index=False)
+    os.replace(temporary_output_file, output_file)
+
+
+def _append_dataframe_csv(output_file: str, rows: list[dict], columns: list[str]) -> None:
+    if not rows:
+        return
+
+    output_directory = os.path.dirname(output_file)
+    if output_directory:
+        os.makedirs(output_directory, exist_ok=True)
+
+    file_exists = os.path.exists(output_file) and os.path.getsize(output_file) > 0
+    pd.DataFrame(rows, columns=columns).to_csv(
+        output_file,
+        mode="a" if file_exists else "w",
+        header=not file_exists,
+        index=False,
+    )
+
+
+def _build_scan_marker_row(
+    repository_name: str,
+    file_without_base: str,
+    commit_hash: str,
+) -> dict:
+    return {
+        "project": repository_name,
+        "name": None,
+        "url": None,
+        "artifact": None,
+        "start_line": None,
+        "end_line": None,
+        "expression": SCAN_MARKER_EXPRESSION,
+        "file": file_without_base,
+        "pkg": None,
+        "fqn": None,
+        "fqs": None,
+        "fqs_alt": None,
+        "hash": commit_hash,
+        "parser": SCAN_MARKER_PARSER,
+    }
+
+
+def _load_cached_method_scan_files(method_cache_file: str) -> set[str]:
+    if not os.path.exists(method_cache_file):
+        return set()
+
+    try:
+        cache_df = pd.read_csv(method_cache_file, usecols=["file"])
+    except (ValueError, pd.errors.EmptyDataError):
+        return set()
+    return set(filter(None, cache_df["file"].dropna().astype(str)))
+
+
+def _flush_method_scan_buffers(
+    method_cache_file: str,
+    pending_method_rows: list[dict],
+) -> None:
+    _append_dataframe_csv(method_cache_file, pending_method_rows, METHOD_SCAN_COLUMNS)
+    pending_method_rows.clear()
+
+
+def _finalize_method_scan_outputs(
+    method_cache_file: str,
+    output_method_file: str,
+) -> None:
+    if os.path.exists(method_cache_file):
+        try:
+            cache_df = pd.read_csv(method_cache_file)
+        except pd.errors.EmptyDataError:
+            cache_df = pd.DataFrame(columns=METHOD_SCAN_COLUMNS)
+        cache_df = cache_df.reindex(columns=METHOD_SCAN_COLUMNS)
+        method_df = cache_df[cache_df["parser"] != SCAN_MARKER_PARSER].copy()
+        method_df = util.convert_float_int_columns_to_nullable_int(method_df)
+        _write_dataframe_csv(output_method_file, method_df, METHOD_SCAN_COLUMNS)
+        os.remove(method_cache_file)
+    else:
+        _write_dataframe_csv(output_method_file, pd.DataFrame(columns=METHOD_SCAN_COLUMNS), METHOD_SCAN_COLUMNS)
+
+
+def _is_method_output_current(output_method_file: str, commit_hash: str) -> bool:
+    if not os.path.exists(output_method_file):
+        return False
+
+    try:
+        output_df = pd.read_csv(output_method_file, usecols=["hash"])
+    except (ValueError, pd.errors.EmptyDataError):
+        return True
+
+    hashes = set(output_df["hash"].dropna().astype(str))
+    return not hashes or hashes == {commit_hash}
+
+
+def _scan_methods_in_file(
+    scanner,
+    repository_name: str,
+    dot_file_directory: str,
+    url: str,
+    commit_hash: str,
+    file: str,
+    file_without_base: str,
+) -> list[dict]:
+    methods_in_file = []
+
+    try:
+        java_methods = scanner.scanMethod(
+            dot_file_directory,
+            url,
+            commit_hash,
+            file_without_base,
+        )
+        for jm in java_methods:
+            methods_in_file.append(
+                {
+                    "project": repository_name,
+                    "name": jm.getName(),
+                    "url": jm.getUrl(),
+                    "artifact": jm.getArtifact(),
+                    "start_line": jm.getStartLine(),
+                    "end_line": jm.getEndLine(),
+                    "expression": jm.getExpression(),
+                    "file": jm.getFile(),
+                    "pkg": jm.getPkg(),
+                    "fqn": jm.getFqn(),
+                    "fqs": jm.getFqs(),
+                    "fqs_alt": jm.getFqsAlt(),
+                    "hash": jm.getHash(),
+                    "parser": "javaparser",
+                }
+            )
+    except Exception:
+        try:
+            with open(file, "r", encoding="utf-8") as f:
+                java_code = f.read()
+            tree = javalang.parse.parse(java_code)
+            for _, node in tree.filter(javalang.tree.MethodDeclaration):
+                if node.position:
+                    start_line = node.position.line if node.position else None
+                    methods_in_file.append(
+                        {
+                            "project": repository_name,
+                            "name": node.name,
+                            "url": util.format_to_git_url(url, commit_hash, file_without_base, start_line),
+                            "artifact": "unknown",
+                            "start_line": start_line,
+                            "end_line": None,
+                            "expression": None,
+                            "pkg": None,
+                            "fqn": None,
+                            "fqs": None,
+                            "fqs_alt": None,
+                            "file": file_without_base,
+                            "hash": commit_hash,
+                            "parser": "javalang",
+                        }
+                    )
+        except Exception:
+            pass
+
+    return methods_in_file
+
+
+def scan_method(repository_df: DataFrame, repository_directory: str, data_directory: str, _cache_directory):
     from jpype import JClass
     MethodScannerImpl = JClass(
         "rnd.method.parser.call.graph.service.MethodScannerImpl"
@@ -105,91 +292,53 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
     for _, repository in repository_df.iterrows():
         repository_name = repository["project"]
         url = repository['url']
-        hash = repository['updated_hash']
+        commit_hash = repository['updated_hash']
         dot_file_directory = util.format_git_project_directory(repository_directory, repository_name)
         output_method_file = util.format_method_list_file(f"{data_directory}", repository_name)
-        output_method_error_file = os.path.join(f"{cache_directory}/log", f"{repository_name}--method-scan-log.csv")
-        if not os.path.exists(output_method_file):
-            # if True:
-            clone_and_checkout_commit(url, dot_file_directory, hash)
-            java_files = collect_files(dot_file_directory, "*.java")
-            methods = []
-            errors = []
-            for file in java_files:
-                file_without_base = file[len(dot_file_directory) + 1:]
-                try:
-                    methods_in_file = []
-                    java_methods = scanner.scanMethod(
-                        dot_file_directory,
-                        url,
-                        hash,
-                        file_without_base
-                    )
-                    for jm in java_methods:
-                        methods_in_file.append({
-                            "project": repository_name,
-                            "name": jm.getName(),
-                            "url": jm.getUrl(),
-                            "artifact": jm.getArtifact(),
-                            "start_line": jm.getStartLine(),
-                            "end_line": jm.getEndLine(),
-                            "expression": jm.getExpression(),
-                            "file": jm.getFile(),
-                            "pkg": jm.getPkg(),
-                            "fqn": jm.getFqn(),
-                            "fqs": jm.getFqs(),
-                            "fqs_alt": jm.getFqsAlt(),
-                            "hash": jm.getHash(),
-                            "parser": "javaparser"
-                        })
-                    methods.extend(methods_in_file)
-                except Exception as e:
-                    error_msg = str(e)
-                    if not error_msg:
-                        error_msg = f"{type(e).__module__}.{type(e).__name__}"
-                    errors.append(
-                        {'file': file_without_base, 'parser': 'javaparser', 'created_at': datetime.datetime.now(),
-                         'msg': error_msg})
-                    try:
-                        methods_in_file = []
-                        with open(file, 'r', encoding='utf-8') as f:
-                            java_code = f.read()
-                        tree = javalang.parse.parse(java_code)
-                        for _, node in tree.filter(javalang.tree.MethodDeclaration):
-                            if node.position:
-                                start_line = node.position.line if node.position else None
-                                methods_in_file.append(
-                                    {"project": repository_name,
-                                     'name': node.name,
-                                     'url': util.format_to_git_url(url, hash, file_without_base, start_line),
-                                     'artifact': "unknown",
-                                     'start_line': start_line,
-                                     'end_line': None,  # Heuristically find end line
-                                     "expression": None,
-                                     "pkg": None,
-                                     'fqn': None,
-                                     'fqs':None,
-                                     'fqs_alt': None,
-                                     'file': file_without_base,
-                                     'hash': hash,
-                                     'parser': 'javalang'})
-                        methods.extend(methods_in_file)
-                    except Exception as e:
-                        error_msg = str(e)
-                        if not error_msg:
-                            error_msg = f"{type(e).__module__}.{type(e).__name__}"
-                        errors.append(
-                            {'file': file_without_base, 'parser': 'javalang', 'created_at': datetime.datetime.now(),
-                             'msg': error_msg})
+        method_cache_file = util.format_method_cache_file(f"{data_directory}", repository_name, commit_hash)
+        if not os.path.exists(method_cache_file) and _is_method_output_current(output_method_file, commit_hash):
+            continue
 
-            os.makedirs(os.path.dirname(output_method_file), exist_ok=True)
-            pd.DataFrame(methods).to_csv(output_method_file, index=False)
-            if len(errors) > 0:
-                os.makedirs(os.path.dirname(output_method_error_file), exist_ok=True)
-                pd.DataFrame(errors).to_csv(output_method_error_file, index=False)
-            else:
-                if os.path.isfile(output_method_error_file):
-                    os.remove(output_method_error_file)
+        clone_and_checkout_commit(url, dot_file_directory, commit_hash)
+        java_files = sorted(collect_files(dot_file_directory, "*.java"))
+        cached_files = _load_cached_method_scan_files(method_cache_file)
+
+        last_flush_time = time.monotonic()
+        pending_method_rows = []
+        for file in java_files:
+            file_without_base = file[len(dot_file_directory) + 1:]
+            if file_without_base in cached_files:
+                continue
+
+            methods_in_file = _scan_methods_in_file(
+                scanner,
+                repository_name,
+                dot_file_directory,
+                url,
+                commit_hash,
+                file,
+                file_without_base,
+            )
+            pending_method_rows.extend(methods_in_file)
+            pending_method_rows.append(
+                _build_scan_marker_row(repository_name, file_without_base, commit_hash)
+            )
+
+            if time.monotonic() - last_flush_time >= SCAN_METHOD_FLUSH_INTERVAL_SECONDS:
+                _flush_method_scan_buffers(
+                    method_cache_file,
+                    pending_method_rows,
+                )
+                last_flush_time = time.monotonic()
+
+        _flush_method_scan_buffers(
+            method_cache_file,
+            pending_method_rows,
+        )
+        _finalize_method_scan_outputs(
+            method_cache_file,
+            output_method_file,
+        )
 
 
 def start_java_jar(jars: [str], java_options: str | None = None):
