@@ -10,7 +10,11 @@ for source_directory in (PTC_SRC_DIRECTORY, MHC_SRC_DIRECTORY):
         sys.path.insert(0, str(source_directory))
 
 from mhc.constant import CACHE_DIRECTORY
-from ptc.llm.main import default_output_root, resolve_input_file
+from ptc.llm.main import default_output_root, resolve_api_type, resolve_input_file
+from ptc.llm.providers.openai_responses import (
+    normalize_openai_model_name,
+    translate_provider_error,
+)
 
 TEST_CACHE_DIRECTORY = Path(CACHE_DIRECTORY) / "test" / "llm-m2m-link"
 
@@ -37,6 +41,44 @@ class TestLlmMainHelpers(unittest.TestCase):
             TEST_CACHE_DIRECTORY / "data" / "llm",
             default_output_root(str(TEST_CACHE_DIRECTORY)),
         )
+
+    def test_resolve_api_type_uses_openai_responses_for_gpt_oss(self):
+        self.assertEqual(
+            "openai-responses",
+            resolve_api_type("auto", "openai/gpt-oss-20b"),
+        )
+
+    def test_resolve_api_type_defaults_to_huggingface_for_non_gpt_model(self):
+        self.assertEqual(
+            "huggingface",
+            resolve_api_type("auto", "Qwen/Qwen2.5-0.5B-Instruct"),
+        )
+
+    def test_normalize_openai_model_name_strips_openai_prefix(self):
+        self.assertEqual(
+            "gpt-oss-20b",
+            normalize_openai_model_name("openai/gpt-oss-20b"),
+        )
+
+    def test_normalize_openai_model_name_keeps_prefix_for_custom_base_url(self):
+        self.assertEqual(
+            "openai/gpt-oss-20b:free",
+            normalize_openai_model_name(
+                "openai/gpt-oss-20b:free",
+                "https://openrouter.ai/api/v1",
+            ),
+        )
+
+    def test_translate_provider_error_adds_openrouter_privacy_hint(self):
+        error = Exception(
+            "Error code: 404 - {'error': {'message': 'No endpoints available matching your "
+            "guardrail restrictions and data policy. Configure: https://openrouter.ai/settings/privacy'}}"
+        )
+
+        translated = translate_provider_error(error, "https://openrouter.ai/api/v1")
+
+        self.assertIn("OpenRouter could not route this request", translated)
+        self.assertIn("https://openrouter.ai/settings/privacy", translated)
 
 
 if __name__ == "__main__":

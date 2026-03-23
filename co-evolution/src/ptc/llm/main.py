@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
-from mhc.config import *
 from ptc.llm.models import GenerationConfig
 from ptc.llm.persistence import CsvRunStore
 from ptc.llm.prompting import JsonPredictionParser, MethodLinkingPromptFactory
 from ptc.llm.providers.huggingface import (
     HuggingFaceProviderConfig,
     HuggingFaceTextGenerationProvider,
+)
+from ptc.llm.providers.openai_responses import (
+    OpenAIResponsesProvider,
+    OpenAIResponsesProviderConfig,
 )
 from ptc.llm.runner import DataFrameMethodLinker
 
@@ -37,7 +41,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--model-name-or-path",
         dest="model_name_or_path",
         required=True,
-        help="Hugging Face model id or local path.",
+        help="Model id or local path.",
+    )
+    parser.add_argument(
+        "--api-type",
+        dest="api_type",
+        choices=["auto", "huggingface", "openai-responses"],
+        default="auto",
+        help="Provider transport to use. `auto` routes GPT-family models to OpenAI Responses API and others to Hugging Face.",
     )
     parser.add_argument(
         "--short-model-name",
@@ -51,6 +62,13 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["t2p", "p2t"],
         default="t2p",
         help="Use `t2p` for test-to-production or `p2t` for production-to-test.",
+    )
+    parser.add_argument(
+        "--prompt-format",
+        dest="prompt_format",
+        choices=["auto", "json", "text"],
+        default="auto",
+        help="Prompt/output contract. `auto` uses the provider default.",
     )
     parser.add_argument(
         "--batch-size",
@@ -76,8 +94,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--hf-token",
         dest="hf_token",
-        default=HF_TOKEN,
+        default=os.environ.get("HF_TOKEN"),
         help="Hugging Face token. Defaults to HF_TOKEN or HUGGINGFACE_HUB_TOKEN.",
+    )
+    parser.add_argument(
+        "--api-key",
+        dest="api_key",
+        default=None,
+        help="Provider API key. Used by native API providers such as openai-responses.",
+    )
+    parser.add_argument(
+        "--base-url",
+        dest="base_url",
+        default=None,
+        help="Optional base URL for native API providers.",
     )
     parser.add_argument(
         "--trust-remote-code",
@@ -124,16 +154,7 @@ def main() -> None:
     )
 
     edge_df = pd.read_csv(input_path, keep_default_na=False, na_filter=False)
-    provider = HuggingFaceTextGenerationProvider(
-        HuggingFaceProviderConfig(
-            model_name_or_path=args.model_name_or_path,
-            device_map=args.device_map,
-            dtype=args.dtype,
-            trust_remote_code=args.trust_remote_code,
-            batch_size=args.batch_size,
-            token=args.hf_token,
-        )
-    )
+    provider = build_provider(args)
     linker = DataFrameMethodLinker(
         provider=provider,
         prompt_factory=MethodLinkingPromptFactory(),
@@ -141,6 +162,7 @@ def main() -> None:
         run_store=run_store,
         batch_size=args.batch_size,
         resume=args.resume,
+        prompt_format=args.prompt_format,
     )
     result_df = linker.link_dataframe(
         edge_df=edge_df,
@@ -152,6 +174,7 @@ def main() -> None:
             do_sample=args.do_sample,
         ),
     )
+    return result_df
 
 
 def default_output_root(cache_directory: str) -> Path:
@@ -168,6 +191,39 @@ def _require_pandas() -> None:
         import pandas  # noqa: F401
     except ImportError as exc:
         raise ImportError("pandas is required for dataframe-based LLM linking.") from exc
+
+
+def build_provider(args):
+    api_type = resolve_api_type(args.api_type, args.model_name_or_path)
+    if api_type == "openai-responses":
+        return OpenAIResponsesProvider(
+            OpenAIResponsesProviderConfig(
+                model_name_or_path=args.model_name_or_path,
+                api_key=args.api_key,
+                base_url=args.base_url,
+            )
+        )
+
+    return HuggingFaceTextGenerationProvider(
+        HuggingFaceProviderConfig(
+            model_name_or_path=args.model_name_or_path,
+            device_map=args.device_map,
+            dtype=args.dtype,
+            trust_remote_code=args.trust_remote_code,
+            batch_size=args.batch_size,
+            token=args.hf_token,
+        )
+    )
+
+
+def resolve_api_type(api_type: str, model_name_or_path: str) -> str:
+    if api_type != "auto":
+        return api_type
+
+    normalized = model_name_or_path.strip().lower()
+    if normalized.startswith("gpt-") or normalized.startswith("openai/gpt-oss"):
+        return "openai-responses"
+    return "huggingface"
 
 
 if __name__ == "__main__":

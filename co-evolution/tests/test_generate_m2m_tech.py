@@ -31,8 +31,8 @@ class TestApplyLlmTechniques(unittest.TestCase):
             prediction_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
-                    {"from_url": "f1", "to_url": "t1", "llm_predicted_match": 1},
-                    {"from_url": "f1", "to_url": "t2", "llm_predicted_match": 0},
+                    {"from_url": "f1", "to_url": "t1", "llm_pred": 1},
+                    {"from_url": "f1", "to_url": "t2", "llm_pred": 0},
                 ]
             ).to_csv(prediction_dir / "demo.csv", index=False)
 
@@ -73,7 +73,7 @@ class TestApplyLlmTechniques(unittest.TestCase):
             prediction_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
-                    {"from_url": "f1", "to_url": "t1", "llm_predicted_match": 1},
+                    {"from_url": "f1", "to_url": "t1", "llm_pred": 1},
                 ]
             ).to_csv(prediction_dir / "demo.csv", index=False)
 
@@ -96,7 +96,7 @@ class TestApplyLlmTechniques(unittest.TestCase):
             qwen_prediction_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
-                    {"from_url": "f1", "to_url": "t1", "llm_predicted_match": 1},
+                    {"from_url": "f1", "to_url": "t1", "llm_pred": 1},
                 ]
             ).to_csv(qwen_prediction_dir / "demo.csv", index=False)
 

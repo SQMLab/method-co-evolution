@@ -5,13 +5,27 @@ from typing import Any
 
 
 @dataclass(slots=True)
+class PromptContentText:
+    type: str
+    text: str
+
+
+@dataclass(slots=True)
+class PromptMessage:
+    role: str
+    content: list[PromptContentText] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class PromptInput:
     id: str
     fqs: str
     url: str
     prompt_text: str
+    messages: list[PromptMessage] = field(default_factory=list)
     candidate_lookup: dict[str, dict[str, Any]] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    response_format: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
@@ -38,8 +52,8 @@ class LinkPrediction:
     raw_output_text: str
     confidence: float | None = None
     selected_candidate_ids: list[str] = field(default_factory=list)
-    selected_candidate_confidences: list[float | None] = field(default_factory=list)
-    selected_candidate_sigs: list[str] = field(default_factory=list)
-    selected_candidate_urls: list[str] = field(default_factory=list)
+    selected_candidate_fqs: str = ""
+    selected_candidate_sig: str = ""
+    selected_candidate_url: str = ""
     rationale: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)

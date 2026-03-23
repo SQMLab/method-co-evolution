@@ -62,7 +62,9 @@ mhc complexity-analyzer \
 
 The `co-evolution` package now includes a reusable LLM classification runner with:
 
-- Hugging Face model backend abstraction
+- API-driven provider abstraction
+- OpenAI Responses API support for GPT-family models with native structured outputs
+- Hugging Face model backend support for local and self-hosted models
 - Durable CSV persistence for resumable long runs
 - Batch execution for large method-linking jobs
 - Zero-shot prompting for `t2p` and `p2t` linking
@@ -74,8 +76,22 @@ ptc-llm llm-m2m-link \
     --cache-directory ".cache" \
     --project "commons-io" \
     --input-kind "t2p" \
+    --api-type "openai-responses" \
     --model-name-or-path "openai/gpt-oss-20b" \
-    --batch-size 8 \
+    --api-key "$OPENAI_API_KEY" \
+    --batch-size 8
+```
+
+For local or self-hosted Hugging Face models:
+
+```bash
+ptc-llm llm-m2m-link \
+    --cache-directory ".cache" \
+    --project "commons-io" \
+    --input-kind "t2p" \
+    --api-type "huggingface" \
+    --model-name-or-path "Qwen/Qwen2.5-0.5B-Instruct" \
+    --batch-size 4 \
     --dtype "auto"
 ```
 
@@ -94,7 +110,9 @@ By default, outputs are written under `<cache_directory>/data/llm` using this la
 - `<cache_directory>/data/llm/p2t/<model-name>/request/<input-file>.csv`
 - `<cache_directory>/data/llm/p2t/<model-name>/error/<input-file>.csv`
 
-For example, with `openai/gpt-oss-20b`, the model folder name becomes `gpt-oss-20b`.
+If `--api-type auto` is used, GPT-family models such as `openai/gpt-oss-20b` route to the OpenAI Responses API, while other models route to Hugging Face.
+
+For example, with `openai/gpt-oss-20b`, the model folder name becomes `gpt-oss-20b` unless `--short-model-name` is provided.
 
 The primary files are:
 

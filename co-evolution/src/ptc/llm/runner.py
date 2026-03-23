@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from itertools import islice
-import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ptc.llm.models import GenerationConfig, LinkPrediction, PromptInput, ProviderGeneration
@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 
 class ModelProvider(ABC):
+    @abstractmethod
+    def prompt_mode(self) -> str:
+        raise NotImplementedError
+
     @abstractmethod
     def generate_batch(
         self,
@@ -31,6 +35,7 @@ class DataFrameMethodLinker:
         run_store: CsvRunStore | None = None,
         batch_size: int = 4,
         resume: bool = True,
+        prompt_format: str = "auto",
     ):
         self.provider = provider
         self.prompt_factory = prompt_factory
@@ -38,6 +43,7 @@ class DataFrameMethodLinker:
         self.run_store = run_store
         self.batch_size = batch_size
         self.resume = resume
+        self.prompt_format = prompt_format
 
     def link_dataframe(
         self,
@@ -62,7 +68,12 @@ class DataFrameMethodLinker:
         for batch_cases in _chunked(pending_cases, self.batch_size):
             prompts: list[PromptInput] = []
             for case_df in batch_cases:
-                prompt = self.prompt_factory.build_prompt(case_df, normalized_input_kind)
+                prompt_format = self.provider.prompt_mode() if self.prompt_format == "auto" else self.prompt_format
+                prompt = self.prompt_factory.build_prompt(
+                    case_df,
+                    normalized_input_kind,
+                    prompt_format=prompt_format,
+                )
                 if prompt.candidate_lookup:
                     prompts.append(prompt)
                     if self.run_store:
@@ -77,9 +88,9 @@ class DataFrameMethodLinker:
                     raw_output_text="",
                     confidence=1.0,
                     selected_candidate_ids=[],
-                    selected_candidate_confidences=[],
-                    selected_candidate_sigs=[],
-                    selected_candidate_urls=[],
+                    selected_candidate_fqs="",
+                    selected_candidate_sig="",
+                    selected_candidate_url="",
                     rationale="No candidate methods were present in this grouped case.",
                     metadata={"generated_without_model": True},
                 )
@@ -141,8 +152,13 @@ class DataFrameMethodLinker:
     @staticmethod
     def _normalize_dataframe(edge_df):
         column_aliases = {
+            "project": ["project"],
+            "from_name": ["from_name", "from_fqs_alt", "from_fqs", "from_sig", "from_fqn"],
+            "to_name": ["to_name", "to_fqs_alt", "to_fqs", "to_sig", "to_fqn"],
             "from_fqs": ["from_fqs", "from_fqn", "from_name"],
             "to_fqs": ["to_fqs", "to_fqn", "to_name"],
+            "from_fqs_alt": ["from_fqs_alt", "from_fqs", "from_sig", "from_fqn", "from_name"],
+            "to_fqs_alt": ["to_fqs_alt", "to_fqs", "to_sig", "to_fqn", "to_name"],
             "from_sig": ["from_sig", "from_fqs", "from_fqs_alt", "from_fqn"],
             "to_sig": ["to_sig", "to_fqs", "to_fqs_alt", "to_fqn"],
         }
@@ -173,18 +189,10 @@ class DataFrameMethodLinker:
                 {
                     "llm_id": prediction.id,
                     "llm_label": prediction.label,
-                    "llm_confidence": prediction.confidence,
-                    "llm_predicted_candidate_ids": "|".join(prediction.selected_candidate_ids),
-                    "llm_predicted_candidate_confidences": json.dumps(
-                        prediction.selected_candidate_confidences
-                    ),
-                    "llm_predicted_sigs": "|".join(prediction.selected_candidate_sigs),
-                    "llm_predicted_urls": "|".join(prediction.selected_candidate_urls),
-                    "llm_predicted_count": len(prediction.selected_candidate_ids),
-                    "llm_rationale": prediction.rationale,
-                    "llm_raw_output": prediction.raw_output_text,
-                    "llm_fqs": prediction.fqs,
-                    "llm_url": prediction.url,
+                    "llm_fqs": prediction.selected_candidate_fqs,
+                    "llm_output": prediction.raw_output_text,
+                    "llm_predicted_sigs": prediction.selected_candidate_sig,
+                    "llm_predicted_urls": prediction.selected_candidate_url,
                 }
             )
         return pd.DataFrame(rows)
@@ -201,17 +209,10 @@ class DataFrameMethodLinker:
             merged_df = working_df.copy()
             for column in [
                 "llm_label",
-                "llm_confidence",
-                "llm_predicted_candidate_ids",
-                "llm_predicted_candidate_confidences",
+                "llm_fqs",
+                "llm_output",
                 "llm_predicted_sigs",
                 "llm_predicted_urls",
-                "llm_predicted_count",
-                "llm_rationale",
-                "llm_raw_output",
-                "llm_fqs",
-                "llm_url",
-                "llm_predicted_candidate_confidence",
             ]:
                 merged_df[column] = ""
         else:
@@ -222,27 +223,30 @@ class DataFrameMethodLinker:
             )
 
         row_candidate_sig_column = f"{candidate_prefix}_sig"
+        row_candidate_fqs_column = f"{candidate_prefix}_fqs"
+        row_candidate_fqs_alt_column = f"{candidate_prefix}_fqs_alt"
         row_candidate_url_column = f"{candidate_prefix}_url"
         merged_df["llm_predicted_match"] = (
-            (merged_df[row_candidate_sig_column] != "")
+            (
+                (merged_df[row_candidate_sig_column] != "")
+                | (merged_df[row_candidate_fqs_column] != "")
+                | (merged_df[row_candidate_fqs_alt_column] != "")
+            )
             & (
                 merged_df.apply(
                     lambda row: row[row_candidate_sig_column] in _split_pipe_value(row["llm_predicted_sigs"])
+                    or row[row_candidate_fqs_column] == row.get("llm_fqs", "")
+                    or row[row_candidate_fqs_alt_column] == row.get("llm_fqs", "")
                     or row[row_candidate_url_column] in _split_pipe_value(row["llm_predicted_urls"]),
                     axis=1,
                 )
             )
         ).astype(int)
-        merged_df["llm_predicted_candidate_confidence"] = merged_df.apply(
-            lambda row: _match_candidate_confidence(
-                row_candidate_sig=row[row_candidate_sig_column],
-                row_candidate_url=row[row_candidate_url_column],
-                predicted_sigs=row.get("llm_predicted_sigs", ""),
-                predicted_urls=row.get("llm_predicted_urls", ""),
-                predicted_confidences=row.get("llm_predicted_candidate_confidences", ""),
-            ),
-            axis=1,
-        )
+        merged_df["llm_pred"] = merged_df["llm_predicted_match"].astype(int)
+        if "project" in merged_df.columns:
+            merged_df["project"] = merged_df["project"].replace("", Path(self.run_store.input_file_name).stem if self.run_store else "")
+        elif self.run_store:
+            merged_df["project"] = Path(self.run_store.input_file_name).stem
         return merged_df
 
     @staticmethod
@@ -274,42 +278,3 @@ def _split_pipe_value(value) -> list[str]:
     if value is None or value == "":
         return []
     return [item for item in str(value).split("|") if item]
-
-
-def _parse_confidence_list(value) -> list[float | None]:
-    if value in (None, ""):
-        return []
-    try:
-        raw_values = json.loads(value)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return []
-    if not isinstance(raw_values, list):
-        return []
-    confidences: list[float | None] = []
-    for raw_value in raw_values:
-        if raw_value in (None, ""):
-            confidences.append(None)
-            continue
-        try:
-            confidences.append(float(raw_value))
-        except (TypeError, ValueError):
-            confidences.append(None)
-    return confidences
-
-
-def _match_candidate_confidence(
-    row_candidate_sig: str,
-    row_candidate_url: str,
-    predicted_sigs,
-    predicted_urls,
-    predicted_confidences,
-):
-    confidences = _parse_confidence_list(predicted_confidences)
-    for index, (candidate_sig, candidate_url) in enumerate(
-        zip(_split_pipe_value(predicted_sigs), _split_pipe_value(predicted_urls))
-    ):
-        if row_candidate_sig == candidate_sig or row_candidate_url == candidate_url:
-            if index < len(confidences):
-                return confidences[index]
-            return None
-    return None

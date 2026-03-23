@@ -1,0 +1,17 @@
+{
+  "type": "json_schema",
+  "name": "method_link_prediction",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "answer": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "answer"
+    ]
+  }
+}
