@@ -37,11 +37,10 @@ class TestCsvRunStore(unittest.TestCase):
                         "to_fqs",
                         "llm_id",
                         "llm_pred",
-                        "llm_confidences",
-                        "llm_fqses",
-                        "llm_output_count",
-                        "llm_rationales",
+                        "llm_fqs",
                         "llm_output",
+                        "created_at",
+                        "updated_at",
                     ],
                 )
                 writer.writeheader()
@@ -56,11 +55,10 @@ class TestCsvRunStore(unittest.TestCase):
                         "to_fqs": "org.example.Prod.saveItem()",
                         "llm_id": "https://example/source#L1",
                         "llm_pred": "1",
-                        "llm_confidences": "[0.9]",
-                        "llm_fqses": "[\"org.example.Prod.one()\", \"org.example.Prod.two()\"]",
-                        "llm_output_count": "2",
-                        "llm_rationales": "[\"test rationale\"]",
+                        "llm_fqs": "org.example.Prod.one()",
                         "llm_output": "{}",
+                        "created_at": "2026-03-23T10:00:00+00:00",
+                        "updated_at": "2026-03-23T10:00:00+00:00",
                     }
                 )
 
@@ -156,10 +154,7 @@ class TestCsvRunStore(unittest.TestCase):
                         "to_fqs": "org.example.Prod.saveItem()",
                         "llm_id": "https://example/source#L1",
                         "llm_pred": 1,
-                        "llm_confidences": "[0.9]",
-                        "llm_fqses": "[\"org.example.Prod.saveItem()\"]",
-                        "llm_output_count": 1,
-                        "llm_rationales": "[\"test rationale\"]",
+                        "llm_fqs": "org.example.Prod.saveItem()",
                         "llm_output": "{}",
                     }
                 ]

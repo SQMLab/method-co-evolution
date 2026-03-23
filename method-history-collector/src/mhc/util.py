@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 def format_git_project_directory(repository_directory: str, repository_name: str) -> str:
     return os.path.join(f"{repository_directory}", repository_name)
@@ -43,6 +44,11 @@ def convert_method_file_to_method_url(repository_url: str, hash: str, method_fil
 def remove_prefix_if_exists(s: set[str], prefix) -> set[str]:
     return set(map(lambda f: f[len(prefix):] if f.startswith(prefix) else f, s))
 
+
+def sorted_directory_names(path: str | Path) -> list[str]:
+    return sorted(entry.name for entry in os.scandir(path) if entry.is_dir())
+
+
 def lcs(s1, s2):
     n = len(s1)
     m = len(s2)
@@ -74,8 +80,6 @@ def convert_float_int_columns_to_nullable_int(df: pd.DataFrame) -> pd.DataFrame:
                 df[col] = np.round(s).astype("Int64")
 
     return df
-
-from pathlib import Path
 
 def find_root(start: Path) -> Path:
     current = start.resolve()

@@ -6,15 +6,12 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
-      "candidate_ids": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
+      "answer": {
+        "type": "string"
       }
     },
     "required": [
-      "candidate_ids"
+      "answer"
     ]
   }
 }

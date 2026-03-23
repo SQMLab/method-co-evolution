@@ -22,14 +22,15 @@ with _RESPONSE_FORMAT_PATH.open("r", encoding="utf-8") as _handle:
 class MethodLinkingPromptFactory:
     def build_prompt(self, case_df, input_kind: str, prompt_format: str = "json") -> PromptInput:
         normalized_input_kind = normalize_input_kind(input_kind)
-        source_prefix, candidate_prefix, group_column = _layout(normalized_input_kind)
+        source_prefix, candidate_prefix, _ = _layout(normalized_input_kind)
         row = case_df.iloc[0]
         fqs = _display_method_text(row, source_prefix)
         url = row[f"{source_prefix}_url"]
 
         candidate_lookup: dict[str, dict] = {}
-        candidate_lines = []
+        candidate_lines: list[str] = []
         seen_candidate_urls: set[str] = set()
+
         for row in case_df.itertuples(index=False):
             candidate_fqs = _display_method_text(row, candidate_prefix)
             candidate_sig = _row_value(row, f"{candidate_prefix}_sig")
@@ -38,13 +39,12 @@ class MethodLinkingPromptFactory:
             if any([candidate_fqs, candidate_sig, candidate_url]):
                 if not candidate_url or candidate_url not in seen_candidate_urls:
                     candidate_id = f"c{len(candidate_lookup) + 1}"
-
                     candidate_lookup[candidate_id] = {
                         "fqs": candidate_fqs,
                         "sig": candidate_sig or candidate_fqs,
                         "url": candidate_url,
                     }
-                    candidate_lines.append(_candidate_line(candidate_id, candidate_fqs, prompt_format))
+                    candidate_lines.append(candidate_fqs)
                     if candidate_url:
                         seen_candidate_urls.add(candidate_url)
 
@@ -54,13 +54,12 @@ class MethodLinkingPromptFactory:
             candidate_lines=candidate_lines,
             prompt_format=prompt_format,
         )
-        prompt_text = render_messages_as_text(messages)
 
         return PromptInput(
             id=url,
             fqs=fqs,
             url=url,
-            prompt_text=prompt_text,
+            prompt_text=render_messages_as_text(messages),
             messages=messages,
             candidate_lookup=candidate_lookup,
             metadata={
@@ -88,12 +87,7 @@ class MethodLinkingPromptFactory:
                 f"{candidate_block}\n"
                 f"{_output_instruction(prompt_format)}"
             )
-            return [
-                PromptMessage(role="system", content=[PromptContentText(type="text", text=system_text)]),
-                PromptMessage(role="user", content=[PromptContentText(type="text", text=user_text)]),
-            ]
-
-        if input_kind == "p2t":
+        elif input_kind == "p2t":
             system_text = _p2t_system_text(prompt_format)
             user_text = (
                 f"Fully qualified signature (FQS) of production method: {fqs}\n"
@@ -101,12 +95,14 @@ class MethodLinkingPromptFactory:
                 f"{candidate_block}\n"
                 f"{_output_instruction(prompt_format)}"
             )
-            return [
-                PromptMessage(role="system", content=[PromptContentText(type="text", text=system_text)]),
-                PromptMessage(role="user", content=[PromptContentText(type="text", text=user_text)]),
-            ]
+        else:
+            raise ValueError(f"Unsupported input_kind: {input_kind}")
 
-        raise ValueError(f"Unsupported input_kind: {input_kind}")
+        return [
+            PromptMessage(role="system", content=[PromptContentText(type="text", text=system_text)]),
+            PromptMessage(role="user", content=[PromptContentText(type="text", text=user_text)]),
+        ]
+
 
 def render_messages_as_text(messages: list[PromptMessage]) -> str:
     rendered_messages: list[str] = []
@@ -118,17 +114,18 @@ def render_messages_as_text(messages: list[PromptMessage]) -> str:
 
 def _t2p_system_text(prompt_format: str) -> str:
     return (
-        "You are an expert in identifying which production methods are being tested by a given test method in a Java codebase. "
+        "You are an expert in identifying which production method is being tested by a given test method in a Java codebase. "
         "You will be given a test method and a list of candidate production methods that are called within the test method. "
-        "your task is to determine which one of these candidate production methods is actually being tested. "
+        "Your task is to choose exactly one candidate production method from the list, or NONE if no candidate is under test. "
         f"{_return_requirement(prompt_format)}"
     )
 
 
 def _p2t_system_text(prompt_format: str) -> str:
     return (
-        "You are an expert in finding the test methods that call a production method in a Java codebase. "
-        "Choose the candidate test methods that actually test the production method. "
+        "You are an expert in identifying which test method exercises a given production method in a Java codebase. "
+        "You will be given a production method and a list of candidate test methods that call it. "
+        "Your task is to choose exactly one candidate test method from the list, or NONE if no candidate is the right answer. "
         f"{_return_requirement(prompt_format)}"
     )
 
@@ -136,24 +133,19 @@ def _p2t_system_text(prompt_format: str) -> str:
 def _output_instruction(prompt_format: str) -> str:
     if prompt_format == "json":
         return (
-            "Use the candidate IDs from the list below. "
+            "Return valid JSON only with the answer field set to the exact candidate FQS from the list above or NONE. "
             "Do not repeat the prompt. Do not use markdown or code fences."
         )
-    return (
-        "Return exactly this format:\n"
-        "METHOD: <exact candidate method from the list above or NONE>\n"
-        "CONFIDENCE: <confidence between 0 and 1>\n"
-        "RATIONALE: <short explanation>"
-    )
+    return "Return exactly this format:\nAnswer: <exact candidate FQS from the list above or NONE>"
 
 
 def _return_requirement(prompt_format: str) -> str:
     if prompt_format == "json":
-        return "Return valid JSON only that follows the provided schema. Only return candidate IDs such as c1 or c2."
+        return "Return valid JSON only that follows the provided schema. Use the exact candidate FQS from the list or NONE."
     return (
-        "Return only the requested labeled fields. Start immediately with METHOD:. "
+        "Return only the requested answer line. Start immediately with Answer:. "
         "Do not include analysis, chain-of-thought, restatements, bullet points, markdown, or any extra text. "
-        "Use the exact candidate method text from the list."
+        "Use the exact candidate FQS from the list or NONE."
     )
 
 
@@ -163,19 +155,16 @@ class JsonPredictionParser:
     def parse(self, prompt_input: PromptInput, output_text: str) -> LinkPrediction:
         payload = self._extract_or_fallback_payload(output_text)
         candidate_ids = self._resolve_candidate_ids(prompt_input, payload)
-        candidate_confidences = self._normalize_selected_confidences(payload, candidate_ids)
-        candidate_rationales = self._normalize_selected_rationales(payload, candidate_ids)
-        selected_candidate_fqses: list[str] = []
-        selected_candidate_sigs: list[str] = []
-        selected_candidate_urls: list[str] = []
+        selected_candidate_fqs = ""
+        selected_candidate_sig = ""
+        selected_candidate_url = ""
 
-        for candidate_id in candidate_ids:
-            candidate = prompt_input.candidate_lookup.get(candidate_id)
-            if candidate is None:
-                continue
-            selected_candidate_fqses.append(candidate["fqs"])
-            selected_candidate_sigs.append(candidate["sig"])
-            selected_candidate_urls.append(candidate["url"])
+        if candidate_ids:
+            candidate = prompt_input.candidate_lookup.get(candidate_ids[0])
+            if candidate is not None:
+                selected_candidate_fqs = candidate["fqs"]
+                selected_candidate_sig = candidate["sig"]
+                selected_candidate_url = candidate["url"]
 
         return LinkPrediction(
             id=prompt_input.id,
@@ -183,14 +172,12 @@ class JsonPredictionParser:
             url=prompt_input.url,
             label="match" if candidate_ids else "none",
             raw_output_text=output_text,
-            confidence=self._coerce_confidence(payload.get("confidence")),
+            confidence=None,
             selected_candidate_ids=candidate_ids,
-            selected_candidate_confidences=candidate_confidences,
-            selected_candidate_fqses=selected_candidate_fqses,
-            selected_candidate_sigs=selected_candidate_sigs,
-            selected_candidate_urls=selected_candidate_urls,
+            selected_candidate_fqs=selected_candidate_fqs,
+            selected_candidate_sig=selected_candidate_sig,
+            selected_candidate_url=selected_candidate_url,
             rationale=str(payload.get("rationale", "")).strip(),
-            selected_candidate_rationales=candidate_rationales,
             metadata={"raw_json": payload},
         )
 
@@ -204,10 +191,9 @@ class JsonPredictionParser:
                 return conventional_payload
             stripped_output = output_text.strip()
             return {
-                "candidate_ids": [],
-                "confidence": None,
+                "answer": "NONE",
                 "rationale": (
-                    "Model did not return a JSON object."
+                    "Model did not return a usable answer."
                     if stripped_output
                     else "Model returned an empty response."
                 ),
@@ -218,11 +204,10 @@ class JsonPredictionParser:
         stripped_output = output_text.strip()
         if not stripped_output:
             return None
-
-        method_blocks = JsonPredictionParser._extract_method_blocks(stripped_output)
-        if method_blocks:
-            return JsonPredictionParser._payload_from_method_blocks(method_blocks)
-        return None
+        answer_match = re.search(r"(?is)\banswer\s*:\s*(.+)", stripped_output)
+        if answer_match is None:
+            return None
+        return {"answer": JsonPredictionParser._clean_answer_value(answer_match.group(1))}
 
     @staticmethod
     def _extract_json(output_text: str) -> dict:
@@ -234,15 +219,15 @@ class JsonPredictionParser:
             return normalized_payload
 
         for start_index, character in enumerate(output_text):
-            if character not in {"{", "["}:
-                continue
-            try:
-                raw_payload, _ = decoder.raw_decode(output_text[start_index:])
-            except json.JSONDecodeError:
-                continue
-            payload = JsonPredictionParser._normalize_payload_shape(raw_payload)
-            if payload is not None and JsonPredictionParser._looks_like_prediction_payload(payload):
-                return payload
+            if character in {"{", "\""}:
+                try:
+                    raw_payload, _ = decoder.raw_decode(output_text[start_index:])
+                except json.JSONDecodeError:
+                    raw_payload = None
+                if raw_payload is not None:
+                    payload = JsonPredictionParser._normalize_payload_shape(raw_payload)
+                    if payload is not None and JsonPredictionParser._looks_like_prediction_payload(payload):
+                        return payload
         raise ValueError(f"Could not find JSON object in model output: {output_text}")
 
     @staticmethod
@@ -259,95 +244,25 @@ class JsonPredictionParser:
 
     @staticmethod
     def _looks_like_prediction_payload(payload: dict) -> bool:
-        if "candidate_ids" not in payload and "candidate_id" not in payload:
+        if "answer" not in payload:
             return False
-
-        rationale = str(payload.get("rationale", "")).strip().lower()
-        if rationale == "short explanation":
-            return False
-
-        candidate_ids = payload.get("candidate_ids", payload.get("candidate_id", []))
-        if (
-            isinstance(candidate_ids, list)
-            and candidate_ids == ["c1", "c2"]
-            and rationale == "short explanation"
-        ):
-            return False
-
-        return True
+        return bool(JsonPredictionParser._clean_answer_value(payload.get("answer", "")))
 
     @staticmethod
     def _normalize_payload_shape(raw_payload) -> dict | None:
         if isinstance(raw_payload, dict):
             return raw_payload
-        if isinstance(raw_payload, list) and all(isinstance(item, str) for item in raw_payload):
-            return {"candidate_ids": raw_payload}
+        if isinstance(raw_payload, str):
+            return {"answer": raw_payload}
         return None
-
-    @staticmethod
-    def _normalize_candidate_ids(payload: dict) -> list[str]:
-        raw_value = payload.get("candidate_ids", payload.get("candidate_id", []))
-        if raw_value in (None, "", "NONE"):
-            return []
-        if isinstance(raw_value, str):
-            return [raw_value]
-        if isinstance(raw_value, list):
-            return [str(item) for item in raw_value if str(item).upper() != "NONE"]
-        raise ValueError(f"Unsupported candidate_ids payload: {raw_value}")
-
-    @classmethod
-    def _normalize_selected_confidences(
-        cls,
-        payload: dict,
-        candidate_ids: list[str],
-    ) -> list[float | None]:
-        raw_value = payload.get("candidate_confidences", None)
-        if isinstance(raw_value, dict):
-            return [cls._coerce_confidence(raw_value.get(candidate_id)) for candidate_id in candidate_ids]
-        if isinstance(raw_value, list):
-            return [cls._coerce_confidence(item) for item in raw_value]
-
-        confidence = cls._coerce_confidence(payload.get("confidence"))
-        if candidate_ids and confidence is not None:
-            return [confidence]
-        return []
-
-    @staticmethod
-    def _normalize_selected_rationales(payload: dict, candidate_ids: list[str]) -> list[str]:
-        raw_value = payload.get("candidate_rationales", None)
-        if isinstance(raw_value, list):
-            return [str(item).strip() for item in raw_value if str(item).strip()]
-
-        rationale = str(payload.get("rationale", "")).strip()
-        if candidate_ids and rationale:
-            return [rationale]
-        return []
-
-    @staticmethod
-    def _coerce_confidence(value) -> float | None:
-        if value is None or value == "":
-            return None
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            match = re.search(r"(?<!\d)(0(?:\.\d+)?|1(?:\.0+)?)(?!\d)", str(value))
-            if match is None:
-                return None
-            try:
-                return float(match.group(1))
-            except ValueError:
-                return None
 
     @classmethod
     def _resolve_candidate_ids(cls, prompt_input: PromptInput, payload: dict) -> list[str]:
-        if "candidate_methods" in payload:
-            return cls._resolve_candidate_methods(prompt_input, payload["candidate_methods"])
-        return cls._normalize_candidate_ids(payload)
+        answer = cls._clean_answer_value(payload.get("answer", ""))
+        if answer.upper() in {"", "NONE", "[]"}:
+            return []
 
-    @classmethod
-    def _resolve_candidate_methods(cls, prompt_input: PromptInput, candidate_methods: list[str]) -> list[str]:
-        resolved_candidate_ids: list[str] = []
-        seen_candidate_ids: set[str] = set()
+        normalized_answer = cls._normalize_method_text(answer)
         normalized_lookup = {
             candidate_id: {
                 cls._normalize_method_text(candidate["fqs"]),
@@ -356,120 +271,32 @@ class JsonPredictionParser:
             for candidate_id, candidate in prompt_input.candidate_lookup.items()
         }
 
-        for method_text in candidate_methods:
-            normalized_method = cls._normalize_method_text(method_text)
-            if not normalized_method:
-                continue
+        for candidate_id, candidate_texts in normalized_lookup.items():
+            if normalized_answer in candidate_texts:
+                return [candidate_id]
 
-            exact_match_id = None
-            for candidate_id, candidate_texts in normalized_lookup.items():
-                if normalized_method in candidate_texts and candidate_id not in seen_candidate_ids:
-                    exact_match_id = candidate_id
-                    break
-
-            if exact_match_id is not None:
-                resolved_candidate_ids.append(exact_match_id)
-                seen_candidate_ids.add(exact_match_id)
-                continue
-
-            prefix_matches = [
-                candidate_id
-                for candidate_id, candidate_texts in normalized_lookup.items()
-                if candidate_id not in seen_candidate_ids
-                and any(
-                    candidate_text.startswith(normalized_method)
-                    or normalized_method.startswith(candidate_text)
-                    for candidate_text in candidate_texts
-                    if candidate_text
-                )
-            ]
-            if len(prefix_matches) == 1:
-                resolved_candidate_ids.append(prefix_matches[0])
-                seen_candidate_ids.add(prefix_matches[0])
-        return resolved_candidate_ids
+        prefix_matches = [
+            candidate_id
+            for candidate_id, candidate_texts in normalized_lookup.items()
+            if any(
+                candidate_text.startswith(normalized_answer)
+                or normalized_answer.startswith(candidate_text)
+                for candidate_text in candidate_texts
+                if candidate_text
+            )
+        ]
+        if len(prefix_matches) == 1:
+            return [prefix_matches[0]]
+        return []
 
     @staticmethod
     def _normalize_method_text(value: str) -> str:
         return re.sub(r"\s+", " ", str(value).strip()).lower()
 
     @staticmethod
-    def _extract_method_blocks(output_text: str) -> list[dict]:
-        label_pattern = re.compile(
-            r"(?is)\b(?:(?P<label>method|rationale)\s*:|(?P<confidence_label>confidence)\s*:?)\s*"
-        )
-        matches = list(label_pattern.finditer(output_text))
-        if not matches:
-            return []
-
-        blocks: list[dict] = []
-        current_block: dict[str, str] = {}
-        saw_method_field = False
-
-        for index, match in enumerate(matches):
-            label = (match.group("label") or match.group("confidence_label") or "").lower()
-            value_end = matches[index + 1].start() if index + 1 < len(matches) else len(output_text)
-            value = output_text[match.end():value_end].strip()
-
-            if label == "method":
-                if current_block:
-                    blocks.append(current_block)
-                current_block = {"method": JsonPredictionParser._clean_method_value(value)}
-                saw_method_field = True
-                continue
-
-            if not current_block:
-                continue
-
-            if label == "confidence":
-                current_block["confidence"] = value
-            elif label == "rationale":
-                current_rationale = current_block.get("rationale", "")
-                if current_rationale and value:
-                    current_block["rationale"] = f"{current_rationale}\n{value}"
-                elif value:
-                    current_block["rationale"] = value
-
-        if current_block:
-            blocks.append(current_block)
-
-        if saw_method_field:
-            return blocks
-        return []
-
-    @staticmethod
-    def _clean_method_value(value: str) -> str:
+    def _clean_answer_value(value: str) -> str:
         cleaned = str(value).strip().strip("`'\"")
         return re.sub(r"[\s\.;:,]+$", "", cleaned)
-
-    @classmethod
-    def _payload_from_method_blocks(cls, method_blocks: list[dict]) -> dict:
-        candidate_methods: list[str] = []
-        rationales: list[str] = []
-        confidences: list[float] = []
-
-        for block in method_blocks:
-            method_text = str(block.get("method", "")).strip()
-            if method_text.upper() not in {"", "NONE", "[]"}:
-                candidate_methods.append(method_text)
-
-            rationale_text = str(block.get("rationale", "")).strip()
-            if rationale_text:
-                rationales.append(rationale_text)
-
-            confidence_value = cls._coerce_confidence(block.get("confidence"))
-            if confidence_value is not None:
-                confidences.append(confidence_value)
-
-        payload = {
-            "candidate_methods": candidate_methods,
-            "candidate_confidences": confidences,
-            "candidate_rationales": rationales,
-        }
-        if confidences:
-            payload["confidence"] = max(confidences)
-        if rationales:
-            payload["rationale"] = "\n\n".join(rationales)
-        return payload
 
 
 def _layout(input_kind: str) -> tuple[str, str, str]:
@@ -498,9 +325,3 @@ def _row_value(row, field_name: str) -> str:
     if hasattr(row, "get"):
         return row.get(field_name, "")
     return getattr(row, field_name, "")
-
-
-def _candidate_line(candidate_id: str, candidate_fqs: str, prompt_format: str) -> str:
-    if prompt_format == "json":
-        return f"{candidate_id}: {candidate_fqs}"
-    return candidate_fqs

@@ -55,25 +55,20 @@ class CsvRunStore:
                 if not row_id:
                     continue
                 if "llm_output" in row:
-                    selected_candidate_fqses = _coerce_string_list(row.get("llm_fqses", ""))
-                    selected_candidate_confidences = _coerce_float_list(row.get("llm_confidences", ""))
-                    selected_candidate_rationales = _coerce_string_list(row.get("llm_rationales", ""))
-                    output_count = _coerce_int(row.get("llm_output_count", "")) or len(selected_candidate_fqses)
+                    selected_candidate_fqs = row.get("llm_fqs", "")
                     llm_pred = _coerce_int(row.get("llm_pred", ""))
                     predictions[row_id] = LinkPrediction(
                         id=row_id,
                         fqs=row.get(f"{source_prefix}_fqs", ""),
                         url=row.get(f"{source_prefix}_url", ""),
-                        label="match" if llm_pred == 1 or output_count > 0 else "none",
+                        label="match" if llm_pred == 1 and selected_candidate_fqs else "none",
                         raw_output_text=row.get("llm_output", ""),
-                        confidence=max(selected_candidate_confidences) if selected_candidate_confidences else None,
-                        selected_candidate_ids=[f"c{index}" for index in range(1, output_count + 1)],
-                        selected_candidate_confidences=selected_candidate_confidences,
-                        selected_candidate_fqses=selected_candidate_fqses,
-                        selected_candidate_sigs=selected_candidate_fqses,
-                        selected_candidate_urls=[],
-                        rationale="\n\n".join(selected_candidate_rationales),
-                        selected_candidate_rationales=selected_candidate_rationales,
+                        confidence=None,
+                        selected_candidate_ids=["c1"] if llm_pred == 1 and selected_candidate_fqs else [],
+                        selected_candidate_fqs=selected_candidate_fqs,
+                        selected_candidate_sig=selected_candidate_fqs,
+                        selected_candidate_url="",
+                        rationale="",
                         metadata={},
                     )
                 elif row.get("llm_label", ""):
@@ -85,12 +80,9 @@ class CsvRunStore:
                         raw_output_text=row.get("llm_raw_output", ""),
                         confidence=_coerce_float(row.get("llm_confidence", "")),
                         selected_candidate_ids=_split_pipe(row.get("llm_predicted_candidate_ids", "")),
-                        selected_candidate_confidences=_coerce_float_list(
-                            row.get("llm_predicted_candidate_confidences", "")
-                        ),
-                        selected_candidate_fqses=_split_pipe(row.get("llm_predicted_fqses", "")),
-                        selected_candidate_sigs=_split_pipe(row.get("llm_predicted_sigs", "")),
-                        selected_candidate_urls=_split_pipe(row.get("llm_predicted_urls", "")),
+                        selected_candidate_fqs=_first_pipe_value(row.get("llm_predicted_fqses", "")),
+                        selected_candidate_sig=_first_pipe_value(row.get("llm_predicted_sigs", "")),
+                        selected_candidate_url=_first_pipe_value(row.get("llm_predicted_urls", "")),
                         rationale=row.get("llm_rationale", ""),
                         metadata={},
                     )
@@ -165,10 +157,7 @@ class CsvRunStore:
             "to_fqs",
             "llm_id",
             "llm_pred",
-            "llm_confidences",
-            "llm_fqses",
-            "llm_output_count",
-            "llm_rationales",
+            "llm_fqs",
             "llm_output",
             "created_at",
             "updated_at",
@@ -183,10 +172,7 @@ class CsvRunStore:
             "to_fqs": "",
             "llm_id": "",
             "llm_pred": 0,
-            "llm_confidences": "[]",
-            "llm_fqses": "[]",
-            "llm_output_count": 0,
-            "llm_rationales": "[]",
+            "llm_fqs": "",
             "llm_output": "",
             "created_at": "",
             "updated_at": "",
@@ -246,28 +232,11 @@ def _coerce_float(value: str) -> float | None:
         return None
 
 
-def _coerce_float_list(value: str) -> list[float | None]:
-    if not value:
-        return []
-    try:
-        raw_values = json.loads(value)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return []
-    if not isinstance(raw_values, list):
-        return []
-    return [_coerce_float("" if item is None else str(item)) for item in raw_values]
-
-
-def _coerce_string_list(value: str) -> list[str]:
-    if not value:
-        return []
-    try:
-        raw_values = json.loads(value)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return []
-    if not isinstance(raw_values, list):
-        return []
-    return [str(item) for item in raw_values if str(item)]
+def _first_pipe_value(value: str) -> str:
+    values = _split_pipe(value)
+    if values:
+        return values[0]
+    return ""
 
 
 def _coerce_int(value: str) -> int | None:

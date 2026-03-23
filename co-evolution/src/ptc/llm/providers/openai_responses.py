@@ -21,7 +21,7 @@ class OpenAIResponsesProvider(ModelProvider):
         self._client = None
 
     def prompt_mode(self) -> str:
-        return "structured_json"
+        return "json"
 
     def generate_batch(
         self,
