@@ -222,30 +222,7 @@ class JsonPredictionParser:
         method_blocks = JsonPredictionParser._extract_method_blocks(stripped_output)
         if method_blocks:
             return JsonPredictionParser._payload_from_method_blocks(method_blocks)
-
-        ids_match = re.search(r"(?im)^\s*candidate_ids\s*:\s*(.+?)\s*$", stripped_output)
-        confidence_match = re.search(r"(?im)^\s*confidence\s*:\s*(.+?)\s*$", stripped_output)
-        rationale_match = re.search(r"(?im)^\s*rationale\s*:\s*(.+)$", stripped_output)
-
-        if ids_match is None and confidence_match is None and rationale_match is None:
-            return None
-
-        candidate_ids: list[str] = []
-        if ids_match is not None:
-            raw_ids = ids_match.group(1).strip()
-            if raw_ids.upper() not in {"", "NONE", "[]"}:
-                candidate_ids = [
-                    item.strip()
-                    for item in re.split(r"[\s,|]+", raw_ids)
-                    if item.strip()
-                ]
-
-        payload = {"candidate_ids": candidate_ids}
-        if confidence_match is not None:
-            payload["confidence"] = confidence_match.group(1).strip()
-        if rationale_match is not None:
-            payload["rationale"] = rationale_match.group(1).strip()
-        return payload
+        return None
 
     @staticmethod
     def _extract_json(output_text: str) -> dict:
@@ -353,7 +330,13 @@ class JsonPredictionParser:
         try:
             return float(value)
         except (TypeError, ValueError):
-            return None
+            match = re.search(r"(?<!\d)(0(?:\.\d+)?|1(?:\.0+)?)(?!\d)", str(value))
+            if match is None:
+                return None
+            try:
+                return float(match.group(1))
+            except ValueError:
+                return None
 
     @classmethod
     def _resolve_candidate_ids(cls, prompt_input: PromptInput, payload: dict) -> list[str]:
@@ -411,38 +394,40 @@ class JsonPredictionParser:
 
     @staticmethod
     def _extract_method_blocks(output_text: str) -> list[dict]:
+        label_pattern = re.compile(
+            r"(?is)\b(?:(?P<label>method|rationale)\s*:|(?P<confidence_label>confidence)\s*:?)\s*"
+        )
+        matches = list(label_pattern.finditer(output_text))
+        if not matches:
+            return []
+
         blocks: list[dict] = []
         current_block: dict[str, str] = {}
         saw_method_field = False
 
-        for raw_line in output_text.splitlines():
-            line = raw_line.strip()
-            if not line:
-                continue
+        for index, match in enumerate(matches):
+            label = (match.group("label") or match.group("confidence_label") or "").lower()
+            value_end = matches[index + 1].start() if index + 1 < len(matches) else len(output_text)
+            value = output_text[match.end():value_end].strip()
 
-            method_match = re.match(r"(?i)^method\s*:\s*(.*)$", line)
-            if method_match is not None:
+            if label == "method":
                 if current_block:
                     blocks.append(current_block)
-                current_block = {"method": method_match.group(1).strip()}
+                current_block = {"method": JsonPredictionParser._clean_method_value(value)}
                 saw_method_field = True
-            else:
-                confidence_match = re.match(r"(?i)^confidence\s*:\s*(.*)$", line)
-                if confidence_match is not None:
-                    current_block["confidence"] = confidence_match.group(1).strip()
-                else:
-                    rationale_match = re.match(r"(?i)^rationale\s*:\s*(.*)$", line)
-                    if rationale_match is not None:
-                        current_rationale = current_block.get("rationale", "")
-                        rationale_text = rationale_match.group(1).strip()
-                        if current_rationale:
-                            current_block["rationale"] = f"{current_rationale}\n{rationale_text}"
-                        else:
-                            current_block["rationale"] = rationale_text
-                    else:
-                        current_rationale = current_block.get("rationale", "")
-                        if current_rationale:
-                            current_block["rationale"] = f"{current_rationale}\n{line}"
+                continue
+
+            if not current_block:
+                continue
+
+            if label == "confidence":
+                current_block["confidence"] = value
+            elif label == "rationale":
+                current_rationale = current_block.get("rationale", "")
+                if current_rationale and value:
+                    current_block["rationale"] = f"{current_rationale}\n{value}"
+                elif value:
+                    current_block["rationale"] = value
 
         if current_block:
             blocks.append(current_block)
@@ -450,6 +435,11 @@ class JsonPredictionParser:
         if saw_method_field:
             return blocks
         return []
+
+    @staticmethod
+    def _clean_method_value(value: str) -> str:
+        cleaned = str(value).strip().strip("`'\"")
+        return re.sub(r"[\s\.;:,]+$", "", cleaned)
 
     @classmethod
     def _payload_from_method_blocks(cls, method_blocks: list[dict]) -> dict:

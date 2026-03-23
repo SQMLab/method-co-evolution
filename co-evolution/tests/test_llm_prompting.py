@@ -7,6 +7,7 @@ if str(SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SRC_DIRECTORY))
 
 from ptc.llm.prompting import JsonPredictionParser, MethodLinkingPromptFactory
+from ptc.llm.models import PromptInput
 
 try:
     import pandas as pd
@@ -52,10 +53,9 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
         self.assertEqual(2, len(prompt.messages))
         self.assertEqual("system", prompt.messages[0].role)
         self.assertEqual("user", prompt.messages[1].role)
-        self.assertIn("careful java method-linking analyst", prompt.prompt_text.lower())
-        self.assertIn("test-to-production linking", prompt.prompt_text.lower())
+        self.assertIn("expert in identifying which production methods are being tested", prompt.prompt_text.lower())
         self.assertIn(
-            "Source test method fully qualified signature (FQS): "
+            "Fully qualified signature (FQS) of test method: "
             "org.apache.commons.io.ByteOrderMarkTestCase.charsetName()",
             prompt.prompt_text,
         )
@@ -70,7 +70,7 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
         prompt = MethodLinkingPromptFactory().build_prompt(case_df, "t2p", prompt_format="text")
 
         self.assertIsNone(prompt.response_format)
-        self.assertIn("METHOD: <exact candidate method text from the list above or NONE>", prompt.prompt_text)
+        self.assertIn("METHOD: <exact candidate method from the list above or NONE>", prompt.prompt_text)
         self.assertIn("CONFIDENCE: <confidence between 0 and 1>", prompt.prompt_text)
         self.assertIn("RATIONALE: <short explanation>", prompt.prompt_text)
         self.assertIn("Start immediately with METHOD:", prompt.prompt_text)
@@ -83,10 +83,9 @@ class TestMethodLinkPromptFactory(unittest.TestCase):
         prompt = MethodLinkingPromptFactory().build_prompt(case_df, "p2t")
 
         self.assertEqual(2, len(prompt.messages))
-        self.assertIn("careful java method-linking analyst", prompt.prompt_text.lower())
-        self.assertIn("production-to-test linking", prompt.prompt_text.lower())
+        self.assertIn("expert in finding the test methods that call a production method", prompt.prompt_text.lower())
         self.assertIn(
-            "Source production method fully qualified signature (FQS): "
+            "Fully qualified signature (FQS) of production method: "
             "org.apache.commons.io.FileUtils.byteCountToDisplaySize(long)",
             prompt.prompt_text,
         )
@@ -235,6 +234,37 @@ class TestJsonPredictionParser(unittest.TestCase):
         self.assertEqual("match", prediction.label)
         self.assertEqual(["c1"], prediction.selected_candidate_ids)
         self.assertAlmostEqual(0.88, prediction.confidence)
+
+    def test_parse_prediction_accepts_inline_method_confidence_and_rationale(self):
+        prompt_input = PromptInput(
+            id="dirwalker-case",
+            fqs="org.apache.commons.io.DirectoryWalkerTestCase.testMissingStartDirectory()",
+            url="https://example/test#L1",
+            prompt_text="",
+            candidate_lookup={
+                "c1": {
+                    "fqs": "org.apache.commons.io.DirectoryWalker.walk(File, Collection)",
+                    "sig": "org.apache.commons.io.DirectoryWalker.walk(File, Collection)",
+                    "url": "https://example/prod#L10",
+                }
+            },
+        )
+
+        prediction = JsonPredictionParser().parse(
+            prompt_input,
+            (
+                "We need to locate DirectoryWalkerTestCase in Apache Commons IO. "
+                "The testMissingStartDirectory likely tests that the walk method throws for a missing directory. "
+                "So we should output METHOD: org.apache.commons.io.DirectoryWalker.walk(File, Collection). "
+                "Confidence high, maybe 0.99. "
+                "Rationale: testMissingStartDirectory calls DirectoryWalker.walk with a missing start directory and expects exception."
+            ),
+        )
+
+        self.assertEqual("match", prediction.label)
+        self.assertEqual(["c1"], prediction.selected_candidate_ids)
+        self.assertAlmostEqual(0.99, prediction.confidence)
+        self.assertIn("missing start directory", prediction.rationale)
 
 
 if __name__ == "__main__":
