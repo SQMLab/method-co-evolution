@@ -9,45 +9,8 @@ from ptc.plot_util import *
 from mhc.config import DATA_DIRECTORY, CACHE_DIRECTORY
 from ptc.constants import *
 
-STAT_COLUMNS = ["project", "tool", "strategy", "change", "corr", "stat_stat", "stat_p", "stat_d", "stat_size"]
 code_shovel_unsupported_change_set = {f"ch_{change_type.name.lower()}" for change_type in
                                       CODE_SHOVEL_UNSUPPORTED_CHANGES}
-
-
-def build_stat_row(
-    project: str,
-    tool: str,
-    strategy: str,
-    change: str,
-    x: pd.Series,
-    y: pd.Series,
-    corr: float,
-    unsupported: bool,
-) -> dict:
-    row = {
-        "project": project,
-        "tool": tool,
-        "strategy": strategy,
-        "change": change.replace("ch_", ""),
-        "corr": round(corr, 2) if pd.notna(corr) else np.nan,
-        "stat_stat": np.nan,
-        "stat_p": np.nan,
-        "stat_d": np.nan,
-        "stat_size": np.nan,
-    }
-
-    if unsupported or x.empty or y.empty:
-        return row
-
-    stat, p_value, d, size = man_utest(x, y)
-    row["stat_stat"] = round(stat, 2)
-    row["stat_p"] = round(p_value, 2)
-    row["stat_d"] = round(d, 2)
-    row["stat_size"] = size
-    return row
-
-
-stats_rows = []
 
 tools = util.sorted_directory_names(f"{DATA_DIRECTORY}/t2p-change")
 for tool in tools:
@@ -93,12 +56,9 @@ for tool in tools:
                 for change_index, change in enumerate(change_cols):
                     ax = axes[repository_index][change_index] if n_cols > 1 else axes[repository_index]
                     unsupported = tool == 'codeShovel' and change in code_shovel_unsupported_change_set
+                    ax.set_title(f"{change.replace('ch_', '')}".capitalize(), fontsize=24)
 
                     if unsupported:
-                        stats_rows.append(
-                            build_stat_row(project, tool, link_strategy, change, pd.Series(dtype=float),
-                                           pd.Series(dtype=float), np.nan, unsupported)
-                        )
                         ax.text(
                             0.5, 0.5, "NA",
                             ha="center", va="center",
@@ -106,8 +66,9 @@ for tool in tools:
                             transform=ax.transAxes
                         )
                     else:
-                        x = pdf[f"to_{change}"].dropna()
-                        y = pdf[f"from_{change}"].dropna()
+                        pair_df = pdf[[f"to_{change}", f"from_{change}"]].dropna()
+                        x = pair_df[f"to_{change}"]
+                        y = pair_df[f"from_{change}"]
 
                         ax.scatter(x.values, y.values, linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
                                    ls=GRAPH_STYLES[change_index % len(GRAPH_STYLES)])
@@ -122,13 +83,10 @@ for tool in tools:
                         if change_index == 0:
                             ax.set_xlabel("production".capitalize(), fontsize=20)
                             ax.set_ylabel("test".capitalize(), fontsize=20)
-                        if x.std() == 0 or y.std() == 0:
+                        if len(pair_df) < 2 or x.std() == 0 or y.std() == 0:
                             corr = np.nan
                         else:
                             corr = x.corr(y, method="kendall")
-
-                        stats_rows.append(build_stat_row(project, tool, link_strategy, change, x, y, corr, False))
-                        ax.set_title(f"{change.replace('ch_', '')}".capitalize(), fontsize=24)
 
 
                     if change_index == 0:
@@ -142,9 +100,3 @@ for tool in tools:
             fig.savefig(fig_file,
                         bbox_inches="tight")
             plt.close(fig)
-
-stats_output_file = f"{CACHE_DIRECTORY}/data/aggregate/t2p-change-scatter-stats.csv"
-os.makedirs(os.path.dirname(stats_output_file), exist_ok=True)
-stats_df = pd.DataFrame(stats_rows, columns=STAT_COLUMNS)
-stats_df = stats_df.sort_values(["project", "tool", "strategy", "change"]).reset_index(drop=True)
-stats_df.to_csv(stats_output_file, index=False)

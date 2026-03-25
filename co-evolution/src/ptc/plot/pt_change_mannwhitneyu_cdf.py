@@ -113,7 +113,7 @@ if os.path.exists(STATS_FILE):
             fig.legend(legend_handles, legend_labels, loc="upper center", ncol=min(4, len(legend_labels)), fontsize=10)
 
         fig.tight_layout(rect=(0, 0, 1, 0.97))
-        fig_file = f"{CACHE_DIRECTORY}/figure/t2p-change-stats-cdf--{tool}.pdf"
+        fig_file = f"{CACHE_DIRECTORY}/figure/t2p-change-mannwhitneyu-cdf--{tool}.pdf"
         os.makedirs(os.path.dirname(fig_file), exist_ok=True)
         fig.savefig(fig_file, bbox_inches="tight")
         plt.close(fig)
