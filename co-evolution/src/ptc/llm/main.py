@@ -14,6 +14,7 @@ from ptc.llm.providers.openai_responses import (
     OpenAIResponsesProvider,
     OpenAIResponsesProviderConfig,
 )
+from ptc.llm.t2p_link_projection import project_t2p_links
 from ptc.llm.runner import DataFrameMethodLinker
 
 
@@ -25,6 +26,13 @@ def build_parser() -> argparse.ArgumentParser:
         "command",
         choices=["llm-m2m-link"],
         help="Command to execute.",
+    )
+    parser.add_argument(
+        "--stage",
+        dest="stage",
+        choices=["execute", "parse"],
+        default="execute",
+        help="Use `execute` to run model inference or `parse` to project stored LLM outputs into t2p-link rows.",
     )
     parser.add_argument(
         "--cache-directory",
@@ -139,6 +147,9 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.stage == "parse":
+        return run_llm_t2p_link(args)
+
     input_kind = args.input_kind
     input_path = resolve_input_file(args.cache_directory, args.project, input_kind)
     if not input_path.exists():
@@ -179,6 +190,26 @@ def main() -> None:
         ),
     )
     return result_df
+
+
+def run_llm_t2p_link(args):
+    candidate_file = resolve_input_file(args.cache_directory, args.project, "t2p")
+    if not candidate_file.exists():
+        raise FileNotFoundError(f"Input file not found: {candidate_file}")
+
+    run_store = CsvRunStore(
+        output_root=default_output_root(args.cache_directory),
+        input_kind="t2p",
+        model_name_or_path=args.model_name_or_path,
+        input_file_name=candidate_file.name,
+        short_model_name=args.short_model_name,
+    )
+    output_file = Path(args.cache_directory) / "data" / "llm" / "t2p-link" / run_store.model_directory_name / candidate_file.name
+    return project_t2p_links(
+        candidate_file=candidate_file,
+        llm_run_file=run_store.runs_file,
+        output_file=output_file,
+    )
 
 
 def default_output_root(cache_directory: str) -> Path:

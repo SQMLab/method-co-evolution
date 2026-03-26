@@ -85,12 +85,12 @@ class TestDataFrameMethodLinker(unittest.TestCase):
             self.assertEqual(1, provider.calls)
             self.assertTrue((result_df["llm_predicted_match"] == 1).all())
 
-            prediction_csv = Path(tmpdir) / "t2p" / "gpt-oss-20b" / "prediction" / "commons-io.csv"
-            self.assertTrue(prediction_csv.exists())
-            prediction_text = prediction_csv.read_text(encoding="utf-8")
-            self.assertIn("llm_pred", prediction_text)
-            self.assertIn("llm_names", prediction_text)
-            self.assertNotIn("llm_predicted_sigs", prediction_text)
+            run_csv = Path(tmpdir) / "t2p" / "gpt-oss-20b" / "commons-io.csv"
+            self.assertTrue(run_csv.exists())
+            run_text = run_csv.read_text(encoding="utf-8")
+            self.assertIn("output_raw", run_text)
+            self.assertIn("output_json", run_text)
+            self.assertIn("getCharsetName", run_text)
 
             linker.link_dataframe(edge_df, "t2p", GenerationConfig())
             self.assertEqual(1, provider.calls)

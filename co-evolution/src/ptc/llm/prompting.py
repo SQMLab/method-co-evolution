@@ -177,7 +177,9 @@ class JsonPredictionParser:
     parser_name = "json_prediction_parser"
 
     def parse(self, prompt_input: PromptInput, output_text: str) -> LinkPrediction:
-        payload = self._extract_or_fallback_payload(output_text)
+        payload = self.extract_payload_or_none(output_text)
+        if payload is None:
+            raise ValueError("Model did not return a usable JSON or text payload.")
         candidate_ids = self._resolve_candidate_ids(prompt_input, payload)
         selected_candidate_names: list[str] = []
         selected_candidate_sigs: list[str] = []
@@ -214,22 +216,12 @@ class JsonPredictionParser:
         )
 
     @classmethod
-    def _extract_or_fallback_payload(cls, output_text: str) -> dict:
+    def extract_payload_or_none(cls, output_text: str) -> dict | None:
         try:
             return cls._extract_json(output_text)
         except ValueError:
             conventional_payload = cls._extract_conventional_payload(output_text)
-            if conventional_payload is not None:
-                return conventional_payload
-            stripped_output = output_text.strip()
-            return {
-                "methods": [],
-                "overall_rationale": (
-                    "Model did not return a usable answer."
-                    if stripped_output
-                    else "Model returned an empty response."
-                ),
-            }
+            return conventional_payload
 
     @staticmethod
     def _extract_conventional_payload(output_text: str) -> dict | None:
@@ -258,6 +250,7 @@ class JsonPredictionParser:
         if normalized_payload is not None and JsonPredictionParser._looks_like_prediction_payload(normalized_payload):
             return normalized_payload
 
+        valid_payloads: list[dict] = []
         for start_index, character in enumerate(output_text):
             if character in {"{", "\""}:
                 try:
@@ -267,7 +260,9 @@ class JsonPredictionParser:
                 if raw_payload is not None:
                     payload = JsonPredictionParser._normalize_payload_shape(raw_payload)
                     if payload is not None and JsonPredictionParser._looks_like_prediction_payload(payload):
-                        return payload
+                        valid_payloads.append(payload)
+        if valid_payloads:
+            return valid_payloads[-1]
         raise ValueError(f"Could not find JSON object in model output: {output_text}")
 
     @staticmethod

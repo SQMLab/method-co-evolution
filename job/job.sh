@@ -10,6 +10,7 @@ Usage:
   job.sh --command history --tool-name codeShovel --java-options "-Xmx4g" --timeout-seconds 1800 --command-options "--flag value" --projects "checkstyle,commons-io"
   job.sh --command method-code --projects "commons-io"
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --prompt-format text --max-new-tokens 256 --no-resume --projects "commons-io" --input-kind t2p
+  job.sh --command llm-m2m-link --stage parse --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --projects "commons-io"
 
 Options:
   --command               Command to run: history, call-graph, scan-method, method-code, complexity-analyzer, llm-m2m-link
@@ -17,6 +18,7 @@ Options:
   --java-options          Optional JVM arguments for history commands, e.g. "-Xmx4g"
   --timeout-seconds       Optional history command timeout in seconds (default: 30*60 = 1800)
   --command-options       Optional extra arguments forwarded to the selected command
+  --stage                 LLM stage: execute or parse (default: execute)
   --api-type              LLM provider API type: auto, huggingface, or openai-responses (default: auto)
   --model-name-or-path    Hugging Face model id or local path for llm-m2m-link
   --short-model-name      Short model directory name for llm-m2m-link outputs
@@ -44,6 +46,7 @@ TOOL_NAME=""
 JAVA_OPTIONS=""
 TIMEOUT_SECONDS="1800"
 COMMAND_OPTIONS=""
+STAGE="execute"
 API_TYPE="auto"
 MODEL_NAME_OR_PATH=""
 SHORT_MODEL_NAME=""
@@ -74,6 +77,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --command-options)
             COMMAND_OPTIONS="$2"
+            shift 2
+            ;;
+        --stage)
+            STAGE="$2"
             shift 2
             ;;
         --api-type)
@@ -136,7 +143,7 @@ fi
 
 if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
     if [[ -z "$MODEL_NAME_OR_PATH" ]]; then
-        echo "Error: --model-name-or-path is required for llm-m2m-link."
+        echo "Error: --model-name-or-path is required for $COMMAND_NAME."
         usage
         exit 1
     fi
@@ -169,6 +176,7 @@ if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
     fi
     srun ptc-llm llm-m2m-link \
         --cache-directory "$CACHE_DIRECTORY" \
+        --stage "$STAGE" \
         --api-type "$API_TYPE" \
         --model-name-or-path "$MODEL_NAME_OR_PATH" \
         --short-model-name "$SHORT_MODEL_NAME" \
@@ -177,7 +185,7 @@ if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
         "$RESUME_FLAG" \
         --input-kind "$INPUT_KIND" \
         --project "$PROJECT"
-    echo "Task started on $(hostname) at $(date) for model $MODEL_NAME_OR_PATH, input kind $INPUT_KIND, and project $PROJECT"
+    echo "Task started on $(hostname) at $(date) for llm stage $STAGE, model $MODEL_NAME_OR_PATH, input kind $INPUT_KIND, and project $PROJECT"
 else
     srun mhc "$COMMAND_NAME" \
         --cache-directory "$CACHE_DIRECTORY" \

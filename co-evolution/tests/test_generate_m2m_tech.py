@@ -27,12 +27,12 @@ class TestApplyLlmTechniques(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             prediction_root = Path(tmpdir)
-            prediction_dir = prediction_root / "qwen_2d5b" / "prediction"
+            prediction_dir = prediction_root / "qwen_2d5b"
             prediction_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
-                    {"from_url": "f1", "to_url": "t1", "llm_pred": 1},
-                    {"from_url": "f1", "to_url": "t2", "llm_pred": 0},
+                    {"from_url": "f1", "to_url": "t1", "label_pred": 1},
+                    {"from_url": "f1", "to_url": "t2", "label_pred": 0},
                 ]
             ).to_csv(prediction_dir / "demo.csv", index=False)
 
@@ -69,11 +69,11 @@ class TestApplyLlmTechniques(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             prediction_root = Path(tmpdir)
-            prediction_dir = prediction_root / "qwen_2d5b" / "prediction"
+            prediction_dir = prediction_root / "qwen_2d5b"
             prediction_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
-                    {"from_url": "f1", "to_url": "t1", "llm_pred": 1},
+                    {"from_url": "f1", "to_url": "t1", "label_pred": 1},
                 ]
             ).to_csv(prediction_dir / "demo.csv", index=False)
 
@@ -92,11 +92,11 @@ class TestApplyLlmTechniques(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             prediction_root = Path(tmpdir)
-            qwen_prediction_dir = prediction_root / "qwen_2d5b" / "prediction"
+            qwen_prediction_dir = prediction_root / "qwen_2d5b"
             qwen_prediction_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
-                    {"from_url": "f1", "to_url": "t1", "llm_pred": 1},
+                    {"from_url": "f1", "to_url": "t1", "label_pred": 1},
                 ]
             ).to_csv(qwen_prediction_dir / "demo.csv", index=False)
 
