@@ -185,7 +185,7 @@ if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
         "$RESUME_FLAG" \
         --input-kind "$INPUT_KIND" \
         --project "$PROJECT"
-    echo "Task started on $(hostname) at $(date) for llm stage $STAGE, model $MODEL_NAME_OR_PATH, input kind $INPUT_KIND, and project $PROJECT"
+    echo "Task finished on $(hostname) at $(date) for llm stage $STAGE, model $MODEL_NAME_OR_PATH, input kind $INPUT_KIND, and project $PROJECT"
 else
     srun mhc "$COMMAND_NAME" \
         --cache-directory "$CACHE_DIRECTORY" \
@@ -197,5 +197,5 @@ else
         --timeout-seconds "$TIMEOUT_SECONDS" \
         --command-options "$COMMAND_OPTIONS" \
         --project "$PROJECT"
-    echo "Task started on $(hostname) at $(date) for tool name $TOOL_NAME and project $PROJECT"
+    echo "Task finished on $(hostname) at $(date) for tool name $TOOL_NAME and project $PROJECT"
 fi

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 from ptc.llm.models import GenerationConfig
 from ptc.llm.persistence import CsvRunStore
@@ -140,56 +141,59 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main() -> int:
     _require_pandas()
     import pandas as pd
 
     parser = build_parser()
     args = parser.parse_args()
+    exit_code = 0
 
     if args.stage == "parse":
-        return run_llm_t2p_link(args)
+        projected_df = run_llm_t2p_link(args)
+        print(projected_df.head().to_string(index=False))
+    else:
+        input_kind = args.input_kind
+        input_path = resolve_input_file(args.cache_directory, args.project, input_kind)
+        if not input_path.exists():
+            parser.error(f"Input file not found: {input_path}")
+        method_code_path = resolve_method_code_file(args.cache_directory, args.project)
+        if not method_code_path.exists():
+            parser.error(f"Method code file not found: {method_code_path}")
 
-    input_kind = args.input_kind
-    input_path = resolve_input_file(args.cache_directory, args.project, input_kind)
-    if not input_path.exists():
-        parser.error(f"Input file not found: {input_path}")
-    method_code_path = resolve_method_code_file(args.cache_directory, args.project)
-    if not method_code_path.exists():
-        parser.error(f"Method code file not found: {method_code_path}")
+        output_root = default_output_root(args.cache_directory)
+        run_store = CsvRunStore(
+            output_root=output_root,
+            input_kind=input_kind,
+            model_name_or_path=args.model_name_or_path,
+            input_file_name=input_path.name,
+            short_model_name=args.short_model_name,
+        )
 
-    output_root = default_output_root(args.cache_directory)
-    run_store = CsvRunStore(
-        output_root=output_root,
-        input_kind=input_kind,
-        model_name_or_path=args.model_name_or_path,
-        input_file_name=input_path.name,
-        short_model_name=args.short_model_name,
-    )
-
-    edge_df = pd.read_csv(input_path, keep_default_na=False, na_filter=False)
-    method_code_lookup = load_method_code_lookup(method_code_path)
-    provider = build_provider(args)
-    linker = DataFrameMethodLinker(
-        provider=provider,
-        prompt_factory=MethodLinkingPromptFactory(method_code_lookup=method_code_lookup),
-        parser=JsonPredictionParser(),
-        run_store=run_store,
-        batch_size=args.batch_size,
-        resume=args.resume,
-        prompt_format=args.prompt_format,
-    )
-    result_df = linker.link_dataframe(
-        edge_df=edge_df,
-        input_kind=input_kind,
-        generation_config=GenerationConfig(
-            max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            do_sample=args.do_sample,
-        ),
-    )
-    return result_df
+        edge_df = pd.read_csv(input_path, keep_default_na=False, na_filter=False)
+        method_code_lookup = load_method_code_lookup(method_code_path)
+        provider = build_provider(args)
+        linker = DataFrameMethodLinker(
+            provider=provider,
+            prompt_factory=MethodLinkingPromptFactory(method_code_lookup=method_code_lookup),
+            parser=JsonPredictionParser(),
+            run_store=run_store,
+            batch_size=args.batch_size,
+            resume=args.resume,
+            prompt_format=args.prompt_format,
+        )
+        result_df = linker.link_dataframe(
+            edge_df=edge_df,
+            input_kind=input_kind,
+            generation_config=GenerationConfig(
+                max_new_tokens=args.max_new_tokens,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                do_sample=args.do_sample,
+            ),
+        )
+        print(result_df.head().to_string(index=False))
+    return exit_code
 
 
 def run_llm_t2p_link(args):
@@ -281,4 +285,4 @@ def resolve_api_type(api_type: str, model_name_or_path: str) -> str:
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
