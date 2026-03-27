@@ -20,7 +20,7 @@ FANOUT_DIR = f"{DATA_DIRECTORY}/fan-out"
 METHOD_DIR = f"{DATA_DIRECTORY}/method"
 T2P_CANDIDATE_DIR = f"{DATA_DIRECTORY}/t2p-candidate"
 OUTPUT_DIR = f"{DATA_DIRECTORY}/m2m-tech"
-LLM_PREDICTION_DIR = Path(CACHE_DIRECTORY) / "data" / "llm" / "t2p"
+LLM_PREDICTION_DIR = Path(CACHE_DIRECTORY) / "data" / "llm" / "t2p-link"
 
 os.makedirs(T2P_CANDIDATE_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -53,14 +53,14 @@ def apply_llm_techniques(
 
     for directory_name in llm_directory_names:
         column_name = f"tech_{directory_name}"
-        prediction_file = llm_prediction_root / directory_name / "prediction" / f"{project}.csv"
+        prediction_file = llm_prediction_root / directory_name / f"{project}.csv"
 
         if not prediction_file.exists():
             enriched_df[column_name] = pd.Series([pd.NA] * len(enriched_df), dtype="Int64")
             continue
 
         prediction_df = pd.read_csv(prediction_file, keep_default_na=False, na_filter=False)
-        required_columns = {"from_url", "to_url", "llm_pred"}
+        required_columns = {"from_url", "to_url", "label_pred"}
         missing_columns = required_columns.difference(prediction_df.columns)
         if missing_columns:
             raise ValueError(
@@ -68,9 +68,9 @@ def apply_llm_techniques(
             )
 
         llm_match_df = (
-            prediction_df.loc[:, ["from_url", "to_url", "llm_pred"]]
+            prediction_df.loc[:, ["from_url", "to_url", "label_pred"]]
             .drop_duplicates(subset=["from_url", "to_url"], keep="last")
-            .rename(columns={"llm_pred": column_name})
+            .rename(columns={"label_pred": column_name})
         )
         llm_match_df[column_name] = pd.to_numeric(llm_match_df[column_name], errors="coerce").astype("Int64")
         enriched_df = enriched_df.merge(llm_match_df, on=["from_url", "to_url"], how="left")

@@ -132,14 +132,11 @@ class TestJsonPredictionParser(unittest.TestCase):
         case_df = _load_group(FAN_OUT_FILE, "from_url", T2P_SOURCE_URL)
         prompt_input = MethodLinkingPromptFactory(method_code_lookup=_load_method_code_lookup()).build_prompt(case_df, "t2p")
 
-        prediction = JsonPredictionParser().parse(
-            prompt_input,
-            "The model repeated the prompt and never returned JSON.",
-        )
-
-        self.assertEqual("none", prediction.label)
-        self.assertEqual([], prediction.selected_candidate_ids)
-        self.assertIn("did not return a usable answer", prediction.rationale)
+        with self.assertRaisesRegex(ValueError, "usable JSON or text payload"):
+            JsonPredictionParser().parse(
+                prompt_input,
+                "The model repeated the prompt and never returned JSON.",
+            )
 
     def test_placeholder_schema_payload_is_not_treated_as_prediction(self):
         placeholder_payload = {
@@ -177,6 +174,18 @@ class TestJsonPredictionParser(unittest.TestCase):
 
         self.assertEqual("match", prediction.label)
         self.assertEqual(["c1"], prediction.selected_candidate_ids)
+
+    def test_extract_json_prefers_last_valid_payload(self):
+        output_text = (
+            '{"methods":[{"name":"first","confidence":0.2,"rationale":"old"}],"overall_rationale":"old"}'
+            ' assistantfinal '
+            '{"methods":[{"name":"second","confidence":0.8,"rationale":"new"}],"overall_rationale":"new"}'
+        )
+
+        payload = JsonPredictionParser.extract_payload_or_none(output_text)
+
+        self.assertEqual("second", payload["methods"][0]["name"])
+        self.assertEqual("new", payload["overall_rationale"])
 
     def test_parse_prediction_accepts_method_blocks(self):
         case_df = _load_group(FAN_IN_FILE, "to_url", P2T_SOURCE_URL)

@@ -77,7 +77,7 @@ class DataFrameMethodLinker:
                 if prompt.candidate_lookup:
                     prompts.append(prompt)
                     if self.run_store:
-                        self.run_store.append_request(prompt)
+                        self.run_store.upsert_request(prompt, overwrite_existing=not self.resume)
                     continue
 
                 prediction = LinkPrediction(
@@ -97,13 +97,13 @@ class DataFrameMethodLinker:
                 )
                 completed_predictions[prompt.id] = prediction
                 if self.run_store:
-                    snapshot_df = self._merge_predictions_into_dataframe(
-                        working_df=working_df,
-                        completed_predictions=completed_predictions,
-                        source_prefix=source_prefix,
-                        candidate_prefix=candidate_prefix,
+                    self.run_store.upsert_request(prompt, overwrite_existing=not self.resume)
+                    self.run_store.upsert_result(
+                        prompt_input=prompt,
+                        output_raw="",
+                        output_json={"methods": [], "overall_rationale": prediction.rationale},
+                        error="",
                     )
-                    self.run_store.write_prediction_snapshot(snapshot_df)
 
             if not prompts:
                 continue
@@ -113,7 +113,12 @@ class DataFrameMethodLinker:
             except Exception as exc:
                 if self.run_store:
                     for prompt in prompts:
-                        self.run_store.append_failure(prompt.id, "provider", str(exc))
+                        self.run_store.upsert_result(
+                            prompt_input=prompt,
+                            output_raw="",
+                            output_json=None,
+                            error=f"provider: {exc}",
+                        )
                 continue
 
             outputs_by_id = {output.id: output for output in outputs}
@@ -121,34 +126,42 @@ class DataFrameMethodLinker:
                 output = outputs_by_id.get(prompt.id)
                 if output is None:
                     if self.run_store:
-                        self.run_store.append_failure(prompt.id, "provider", "Missing provider output")
+                        self.run_store.upsert_result(
+                            prompt_input=prompt,
+                            output_raw="",
+                            output_json=None,
+                            error="provider: Missing provider output",
+                        )
                     continue
+
+                extracted_payload = self.parser.extract_payload_or_none(output.output_text)
                 try:
                     prediction = self.parser.parse(prompt, output.output_text)
                 except Exception as exc:
                     if self.run_store:
-                        self.run_store.append_failure(prompt.id, "parser", str(exc))
+                        self.run_store.upsert_result(
+                            prompt_input=prompt,
+                            output_raw=output.output_text,
+                            output_json=extracted_payload,
+                            error=f"parser: {exc}",
+                        )
                     continue
 
                 completed_predictions[prompt.id] = prediction
                 if self.run_store:
-                    snapshot_df = self._merge_predictions_into_dataframe(
-                        working_df=working_df,
-                        completed_predictions=completed_predictions,
-                        source_prefix=source_prefix,
-                        candidate_prefix=candidate_prefix,
+                    self.run_store.upsert_result(
+                        prompt_input=prompt,
+                        output_raw=output.output_text,
+                        output_json=prediction.metadata.get("raw_json"),
+                        error="",
                     )
-                    self.run_store.write_prediction_snapshot(snapshot_df)
 
-        merged_df = self._merge_predictions_into_dataframe(
+        return self._merge_predictions_into_dataframe(
             working_df=working_df,
             completed_predictions=completed_predictions,
             source_prefix=source_prefix,
             candidate_prefix=candidate_prefix,
         )
-        if self.run_store:
-            self.run_store.write_prediction_snapshot(merged_df)
-        return merged_df
 
     @staticmethod
     def _normalize_dataframe(edge_df):
