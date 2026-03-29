@@ -162,3 +162,37 @@ The primary files are:
 `prediction/<input-file>.csv` is the original input dataframe plus the added LLM columns such as `llm_label`, `llm_confidence`, `llm_predicted_candidate_confidences`, `llm_predicted_sigs`, `llm_predicted_urls`, `llm_predicted_candidate_confidence`, and row-level `llm_predicted_match`.
 
 For `t2p` input, rows are grouped by `from_url`. For `p2t` input, rows are grouped by `to_url`. Each group becomes one prompt, and the LLM output is merged back onto all rows in that group.
+
+### Method History Viewer
+
+The `co-evolution` package also includes a local browser UI for comparing test vs production method evolution.
+
+Start the viewer:
+
+```bash
+ptc-history-viewer serve --host 127.0.0.1 --port 8765
+```
+
+For local UI development with automatic restarts after Python changes:
+
+```bash
+ptc-history-viewer serve --host 127.0.0.1 --port 8765 --reload
+```
+
+Then open [http://127.0.0.1:8765](http://127.0.0.1:8765).
+
+The viewer supports:
+
+- Comparing two methods by GitHub blob URL plus `tool` (`historyFinder` or `codeShovel`)
+- Comparing two cached method-history JSON files directly
+- Browsing a sample directory under `.cache/data/t2p-change-sample/...`, then choosing one CSV in the browser
+- Writing a `revision_url` column back into a sampled CSV so DBeaver can open each row in the browser
+- Saving manual review notes from the browser back into the sampled CSV `note` column
+
+To write `revision_url` into a sampled CSV from the command line:
+
+```bash
+ptc-history-viewer add-revision-links \
+    --csv ".cache/data/t2p-change-sample/historyFinder/omc--nc--ncc/cucumber-jvm.csv" \
+    --base-url "http://127.0.0.1:8765"
+```
