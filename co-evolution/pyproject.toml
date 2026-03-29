@@ -27,6 +27,7 @@ llm = [
 
 [project.scripts]
 ptc-llm = "ptc.llm.main:main"
+ptc-history-viewer = "ptc.history_viewer.cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
