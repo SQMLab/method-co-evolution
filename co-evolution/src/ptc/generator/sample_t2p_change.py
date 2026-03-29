@@ -125,6 +125,7 @@ def main(
         sample_size = min(max_samples_per_project, len(project_df))
         sampled_df = project_df.sample(n=sample_size, random_state=random_generator.randint(0, 10**9)).copy()
         sampled_df["project"] = project_name
+        sampled_df["tool"] = tool_name
         sampled_df["note"] = ""
 
         sampled_df.to_csv(output_directory / f"{project_name}.csv", index=False)
