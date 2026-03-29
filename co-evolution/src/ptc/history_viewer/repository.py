@@ -14,10 +14,6 @@ from urllib.parse import parse_qs, unquote, urlencode, urlparse
 
 
 DATE_PATTERNS = (
-    "%m/%d/%y %I:%M %p",
-    "%m/%d/%y, %I:%M %p",
-    "%m/%d/%Y %I:%M %p",
-    "%m/%d/%Y, %I:%M %p",
     "%d/%m/%y %H:%M",
     "%d/%m/%y, %H:%M",
     "%d/%m/%Y %H:%M",
@@ -26,6 +22,10 @@ DATE_PATTERNS = (
     "%d/%m/%y, %I:%M %p",
     "%d/%m/%Y %I:%M %p",
     "%d/%m/%Y, %I:%M %p",
+    "%m/%d/%y %I:%M %p",
+    "%m/%d/%y, %I:%M %p",
+    "%m/%d/%Y %I:%M %p",
+    "%m/%d/%Y, %I:%M %p",
     "%y/%m/%d %H:%M",
     "%y/%m/%d, %H:%M",
     "%Y/%m/%d %H:%M",
@@ -91,6 +91,24 @@ class SampleRow:
         return self.values.get("note", "")
 
 
+@dataclass
+class RelatedMethod:
+    to_name: str
+    to_url: str
+    to_file: str
+    source_label: str
+    source_csv: Path
+
+
+@dataclass
+class CallingMethod:
+    from_name: str
+    from_url: str
+    from_file: str
+    source_label: str
+    source_csv: Path
+
+
 def repository_root() -> Path:
     return Path(__file__).resolve().parents[4]
 
@@ -112,6 +130,7 @@ def normalize_date_text(value: str) -> str:
         .replace(" ,", ",")
         .strip()
     )
+    normalized = re.sub(r"\b00:(\d{2})\s*AM\b", r"12:\1 AM", normalized, flags=re.IGNORECASE)
     match = re.search(r"(\d{1,2}):(\d{2})\s*([AP]M)$", normalized, flags=re.IGNORECASE)
     if match:
         hour = int(match.group(1))
@@ -150,6 +169,8 @@ def infer_date_patterns(value: str) -> tuple[str, ...]:
     a = int(match.group("a"))
     b = int(match.group("b"))
     c = int(match.group("c"))
+    a_len = len(match.group("a"))
+    c_len = len(match.group("c"))
     rest = match.group("rest")
     has_am_pm = "AM" in rest.upper() or "PM" in rest.upper()
     time_patterns = ["%I:%M %p"] if has_am_pm else ["%H:%M"]
@@ -157,16 +178,21 @@ def infer_date_patterns(value: str) -> tuple[str, ...]:
         time_patterns = [pattern.replace(" ", ", ", 1) for pattern in time_patterns]
 
     date_patterns: list[str] = []
-    if a > 31:
+    if a_len == 4 or a > 31:
         date_patterns.extend(["%Y/%m/%d", "%y/%m/%d"])
+    elif c_len == 4:
+        if a > 12 and b <= 12:
+            date_patterns.extend(["%d/%m/%Y", "%m/%d/%Y"])
+        elif b > 12 and a <= 12:
+            date_patterns.extend(["%m/%d/%Y", "%d/%m/%Y"])
+        else:
+            date_patterns.extend(["%d/%m/%Y", "%m/%d/%Y"])
     elif a > 12 and b <= 12:
-        date_patterns.extend(["%d/%m/%Y", "%d/%m/%y"])
+        date_patterns.extend(["%d/%m/%y", "%y/%m/%d"])
     elif b > 12 and a <= 12:
-        date_patterns.extend(["%m/%d/%Y", "%m/%d/%y"])
-    elif c > 31:
-        date_patterns.extend(["%m/%d/%Y", "%d/%m/%Y"])
+        date_patterns.extend(["%m/%d/%y", "%d/%m/%y"])
     else:
-        date_patterns.extend(["%m/%d/%y", "%d/%m/%y", "%y/%m/%d"])
+        date_patterns.extend(["%d/%m/%y", "%m/%d/%y", "%y/%m/%d"])
 
     ordered_patterns: list[str] = []
     for date_pattern in date_patterns:
@@ -397,6 +423,64 @@ class HistoryRepository:
             raise ValueError(f"Sample directory does not exist: {directory}")
         return sorted(path for path in directory.glob("*.csv") if path.is_file())
 
+    def find_related_production_methods(
+        self,
+        *,
+        project: str,
+        from_url: str,
+        tool: str = "",
+        sample_csv: str = "",
+        selected_source: str = "",
+    ) -> tuple[list[RelatedMethod], list[str]]:
+        searched_labels: list[str] = []
+        for csv_file, source_label in self._iter_related_csv_candidates(
+            project=project,
+            tool=tool,
+            sample_csv=sample_csv,
+            selected_source=selected_source,
+        ):
+            searched_labels.append(source_label)
+            if not csv_file.exists():
+                continue
+            matches = self._read_related_rows(csv_file=csv_file, source_label=source_label, from_url=from_url)
+            if matches:
+                return matches, searched_labels
+        return [], searched_labels
+
+    def find_calling_test_methods(
+        self,
+        *,
+        project: str,
+        to_url: str,
+        tool: str = "",
+        sample_csv: str = "",
+        selected_source: str = "",
+    ) -> tuple[list[CallingMethod], list[str]]:
+        searched_labels: list[str] = []
+        for csv_file, source_label in self._iter_related_csv_candidates(
+            project=project,
+            tool=tool,
+            sample_csv=sample_csv,
+            selected_source=selected_source,
+        ):
+            searched_labels.append(source_label)
+            if not csv_file.exists():
+                continue
+            matches = self._read_calling_rows(csv_file=csv_file, source_label=source_label, to_url=to_url)
+            if matches:
+                return matches, searched_labels
+        return [], searched_labels
+
+    def related_source_options(self, *, tool: str, sample_csv: str) -> list[str]:
+        sample_context = self._sample_context(sample_csv)
+        options: list[str] = []
+        if sample_context and sample_context["kind"] == "t2p-change-sample":
+            options.append(f"t2p-change/{sample_context['tool']}/{sample_context['strategy']}")
+        elif tool:
+            options.append(f"t2p-change/{tool}/<strategy>")
+        options.extend(["t2p-candidate", "m2m-tech", "fan-out"])
+        return options
+
     def read_sample_row(self, csv_path: str | Path, *, from_url: str, to_url: str) -> SampleRow:
         for row in self.read_sample_rows(csv_path):
             if row.values.get("from_url", "") == from_url and row.values.get("to_url", "") == to_url:
@@ -475,6 +559,145 @@ class HistoryRepository:
             params["project"] = project
         encoded = urlencode({key: value for key, value in params.items() if value})
         return f"{base_url.rstrip('/')}/revision?{encoded}"
+
+    def _iter_related_csv_candidates(
+        self,
+        *,
+        project: str,
+        tool: str,
+        sample_csv: str,
+        selected_source: str = "",
+    ) -> list[tuple[Path, str]]:
+        candidates: list[tuple[Path, str]] = []
+        sample_context = self._sample_context(sample_csv)
+        data_directory = self.data_directory
+
+        if selected_source:
+            return self._candidate_paths_for_source(
+                project=project,
+                tool=tool,
+                sample_context=sample_context,
+                selected_source=selected_source,
+            )
+
+        exact_t2p_change = None
+        if sample_context and sample_context["kind"] == "t2p-change-sample":
+            exact_t2p_change = (
+                data_directory
+                / "t2p-change"
+                / sample_context["tool"]
+                / sample_context["strategy"]
+                / f"{project}.csv"
+            )
+            candidates.append((exact_t2p_change, self._source_label(exact_t2p_change)))
+
+        t2p_change_root = data_directory / "t2p-change"
+        if tool:
+            for csv_file in sorted((t2p_change_root / tool).glob(f"*/{project}.csv")):
+                if exact_t2p_change is not None and csv_file == exact_t2p_change:
+                    continue
+                candidates.append((csv_file, self._source_label(csv_file)))
+
+        for root_name in ("t2p-candidate", "m2m-tech", "fan-out"):
+            csv_file = data_directory / root_name / f"{project}.csv"
+            candidates.append((csv_file, self._source_label(csv_file)))
+
+        deduped: list[tuple[Path, str]] = []
+        seen_paths: set[Path] = set()
+        for csv_file, label in candidates:
+            if csv_file in seen_paths:
+                continue
+            seen_paths.add(csv_file)
+            deduped.append((csv_file, label))
+        return deduped
+
+    def _candidate_paths_for_source(
+        self,
+        *,
+        project: str,
+        tool: str,
+        sample_context: dict[str, str] | None,
+        selected_source: str,
+    ) -> list[tuple[Path, str]]:
+        data_directory = self.data_directory
+        if selected_source.startswith("t2p-change/"):
+            parts = selected_source.split("/")
+            if len(parts) >= 3 and parts[2] != "<strategy>":
+                csv_file = data_directory / parts[0] / parts[1] / parts[2] / f"{project}.csv"
+                return [(csv_file, selected_source)]
+            if sample_context and sample_context["kind"] == "t2p-change-sample":
+                csv_file = data_directory / "t2p-change" / sample_context["tool"] / sample_context["strategy"] / f"{project}.csv"
+                return [(csv_file, self._source_label(csv_file))]
+            if tool:
+                return [
+                    (csv_file, self._source_label(csv_file))
+                    for csv_file in sorted((data_directory / "t2p-change" / tool).glob(f"*/{project}.csv"))
+                ]
+            return []
+
+        csv_file = data_directory / selected_source / f"{project}.csv"
+        return [(csv_file, selected_source)]
+
+    def _sample_context(self, sample_csv: str) -> dict[str, str] | None:
+        if not sample_csv:
+            return None
+        path = Path(sample_csv).expanduser()
+        parts = path.parts
+        for index, part in enumerate(parts):
+            if part == "t2p-change-sample" and index + 3 < len(parts):
+                return {
+                    "kind": part,
+                    "tool": parts[index + 1],
+                    "strategy": parts[index + 2],
+                }
+        return None
+
+    def _read_related_rows(self, *, csv_file: Path, source_label: str, from_url: str) -> list[RelatedMethod]:
+        with csv_file.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            methods_by_url: dict[str, RelatedMethod] = {}
+            for row in reader:
+                if (row.get("from_url") or "") != from_url:
+                    continue
+                to_url = row.get("to_url", "") or ""
+                if not to_url:
+                    continue
+                if to_url not in methods_by_url:
+                    methods_by_url[to_url] = RelatedMethod(
+                        to_name=row.get("to_name", "") or row.get("to_fqs_alt", "") or to_url,
+                        to_url=to_url,
+                        to_file=row.get("to_file", "") or "",
+                        source_label=source_label,
+                        source_csv=csv_file,
+                    )
+            return sorted(methods_by_url.values(), key=lambda item: (item.to_name.lower(), item.to_url.lower()))
+
+    def _read_calling_rows(self, *, csv_file: Path, source_label: str, to_url: str) -> list[CallingMethod]:
+        with csv_file.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            methods_by_url: dict[str, CallingMethod] = {}
+            for row in reader:
+                if (row.get("to_url") or "") != to_url:
+                    continue
+                from_url = row.get("from_url", "") or ""
+                if not from_url:
+                    continue
+                if from_url not in methods_by_url:
+                    methods_by_url[from_url] = CallingMethod(
+                        from_name=row.get("from_name", "") or row.get("from_fqs_alt", "") or from_url,
+                        from_url=from_url,
+                        from_file=row.get("from_file", "") or "",
+                        source_label=source_label,
+                        source_csv=csv_file,
+                    )
+            return sorted(methods_by_url.values(), key=lambda item: (item.from_name.lower(), item.from_url.lower()))
+
+    def _source_label(self, csv_file: Path) -> str:
+        try:
+            relative_parent = csv_file.parent.relative_to(self.data_directory)
+            return str(relative_parent).replace("\\", "/")
+        except ValueError:
+            return str(csv_file.parent)
 
     def _resolve_member_name(self, *, tool: str, project: str, file_path: str, line: int) -> str:
         extracted_root = self.history_directory / tool / project / Path(file_path).parent

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import re
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
@@ -8,9 +9,11 @@ from typing import Any, Iterable
 from urllib.parse import parse_qs, quote, urlencode
 
 from .repository import (
+    CallingMethod,
     CommitEntry,
     HistoryRepository,
     MethodHistory,
+    RelatedMethod,
     SampleRow,
     build_row_token,
     dump_json_bytes,
@@ -210,6 +213,9 @@ button.secondary {
   gap: 16px;
   align-items: start;
 }
+.timeline-row > div {
+  min-width: 0;
+}
 .timeline-center {
   position: relative;
   min-height: 0;
@@ -264,6 +270,7 @@ button.secondary {
   border: 1px solid rgba(216, 207, 189, 0.95);
   background: rgba(255,255,255,0.92);
   padding: 14px 16px;
+  overflow: hidden;
 }
 .event-card.right {
   background: rgba(245, 250, 255, 0.94);
@@ -296,6 +303,246 @@ summary::-webkit-details-marker { display: none; }
   display: grid;
   gap: 12px;
   padding-top: 14px;
+}
+.diff-panel {
+  border: 1px solid #d0d7de;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+}
+.diff-panel.compact {
+  overflow: hidden;
+}
+.diff-scroll {
+  display: block;
+  max-width: 100%;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.diff-panel.compact .diff-scroll .diff-table {
+  width: max-content;
+  min-width: 100%;
+}
+.diff-panel.compact .diff-line-no {
+  width: 34px;
+  padding: 5px 6px !important;
+  font-size: 0.76rem;
+}
+.diff-panel.compact .diff-code {
+  padding: 5px 8px !important;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.diff-panel.compact .diff-toolbar {
+  padding: 8px 10px;
+  justify-content: flex-start;
+}
+.diff-panel.compact .diff-toolbar span {
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+}
+.diff-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.diff-scroll-button {
+  padding: 6px 10px;
+  font-size: 0.74rem;
+}
+.diff-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f6f8fa;
+  color: #57606a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.diff-toolbar button {
+  flex: 0 0 auto;
+}
+.diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+  font-size: 0.85rem;
+  table-layout: fixed;
+}
+.diff-table.unified {
+  table-layout: auto;
+}
+.diff-table td {
+  padding: 0;
+  border-bottom: none;
+  vertical-align: top;
+}
+.diff-line-no {
+  width: 42px;
+  padding: 6px 8px !important;
+  text-align: right;
+  color: #57606a;
+  background: transparent;
+  font-family: var(--mono);
+  user-select: none;
+}
+.diff-code {
+  padding: 6px 10px !important;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+}
+.diff-cell-context.diff-line-no,
+.diff-cell-context.diff-code {
+  background: transparent;
+}
+.diff-cell-del.diff-line-no,
+.diff-cell-del.diff-code {
+  background: #ffebe9;
+}
+.diff-cell-add.diff-line-no,
+.diff-cell-add.diff-code {
+  background: #dafbe1;
+}
+.diff-cell-change.diff-line-no,
+.diff-cell-change.diff-code {
+  background: #fff8c5;
+}
+.diff-code-empty {
+  background: transparent;
+}
+.diff-hunk td {
+  background: #ddf4ff;
+  color: #0969da;
+  font-family: var(--mono);
+  padding: 6px 10px !important;
+}
+.diff-hunk .diff-line-no,
+.diff-meta .diff-line-no {
+  width: 42px;
+  padding: 6px 8px !important;
+  text-align: right;
+  color: #57606a;
+  background: transparent;
+  font-family: var(--mono);
+}
+.diff-hunk .diff-code,
+.diff-meta .diff-code {
+  padding: 6px 10px !important;
+  font-family: var(--mono);
+}
+.diff-meta td {
+  background: #f6f8fa;
+  color: #57606a;
+  font-family: var(--mono);
+  padding: 6px 10px !important;
+}
+.diff-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(31, 41, 51, 0.64);
+  z-index: 1000;
+}
+.diff-modal.open {
+  display: flex;
+}
+.diff-modal-card {
+  width: min(1480px, 96vw);
+  max-height: 88vh;
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(31, 41, 51, 0.22);
+}
+.diff-modal-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  background: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+  z-index: 1;
+}
+.diff-modal-body {
+  padding: 0;
+}
+.diff-modal-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #d0d7de;
+  background: #ffffff;
+}
+.diff-view-toggle.active {
+  background: linear-gradient(135deg, #0f766e, #155e75);
+  color: white;
+}
+.diff-modal-view {
+  display: none;
+}
+.diff-modal-view.open {
+  display: block;
+}
+.diff-mark {
+  display: inline-block;
+  min-width: 14px;
+  margin-right: 6px;
+  color: #8b7d67;
+}
+.syntax-keyword {
+  color: #cf222e;
+  font-weight: 700;
+}
+.syntax-string {
+  color: #0a3069;
+}
+.syntax-comment {
+  color: #6e7781;
+  font-style: italic;
+}
+.syntax-annotation {
+  color: #8250df;
+  font-weight: 700;
+}
+.syntax-number {
+  color: #0550ae;
+}
+.diff-panel.github-split .diff-code {
+  padding: 5px 10px !important;
+}
+.diff-panel.github-split td:nth-child(3) {
+  border-left: 1px solid #d0d7de;
+}
+.source-versions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.source-version-panel + .source-version-panel {
+  border-left: 1px solid #d0d7de;
+}
+.source-version-panel .diff-table {
+  margin-top: 0;
+}
+.source-version-panel .diff-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 pre {
   white-space: pre-wrap;
@@ -414,6 +661,8 @@ class HistoryViewerApp:
             to_history=to_history,
             sample_row=sample_row,
             sample_csv=sample_csv,
+            related_source=params.get("related_source", ""),
+            calling_source=params.get("calling_source", ""),
         )
         return self._respond_html(start_response, render_page("Method History Revision", content))
 
@@ -552,6 +801,8 @@ class HistoryViewerApp:
         to_history: MethodHistory,
         sample_row: SampleRow | None,
         sample_csv: str,
+        related_source: str,
+        calling_source: str,
     ) -> str:
         rows = build_timeline_rows(from_history.entries, to_history.entries)
         summary = build_pair_summary(from_history.entries, to_history.entries)
@@ -562,7 +813,38 @@ class HistoryViewerApp:
             "to_url": to_history.input_url,
             "from_file": from_history.input_file,
             "to_file": to_history.input_file,
+            "related_source": related_source,
+            "calling_source": calling_source,
         }
+        related_methods: list[RelatedMethod] = []
+        related_source_label = ""
+        searched_related_labels: list[str] = []
+        calling_methods: list[CallingMethod] = []
+        calling_source_label = ""
+        searched_calling_labels: list[str] = []
+        calling_source = query_params.get("calling_source", "")
+        current_from_url = from_history.input_url or (sample_row.values.get("from_url", "") if sample_row is not None else "")
+        current_to_url = to_history.input_url or (sample_row.values.get("to_url", "") if sample_row is not None else "")
+        if current_from_url:
+            related_methods, searched_related_labels = self.repository.find_related_production_methods(
+                project=from_history.project or to_history.project,
+                from_url=current_from_url,
+                tool=from_history.tool or to_history.tool,
+                sample_csv=sample_csv,
+                selected_source=related_source,
+            )
+            if related_methods:
+                related_source_label = related_methods[0].source_label
+        if current_to_url:
+            calling_methods, searched_calling_labels = self.repository.find_calling_test_methods(
+                project=from_history.project or to_history.project,
+                to_url=current_to_url,
+                tool=from_history.tool or to_history.tool,
+                sample_csv=sample_csv,
+                selected_source=calling_source,
+            )
+            if calling_methods:
+                calling_source_label = calling_methods[0].source_label
         note_panel = ""
         if sample_row is not None:
             note_panel = self._render_note_panel(sample_row, sample_csv)
@@ -578,6 +860,7 @@ class HistoryViewerApp:
       <span class="chip">Tool: {html.escape(from_history.tool)}</span>
       <span class="chip">Project: {html.escape(from_history.project or to_history.project)}</span>
     </div>
+    {render_tool_switch_links(query_params=query_params)}
   </section>
 
   <section class="stats">
@@ -604,11 +887,9 @@ class HistoryViewerApp:
   </section>
 
   <section class="methods">
-    {self._render_method_panel("Test / From", from_history, side="from", query_params=query_params)}
-    {self._render_method_panel("Production / To", to_history, side="to", query_params=query_params)}
+    {self._render_method_panel("Test / From", from_history, side="from", query_params=query_params, related_methods=related_methods, related_source_label=related_source_label, searched_related_labels=searched_related_labels)}
+    {self._render_method_panel("Production / To", to_history, side="to", query_params=query_params, calling_methods=calling_methods, calling_source_label=calling_source_label, searched_calling_labels=searched_calling_labels)}
   </section>
-
-  {note_panel}
 
   <section class="panel">
     <div class="eyebrow">Timeline</div>
@@ -617,22 +898,64 @@ class HistoryViewerApp:
       {''.join(render_timeline_row(row) for row in rows)}
     </div>
   </section>
+
+  {note_panel}
 </main>
 {NOTE_SCRIPT}
 """
 
-    def _render_method_panel(self, title: str, history: MethodHistory, *, side: str, query_params: dict[str, str]) -> str:
+    def _render_method_panel(
+        self,
+        title: str,
+        history: MethodHistory,
+        *,
+        side: str,
+        query_params: dict[str, str],
+        related_methods: list[RelatedMethod] | None = None,
+        related_source_label: str = "",
+        searched_related_labels: list[str] | None = None,
+        calling_methods: list[CallingMethod] | None = None,
+        calling_source_label: str = "",
+        searched_calling_labels: list[str] | None = None,
+    ) -> str:
         links = []
-        if history.input_url:
-            links.append(f'<a href="{html.escape(history.input_url)}" target="_blank" rel="noreferrer">Requested URL</a>')
         if history.input_file:
             links.append(f'<span class="mono">{html.escape(history.input_file)}</span>')
         json_view_url = build_history_json_url(side=side, query_params=query_params, download=False)
         json_download_url = build_history_json_url(side=side, query_params=query_params, download=True)
+        related_html = ""
+        if side == "from":
+            related_html = self._render_related_methods(
+                related_methods=related_methods or [],
+                related_source_label=related_source_label,
+                searched_related_labels=searched_related_labels or [],
+                query_params=query_params,
+                source_options=self.repository.related_source_options(
+                    tool=history.tool,
+                    sample_csv=query_params.get("sample_csv", ""),
+                ),
+            )
+        elif side == "to":
+            related_html = self._render_calling_methods(
+                calling_methods=calling_methods or [],
+                calling_source_label=calling_source_label,
+                searched_calling_labels=searched_calling_labels or [],
+                query_params=query_params,
+                source_options=self.repository.related_source_options(
+                    tool=history.tool,
+                    sample_csv=query_params.get("sample_csv", ""),
+                ),
+            )
+        method_name = html.escape(history.function_name or history.function_id or "Unknown method")
+        method_heading = method_name
+        if history.input_url:
+            method_heading = (
+                f'<a href="{html.escape(history.input_url)}" target="_blank" rel="noreferrer">{method_name}</a>'
+            )
         return f"""
 <article class="panel method-panel">
   <div class="eyebrow">{html.escape(title)}</div>
-  <h2>{html.escape(history.function_name or history.function_id or "Unknown method")}</h2>
+  <h2>{method_heading}</h2>
   <p class="mono" style="margin-top:10px;">{html.escape(history.source_file_path)}:{history.function_start_line}</p>
   <p class="muted" style="margin-top:10px;">{len(history.entries)} change commit(s)</p>
   <div class="chip-row">
@@ -644,8 +967,95 @@ class HistoryViewerApp:
     <button type="button" class="secondary copy-json-button" data-json-url="{html.escape(json_view_url)}">Copy JSON</button>
     <span class="flash json-copy-status" style="display:none;"></span>
   </div>
+  {related_html}
   <div style="margin-top:14px; display:grid; gap:8px;">{''.join(links)}</div>
 </article>
+"""
+
+    def _render_related_methods(
+        self,
+        *,
+        related_methods: list[RelatedMethod],
+        related_source_label: str,
+        searched_related_labels: list[str],
+        query_params: dict[str, str],
+        source_options: list[str],
+    ) -> str:
+        selected_source = query_params.get("related_source", "")
+        option_html = "".join(
+            f'<option value="{html.escape(option)}"{" selected" if option == selected_source else ""}>{html.escape(option)}</option>'
+            for option in source_options
+        )
+        if related_methods:
+            items = []
+            for method in related_methods:
+                revision_url = build_related_revision_url(query_params=query_params, to_url=method.to_url)
+                items.append(
+                    f'<li><a href="{html.escape(revision_url)}">{html.escape(method.to_name)}</a></li>'
+                )
+            return f"""
+<div style="margin-top:16px;">
+  <div class="eyebrow">Tested Production Methods</div>
+  {render_related_source_form(query_params=query_params, option_html=option_html, field_name="related_source")}
+  <p class="muted" style="margin-top:8px;">Loaded from <span class="mono">{html.escape(related_source_label)}</span></p>
+  <div style="margin-top:10px;">
+    <ul style="margin:0; padding-left:20px; display:grid; gap:8px;">
+      {''.join(items)}
+    </ul>
+  </div>
+</div>
+"""
+
+        searched = ", ".join(searched_related_labels) if searched_related_labels else "t2p-change, t2p-candidate, m2m-tech, fan-out"
+        return f"""
+<div style="margin-top:16px;">
+  <div class="eyebrow">Tested Production Methods</div>
+  {render_related_source_form(query_params=query_params, option_html=option_html, field_name="related_source")}
+  <p class="muted" style="margin-top:8px;">No matching production methods found. Searched in <span class="mono">{html.escape(searched)}</span></p>
+</div>
+"""
+
+    def _render_calling_methods(
+        self,
+        *,
+        calling_methods: list[CallingMethod],
+        calling_source_label: str,
+        searched_calling_labels: list[str],
+        query_params: dict[str, str],
+        source_options: list[str],
+    ) -> str:
+        selected_source = query_params.get("calling_source", "")
+        option_html = "".join(
+            f'<option value="{html.escape(option)}"{" selected" if option == selected_source else ""}>{html.escape(option)}</option>'
+            for option in source_options
+        )
+        if calling_methods:
+            items = []
+            for method in calling_methods:
+                revision_url = build_related_revision_url(query_params=query_params, from_url=method.from_url)
+                items.append(
+                    f'<li><a href="{html.escape(revision_url)}">{html.escape(method.from_name)}</a></li>'
+                )
+            return f"""
+<div style="margin-top:16px;">
+  <div class="eyebrow">Calling Test Methods</div>
+  {render_related_source_form(query_params=query_params, option_html=option_html, field_name="calling_source")}
+  <p class="muted" style="margin-top:8px;">Loaded from <span class="mono">{html.escape(calling_source_label)}</span></p>
+  <div style="margin-top:10px;">
+    <ul style="margin:0; padding-left:20px; display:grid; gap:8px;">
+      {''.join(items)}
+    </ul>
+  </div>
+</div>
+"""
+
+        searched = ", ".join(searched_calling_labels) if searched_calling_labels else "t2p-change, t2p-candidate, m2m-tech, fan-out"
+        return f"""
+<div style="margin-top:16px;">
+  <div class="eyebrow">Calling Test Methods</div>
+  {render_related_source_form(query_params=query_params, option_html=option_html, field_name="calling_source")}
+  <p class="muted" style="margin-top:8px;">No matching test methods found. Searched in <span class="mono">{html.escape(searched)}</span></p>
+</div>
 """
 
     def _render_note_panel(self, sample_row: SampleRow, sample_csv: str) -> str:
@@ -674,6 +1084,8 @@ class HistoryViewerApp:
         table_rows = []
         for row in rows:
             values = row.values
+            from_name = values.get("from_name", "")
+            to_name = values.get("to_name", "")
             revision_url = values.get("revision_url") or self.repository.build_revision_url(
                 base_url=base_url,
                 csv_path=sample_csv,
@@ -686,8 +1098,8 @@ class HistoryViewerApp:
                 f"""
 <tr>
   <td>{html.escape(values.get('project', ''))}</td>
-  <td><strong>{html.escape(values.get('from_name', ''))}</strong></td>
-  <td><strong>{html.escape(values.get('to_name', ''))}</strong></td>
+  <td><strong title="{html.escape(from_name)}">{html.escape(truncate_display_text(from_name))}</strong></td>
+  <td><strong title="{html.escape(to_name)}">{html.escape(truncate_display_text(to_name))}</strong></td>
   <td>{html.escape(values.get('tool', ''))}</td>
   <td><a href="{html.escape(revision_url)}" target="_blank" rel="noreferrer">Open revision</a></td>
   <td>{html.escape(values.get('note', '')) or '<span class="muted">No note</span>'}</td>
@@ -941,12 +1353,8 @@ def render_event_card(entry: CommitEntry | None, *, side: str) -> str:
     </div>
     <div>{' · '.join(link_lines)}</div>
     <div>
-      <div class="eyebrow">Actual Source</div>
-      <pre>{html.escape(entry.actual_source or "No source captured")}</pre>
-    </div>
-    <div>
       <div class="eyebrow">Diff</div>
-      <pre>{html.escape(entry.diff or "No diff captured")}</pre>
+      {render_diff_html(entry.diff, modal_id=f"diff-modal-{side}-{entry.short_hash}", title=entry.path)}
     </div>
   </div>
 </details>
@@ -998,6 +1406,15 @@ def format_commit_datetime(value: datetime | None, fallback: str) -> str:
     return f"{value.year} {value.strftime('%B')} {value.day}, {value.strftime('%H:%M')}"
 
 
+def truncate_display_text(value: str, max_chars: int = 36) -> str:
+    text = value.strip()
+    if len(text) <= max_chars:
+        return text
+    if max_chars <= 3:
+        return "." * max_chars
+    return f"{text[:max_chars - 3]}..."
+
+
 def render_change_chip(label: str) -> str:
     chip_class = f"chip {change_type_chip_class(label)}"
     return f'<span class="{html.escape(chip_class)}">{html.escape(label)}</span>'
@@ -1045,6 +1462,328 @@ def change_type_chip_class(label: str) -> str:
     return aliases.get(normalized, "type-unknown")
 
 
+JAVA_KEYWORDS = (
+    "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class",
+    "const", "continue", "default", "do", "double", "else", "enum", "extends", "final",
+    "finally", "float", "for", "if", "goto", "implements", "import", "instanceof", "int",
+    "interface", "long", "native", "new", "package", "private", "protected", "public",
+    "record", "return", "sealed", "short", "static", "strictfp", "super", "switch",
+    "synchronized", "this", "throw", "throws", "transient", "try", "var", "void",
+    "volatile", "while", "yield", "true", "false", "null",
+)
+
+
+def highlight_java_code(text: str) -> str:
+    escaped = html.escape(text)
+    placeholders: dict[str, str] = {}
+
+    def stash(pattern: str, css_class: str, source: str) -> str:
+        def replace(match: re.Match[str]) -> str:
+            token = f"__TOK{len(placeholders)}__"
+            placeholders[token] = f'<span class="{css_class}">{match.group(0)}</span>'
+            return token
+        return re.sub(pattern, replace, source)
+
+    escaped = stash(r"//.*$", "syntax-comment", escaped)
+    escaped = stash(r'"(?:\\.|[^"])*"', "syntax-string", escaped)
+    escaped = stash(r"'(?:\\.|[^'])*'", "syntax-string", escaped)
+    escaped = stash(r"@\w+", "syntax-annotation", escaped)
+
+    keyword_pattern = r"\b(" + "|".join(re.escape(keyword) for keyword in JAVA_KEYWORDS) + r")\b"
+    escaped = re.sub(keyword_pattern, r'<span class="syntax-keyword">\1</span>', escaped)
+    escaped = re.sub(r"\b(\d+(?:\.\d+)?)\b", r'<span class="syntax-number">\1</span>', escaped)
+
+    for token, replacement in placeholders.items():
+        escaped = escaped.replace(token, replacement)
+    return escaped
+
+
+def render_diff_html(diff_text: str, *, modal_id: str, title: str = "") -> str:
+    if not diff_text.strip():
+        return "<pre>No diff captured</pre>"
+
+    rows = parse_unified_diff(diff_text)
+    compact_rows = []
+    table_rows = []
+    inline_scroll_id = f"{modal_id}-inline-scroll"
+    source_versions_html = render_source_versions_html(rows)
+    for row in rows:
+        if row["kind"] == "hunk":
+            compact_rows.append(
+                f'<tr class="diff-hunk"><td class="diff-line-no"></td><td class="diff-code" colspan="2">{html.escape(row["text"])}</td></tr>'
+            )
+            table_rows.append(
+                f'<tr class="diff-hunk"><td class="diff-line-no"></td><td class="diff-code" colspan="2">{html.escape(row["text"])}</td></tr>'
+            )
+            continue
+        if row["kind"] == "meta":
+            compact_rows.append(
+                f'<tr class="diff-meta"><td class="diff-line-no"></td><td class="diff-code" colspan="2">{html.escape(row["text"])}</td></tr>'
+            )
+            table_rows.append(
+                f'<tr class="diff-meta"><td class="diff-line-no"></td><td class="diff-code" colspan="2">{html.escape(row["text"])}</td></tr>'
+            )
+            continue
+
+        compact_prefix = " "
+        compact_kind = "context"
+        compact_line_no = row.get("right_no") or row.get("left_no", "")
+        compact_text = row.get("right_text") or row.get("left_text", "")
+        if row.get("left_kind") == "del" and row.get("right_kind") == "add":
+            compact_rows.append(
+                f"""
+<tr class="diff-del">
+  <td class="diff-line-no diff-cell-del">{html.escape(row.get("left_no", ""))}</td>
+  <td class="diff-code diff-cell-del"><span class="diff-mark">-</span>{highlight_java_code(row.get("left_text", ""))}</td>
+</tr>
+<tr class="diff-add">
+  <td class="diff-line-no diff-cell-add">{html.escape(row.get("right_no", ""))}</td>
+  <td class="diff-code diff-cell-add"><span class="diff-mark">+</span>{highlight_java_code(row.get("right_text", ""))}</td>
+</tr>
+"""
+            )
+            table_rows.append(
+                f"""
+<tr class="diff-{html.escape(row['kind'])}">
+  <td class="diff-line-no diff-cell-{html.escape(row.get('left_kind', 'context'))}">{html.escape(row.get('left_no') or row.get('right_no', ''))}</td>
+  <td class="diff-code diff-cell-{html.escape(row.get('left_kind', 'context'))} {'diff-code-empty' if not row.get('left_text') else ''}">{highlight_java_code(row.get('left_text', ''))}</td>
+  <td class="diff-code diff-cell-{html.escape(row.get('right_kind', 'context'))} {'diff-code-empty' if not row.get('right_text') else ''}">{highlight_java_code(row.get('right_text', ''))}</td>
+</tr>
+"""
+            )
+            continue
+        elif row.get("left_kind") == "del":
+            compact_prefix = "-"
+            compact_kind = "del"
+            compact_line_no = row.get("left_no", "")
+            compact_text = row.get("left_text", "")
+        elif row.get("right_kind") == "add":
+            compact_prefix = "+"
+            compact_kind = "add"
+            compact_line_no = row.get("right_no", "")
+            compact_text = row.get("right_text", "")
+        compact_rows.append(
+            f"""
+<tr class="diff-{html.escape(compact_kind)}">
+  <td class="diff-line-no diff-cell-{html.escape(compact_kind)}">{html.escape(compact_line_no)}</td>
+  <td class="diff-code diff-cell-{html.escape(compact_kind)}"><span class="diff-mark">{html.escape(compact_prefix)}</span>{highlight_java_code(compact_text)}</td>
+</tr>
+"""
+        )
+        table_rows.append(
+            f"""
+<tr class="diff-{html.escape(row['kind'])}">
+  <td class="diff-line-no diff-cell-{html.escape(row.get('left_kind', 'context'))}">{html.escape(row.get('left_no') or row.get('right_no', ''))}</td>
+  <td class="diff-code diff-cell-{html.escape(row.get('left_kind', 'context'))} {'diff-code-empty' if not row.get('left_text') else ''}">{highlight_java_code(row.get('left_text', ''))}</td>
+  <td class="diff-code diff-cell-{html.escape(row.get('right_kind', 'context'))} {'diff-code-empty' if not row.get('right_text') else ''}">{highlight_java_code(row.get('right_text', ''))}</td>
+</tr>
+"""
+        )
+
+    return f"""
+<div class="diff-panel compact">
+  <div class="diff-toolbar">
+    <div class="diff-toolbar-group">
+      <button type="button" class="secondary diff-modal-open" data-modal-id="{html.escape(modal_id)}">Open split view</button>
+      <button type="button" class="secondary diff-scroll-button" data-scroll-target="{html.escape(inline_scroll_id)}" data-scroll-direction="left">Scroll left</button>
+      <button type="button" class="secondary diff-scroll-button" data-scroll-target="{html.escape(inline_scroll_id)}" data-scroll-direction="right">Scroll right</button>
+    </div>
+    <span>Scroll sideways for long lines</span>
+  </div>
+  <div class="diff-scroll" id="{html.escape(inline_scroll_id)}">
+    <table class="diff-table unified">
+      <tbody>
+        {''.join(compact_rows)}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="diff-modal" id="{html.escape(modal_id)}" aria-hidden="true">
+  <div class="diff-modal-card">
+    <div class="diff-modal-header">
+      <div style="display:grid; gap:4px;">
+        <strong>Split Diff View</strong>
+        <span class="mono muted">{html.escape(title)}</span>
+      </div>
+      <button type="button" class="secondary diff-modal-close" data-modal-id="{html.escape(modal_id)}">Close</button>
+    </div>
+    <div class="diff-modal-body">
+      <div class="diff-modal-controls">
+        <button type="button" class="secondary diff-view-toggle active" data-modal-id="{html.escape(modal_id)}" data-view="diff">Split diff</button>
+        <button type="button" class="secondary diff-view-toggle" data-modal-id="{html.escape(modal_id)}" data-view="source">Source versions</button>
+      </div>
+      <div class="diff-modal-view open" data-modal-id="{html.escape(modal_id)}" data-view="diff">
+        <div class="diff-panel github-split">
+          <div class="diff-toolbar">
+            <span>{html.escape(title or "Diff")}</span>
+            <span>Split View</span>
+          </div>
+          <table class="diff-table">
+            <tbody>
+              {''.join(table_rows)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="diff-modal-view" data-modal-id="{html.escape(modal_id)}" data-view="source">
+        {source_versions_html}
+      </div>
+    </div>
+  </div>
+</div>
+"""
+
+
+def render_source_versions_html(rows: list[dict[str, str]]) -> str:
+    previous_rows: list[str] = []
+    new_rows: list[str] = []
+    previous_gap_pending = False
+    new_gap_pending = False
+
+    def append_gap(target_rows: list[str]) -> None:
+        target_rows.append(
+            '<tr><td class="diff-line-no"></td><td class="diff-code diff-code-empty">&nbsp;</td></tr>'
+        )
+
+    for row in rows:
+        kind = row.get("kind", "")
+        if kind in {"hunk", "meta"}:
+            if previous_rows:
+                previous_gap_pending = True
+            if new_rows:
+                new_gap_pending = True
+            continue
+
+        left_text = row.get("left_text", "")
+        left_no = row.get("left_no", "")
+        right_text = row.get("right_text", "")
+        right_no = row.get("right_no", "")
+
+        if left_text:
+            if previous_gap_pending:
+                append_gap(previous_rows)
+                previous_gap_pending = False
+            previous_rows.append(
+                f'<tr><td class="diff-line-no">{html.escape(left_no)}</td><td class="diff-code">{highlight_java_code(left_text)}</td></tr>'
+            )
+        if right_text:
+            if new_gap_pending:
+                append_gap(new_rows)
+                new_gap_pending = False
+            new_rows.append(
+                f'<tr><td class="diff-line-no">{html.escape(right_no)}</td><td class="diff-code">{highlight_java_code(right_text)}</td></tr>'
+            )
+
+    if not previous_rows:
+        previous_rows.append('<tr><td class="diff-line-no"></td><td class="diff-code diff-code-empty">No previous source captured</td></tr>')
+    if not new_rows:
+        new_rows.append('<tr><td class="diff-line-no"></td><td class="diff-code diff-code-empty">No new source captured</td></tr>')
+
+    return f"""
+<div class="source-versions">
+  <div class="source-version-panel">
+    <table class="diff-table unified">
+      <tbody>
+        {''.join(previous_rows)}
+      </tbody>
+    </table>
+  </div>
+  <div class="source-version-panel">
+    <table class="diff-table unified">
+      <tbody>
+        {''.join(new_rows)}
+      </tbody>
+    </table>
+  </div>
+</div>
+"""
+
+
+def parse_unified_diff(diff_text: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    left_line_no: int | None = None
+    right_line_no: int | None = None
+    pending_deletions: list[tuple[str, int]] = []
+    pending_additions: list[tuple[str, int]] = []
+
+    def flush_pending() -> None:
+        nonlocal pending_deletions, pending_additions
+        while pending_deletions or pending_additions:
+            left_text, left_no = pending_deletions.pop(0) if pending_deletions else ("", "")
+            right_text, right_no = pending_additions.pop(0) if pending_additions else ("", "")
+            kind = "context"
+            if left_text and right_text:
+                kind = "context"
+            elif left_text:
+                kind = "del"
+            elif right_text:
+                kind = "add"
+            rows.append(
+                {
+                    "kind": "change" if left_text and right_text else kind,
+                    "left_no": str(left_no) if left_no != "" else "",
+                    "left_text": left_text,
+                    "left_kind": "del" if left_text else "context",
+                    "right_no": str(right_no) if right_no != "" else "",
+                    "right_text": right_text,
+                    "right_kind": "add" if right_text else "context",
+                }
+            )
+
+    for raw_line in diff_text.splitlines():
+        if raw_line.startswith("@@"):
+            flush_pending()
+            left_line_no, right_line_no = parse_hunk_header(raw_line)
+            rows.append({"kind": "hunk", "text": raw_line})
+            continue
+        if raw_line.startswith("---") or raw_line.startswith("+++"):
+            flush_pending()
+            rows.append({"kind": "meta", "text": raw_line})
+            continue
+        if raw_line.startswith("\\"):
+            flush_pending()
+            rows.append({"kind": "meta", "text": raw_line})
+            continue
+        if raw_line.startswith("-"):
+            pending_deletions.append((raw_line[1:], left_line_no or 0))
+            if left_line_no is not None:
+                left_line_no += 1
+            continue
+        if raw_line.startswith("+"):
+            pending_additions.append((raw_line[1:], right_line_no or 0))
+            if right_line_no is not None:
+                right_line_no += 1
+            continue
+
+        flush_pending()
+        text = raw_line[1:] if raw_line.startswith(" ") else raw_line
+        rows.append(
+            {
+                "kind": "context",
+                "left_no": str(left_line_no) if left_line_no is not None else "",
+                "left_text": text,
+                "left_kind": "context",
+                "right_no": str(right_line_no) if right_line_no is not None else "",
+                "right_text": text,
+                "right_kind": "context",
+            }
+        )
+        if left_line_no is not None:
+            left_line_no += 1
+        if right_line_no is not None:
+            right_line_no += 1
+
+    flush_pending()
+    return rows
+
+
+def parse_hunk_header(header: str) -> tuple[int | None, int | None]:
+    match = re.match(r"^@@ -(?P<left>\d+)(?:,\d+)? \+(?P<right>\d+)(?:,\d+)? @@", header)
+    if not match:
+        return None, None
+    return int(match.group("left")), int(match.group("right"))
+
+
 def _query_params(environ: dict[str, Any]) -> dict[str, str]:
     parsed = parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
     return {key: values[-1] if values else "" for key, values in parsed.items()}
@@ -1083,6 +1822,71 @@ def build_history_json_url(*, side: str, query_params: dict[str, str], download:
     return f"/api/history-json?{urlencode(params)}"
 
 
+def build_related_revision_url(*, query_params: dict[str, str], from_url: str = "", to_url: str = "") -> str:
+    params: dict[str, str] = {}
+    for key in ("tool", "sample_csv", "from_url", "to_url", "from_file", "to_file", "related_source", "calling_source"):
+        value = query_params.get(key, "")
+        if value:
+            params[key] = value
+    if from_url:
+        params["from_url"] = from_url
+        params.pop("from_file", None)
+    if to_url:
+        params["to_url"] = to_url
+        params.pop("to_file", None)
+    return f"/revision?{urlencode(params)}"
+
+
+def build_tool_switch_url(*, query_params: dict[str, str], tool: str) -> str:
+    params: dict[str, str] = {"tool": tool}
+    for key in ("sample_csv", "from_url", "to_url", "from_file", "to_file", "related_source", "calling_source"):
+        value = query_params.get(key, "")
+        if value:
+            params[key] = value
+    return f"/revision?{urlencode(params)}"
+
+
+def render_related_source_form(*, query_params: dict[str, str], option_html: str, field_name: str) -> str:
+    hidden_inputs = []
+    for key in ("tool", "sample_csv", "from_url", "to_url", "from_file", "to_file", "related_source", "calling_source"):
+        if key == field_name:
+            continue
+        value = query_params.get(key, "")
+        if value:
+            hidden_inputs.append(
+                f'<input type="hidden" name="{html.escape(key)}" value="{html.escape(value)}" />'
+            )
+    return f"""
+<form method="get" action="/revision" style="margin-top:10px;">
+  {''.join(hidden_inputs)}
+  <label>Source
+    <select name="{html.escape(field_name)}" onchange="this.form.submit()">
+      {option_html}
+    </select>
+  </label>
+</form>
+"""
+
+
+def render_tool_switch_links(*, query_params: dict[str, str]) -> str:
+    current_tool = query_params.get("tool", "")
+    links = []
+    for tool_name in ("historyFinder", "codeShovel"):
+        url = build_tool_switch_url(query_params=query_params, tool=tool_name)
+        label = tool_name if tool_name != current_tool else f"{tool_name} (current)"
+        links.append(
+            f'<a href="{html.escape(url)}" target="_blank" rel="noreferrer" class="chip">{html.escape(label)}</a>'
+        )
+    return f"""
+<div style="margin-top:14px;">
+  <div class="eyebrow">Open This Revision With Tool</div>
+  <div class="chip-row" style="margin-top:8px;">
+    {''.join(links)}
+  </div>
+</div>
+"""
+
+
 def safe_json_filename(history: MethodHistory) -> str:
     function_name = history.function_name or history.function_id or "method-history"
     normalized = "".join(character if character.isalnum() or character in {"-", "_"} else "-" for character in function_name)
@@ -1093,6 +1897,41 @@ def safe_json_filename(history: MethodHistory) -> str:
 
 NOTE_SCRIPT = """
 <script>
+for (const button of document.querySelectorAll(".diff-modal-open")) {
+  button.addEventListener("click", () => {
+    const modal = document.getElementById(button.dataset.modalId);
+    if (!modal) return;
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+  });
+}
+for (const button of document.querySelectorAll(".diff-modal-close")) {
+  button.addEventListener("click", () => {
+    const modal = document.getElementById(button.dataset.modalId);
+    if (!modal) return;
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  });
+}
+for (const modal of document.querySelectorAll(".diff-modal")) {
+  modal.addEventListener("click", (event) => {
+    if (event.target !== modal) return;
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  });
+}
+for (const button of document.querySelectorAll(".diff-view-toggle")) {
+  button.addEventListener("click", () => {
+    const modalId = button.dataset.modalId;
+    const view = button.dataset.view;
+    for (const toggle of document.querySelectorAll(`.diff-view-toggle[data-modal-id="${modalId}"]`)) {
+      toggle.classList.toggle("active", toggle === button);
+    }
+    for (const panel of document.querySelectorAll(`.diff-modal-view[data-modal-id="${modalId}"]`)) {
+      panel.classList.toggle("open", panel.dataset.view === view);
+    }
+  });
+}
 for (const button of document.querySelectorAll(".copy-json-button")) {
   button.addEventListener("click", async () => {
     const status = button.parentElement.querySelector(".json-copy-status");
@@ -1108,6 +1947,14 @@ for (const button of document.querySelectorAll(".copy-json-button")) {
       status.textContent = "Copy failed";
       status.classList.add("error");
     }
+  });
+}
+for (const button of document.querySelectorAll(".diff-scroll-button")) {
+  button.addEventListener("click", () => {
+    const target = document.getElementById(button.dataset.scrollTarget);
+    if (!target) return;
+    const direction = button.dataset.scrollDirection === "left" ? -1 : 1;
+    target.scrollBy({ left: direction * Math.max(180, Math.floor(target.clientWidth * 0.75)), behavior: "smooth" });
   });
 }
 const noteForm = document.getElementById("note-form");

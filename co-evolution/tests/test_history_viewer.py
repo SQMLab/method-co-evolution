@@ -12,7 +12,15 @@ PTC_SRC_DIRECTORY = REPOSITORY_ROOT / "co-evolution" / "src"
 if str(PTC_SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(PTC_SRC_DIRECTORY))
 
-from ptc.history_viewer.app import change_type_chip_class, create_app, format_commit_datetime, render_change_chip
+from ptc.history_viewer.app import (
+    change_type_chip_class,
+    create_app,
+    format_commit_datetime,
+    parse_unified_diff,
+    render_change_chip,
+    render_diff_html,
+    truncate_display_text,
+)
 from ptc.history_viewer.repository import HistoryRepository, parse_commit_datetime, parse_method_url
 
 
@@ -40,7 +48,7 @@ class TestHistoryViewer(unittest.TestCase):
     def test_format_commit_datetime_uses_readable_24_hour_output(self) -> None:
         history = self.repository.load_history_from_file(HF_DIRECT_FILE)
 
-        self.assertEqual("2021 July 3, 11:16", format_commit_datetime(history.entries[0].commit_date, history.entries[0].commit_date_raw))
+        self.assertEqual("2021 March 7, 11:16", format_commit_datetime(history.entries[0].commit_date, history.entries[0].commit_date_raw))
 
     def test_change_type_chips_use_per_type_classes(self) -> None:
         self.assertEqual("type-body", change_type_chip_class("Body"))
@@ -50,6 +58,36 @@ class TestHistoryViewer(unittest.TestCase):
         chip_html = render_change_chip("Body")
         self.assertIn('class="chip type-body"', chip_html)
         self.assertIn(">Body<", chip_html)
+
+    def test_truncate_display_text_keeps_prefix_and_ellipsis(self) -> None:
+        value = "testRejectionWithFallbackRequestContextWithSemaphoreIsolatedAsynchronousObservable"
+
+        self.assertEqual(
+            "testRejectionWithFallbackRequestC...",
+            truncate_display_text(value),
+        )
+
+    def test_render_diff_html_uses_split_rows_with_colors(self) -> None:
+        diff_text = "@@ -1,2 +1,2 @@\n-return 1;\n+return 2;\n // sharedLine\n"
+
+        rows = parse_unified_diff(diff_text)
+        html_output = render_diff_html(diff_text, modal_id="diff-modal-test", title="Example.java")
+
+        self.assertTrue(any(row["kind"] == "change" for row in rows))
+        self.assertIn("diff-cell-del", html_output)
+        self.assertIn("diff-cell-add", html_output)
+        self.assertIn("Open split view", html_output)
+        self.assertIn('id="diff-modal-test"', html_output)
+        self.assertIn("Split Diff View", html_output)
+        self.assertIn("Example.java", html_output)
+        self.assertIn("github-split", html_output)
+        self.assertIn("Source versions", html_output)
+        self.assertIn('class="syntax-keyword"', html_output)
+        self.assertIn('class="syntax-number"', html_output)
+        self.assertIn('data-scroll-direction="left"', html_output)
+        self.assertIn('data-scroll-direction="right"', html_output)
+        self.assertNotIn("diff-unified-prefix", html_output)
+        self.assertNotIn(">±<", html_output)
 
     def test_parse_commit_datetime_supports_year_month_day_24_hour_input(self) -> None:
         parsed = parse_commit_datetime("20/12/16 23:30 PM")
@@ -62,6 +100,18 @@ class TestHistoryViewer(unittest.TestCase):
 
         self.assertIsNotNone(parsed)
         self.assertEqual("2014 February 25, 22:56", format_commit_datetime(parsed, ""))
+
+    def test_parse_commit_datetime_supports_midnight_with_am_marker(self) -> None:
+        parsed = parse_commit_datetime("07/07/16 00:07 AM")
+
+        self.assertIsNotNone(parsed)
+        self.assertEqual("2016 July 7, 00:07", format_commit_datetime(parsed, ""))
+
+    def test_parse_commit_datetime_prefers_day_month_year_for_ambiguous_numeric_dates(self) -> None:
+        parsed = parse_commit_datetime("11/02/10 10:10 AM")
+
+        self.assertIsNotNone(parsed)
+        self.assertEqual("2010 February 11, 10:10", format_commit_datetime(parsed, ""))
 
     def test_load_historyfinder_from_direct_json_file(self) -> None:
         history = self.repository.load_history_from_file(HF_DIRECT_FILE)
@@ -122,6 +172,50 @@ class TestHistoryViewer(unittest.TestCase):
             rows = list(csv.DictReader(handle))
         self.assertEqual("Strong same-commit coupling", rows[0]["note"])
 
+    def test_find_related_production_methods_uses_t2p_change_before_fallbacks(self) -> None:
+        with SAMPLE_CSV.open("r", encoding="utf-8", newline="") as handle:
+            first_row = next(csv.DictReader(handle))
+
+        related_methods, searched_labels = self.repository.find_related_production_methods(
+            project=first_row["project"],
+            from_url=first_row["from_url"],
+            tool="historyFinder",
+            sample_csv=str(SAMPLE_CSV),
+        )
+
+        self.assertTrue(related_methods)
+        self.assertEqual("t2p-change/historyFinder/omc--nc--ncc", related_methods[0].source_label)
+        self.assertEqual("t2p-change/historyFinder/omc--nc--ncc", searched_labels[0])
+
+    def test_related_source_options_include_requested_directory_order(self) -> None:
+        options = self.repository.related_source_options(tool="historyFinder", sample_csv=str(SAMPLE_CSV))
+
+        self.assertEqual(
+            [
+                "t2p-change/historyFinder/omc--nc--ncc",
+                "t2p-candidate",
+                "m2m-tech",
+                "fan-out",
+            ],
+            options,
+        )
+
+    def test_find_calling_test_methods_uses_t2p_change_before_fallbacks(self) -> None:
+        with SAMPLE_CSV.open("r", encoding="utf-8", newline="") as handle:
+            first_row = next(csv.DictReader(handle))
+
+        calling_methods, searched_labels = self.repository.find_calling_test_methods(
+            project=first_row["project"],
+            to_url=first_row["to_url"],
+            tool="historyFinder",
+            sample_csv=str(SAMPLE_CSV),
+        )
+
+        self.assertTrue(calling_methods)
+        self.assertEqual("t2p-change/historyFinder/omc--nc--ncc", calling_methods[0].source_label)
+        self.assertEqual("t2p-change/historyFinder/omc--nc--ncc", searched_labels[0])
+        self.assertEqual(first_row["from_url"], calling_methods[0].from_url)
+
     def test_revision_route_renders_comparison_page(self) -> None:
         app = create_app(cache_directory=str(CACHE_DIRECTORY), data_directory=str(DATA_DIRECTORY))
         environ = {
@@ -153,6 +247,18 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertIn("Revision Viewer", body)
         self.assertIn("Save manual review notes back to the sampled CSV", body)
         self.assertIn("UTF8PrintWriterTest.java:17", body)
+        self.assertIn("Tested Production Methods", body)
+        self.assertIn("Calling Test Methods", body)
+        self.assertIn("t2p-change/historyFinder/omc--nc--ncc", body)
+        self.assertIn('name="related_source"', body)
+        self.assertIn('name="calling_source"', body)
+        self.assertIn("Open This Revision With Tool", body)
+        self.assertIn("codeShovel", body)
+        self.assertIn("historyFinder (current)", body)
+        self.assertNotIn("<th>Method</th>", body)
+        self.assertNotIn("<th>Link</th>", body)
+        self.assertNotIn("<th>File</th>", body)
+        self.assertNotIn("Actual Source", body)
 
     def test_sample_directory_route_lists_csv_files(self) -> None:
         app = create_app(cache_directory=str(CACHE_DIRECTORY), data_directory=str(DATA_DIRECTORY))
