@@ -9,8 +9,9 @@ import java.util.List;
  * @since 2026-01-12
  */
 public interface MethodScanner {
-    List<Method> scanMethod(String repoRoot,
-                            String repoUrl,
-                            String commitHash,
-                            String file);
+    void init(String repoRoot,
+              String repoUrl,
+              String commitHash);
+
+    List<Method> scanMethod(String file);
 }

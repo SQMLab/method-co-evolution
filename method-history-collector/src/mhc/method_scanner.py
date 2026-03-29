@@ -293,7 +293,6 @@ def _is_method_output_current(output_method_file: str, commit_hash: str) -> bool
 def _scan_methods_in_file(
     scanner,
     repository_name: str,
-    dot_file_directory: str,
     url: str,
     commit_hash: str,
     file: str,
@@ -302,12 +301,7 @@ def _scan_methods_in_file(
     methods_in_file = []
 
     try:
-        java_methods = scanner.scanMethod(
-            dot_file_directory,
-            url,
-            commit_hash,
-            file_without_base,
-        )
+        java_methods = scanner.scanMethod(file_without_base)
         for jm in java_methods:
             methods_in_file.append(
                 {
@@ -365,8 +359,8 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
         "rnd.method.parser.call.graph.service.MethodScannerImpl"
     )
 
-    scanner = MethodScannerImpl()
     for _, repository in repository_df.iterrows():
+        scanner = MethodScannerImpl.getInstance()
         repository_name = repository["project"]
         url = repository['url']
         commit_hash = repository['updated_hash']
@@ -377,6 +371,7 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
             continue
 
         clone_and_checkout_commit(url, dot_file_directory, commit_hash)
+        scanner.init(dot_file_directory, url, commit_hash)
         java_files = sorted(collect_files(dot_file_directory, "*.java"))
         cached_files = _load_cached_method_scan_files(method_cache_file)
 
@@ -390,7 +385,6 @@ def scan_method(repository_df: DataFrame, repository_directory: str, data_direct
             methods_in_file = _scan_methods_in_file(
                 scanner,
                 repository_name,
-                dot_file_directory,
                 url,
                 commit_hash,
                 file,

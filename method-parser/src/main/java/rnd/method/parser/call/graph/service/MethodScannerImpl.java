@@ -11,7 +11,6 @@ import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import com.github.javaparser.resolution.TypeSolver;
 import com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
@@ -108,24 +107,57 @@ public class MethodScannerImpl implements MethodScanner {
 
     private static final Set<String> TEST_PACKAGE_ROOT_DIRECTORY = Set.of("test/java", "androidTest/java");
 
+    private String repoRoot;
+    private String repoUrl;
+    private String commitHash;
+    private String repositoryName;
+    private JavaParser parserWithSymbolResolver;
+
+    private MethodScannerImpl() {
+    }
+
+    public static MethodScannerImpl getInstance() {
+        return new MethodScannerImpl();
+    }
+
     @Override
-    public List<Method> scanMethod(String repoRoot, String repoUrl, String commitHash, String file) {
+    public synchronized void init(String repoRoot, String repoUrl, String commitHash) {
+        if (parserWithSymbolResolver != null) {
+            throw new IllegalStateException("MethodScannerImpl.init must be called exactly once");
+        }
+
         MethodParserUtil.prepareRepositoryForCommit(repoUrl, repoRoot, commitHash);
 
-        String repositoryName = MethodParserUtil.extractRepositoryName(repoUrl);
-        File javaFile = Path.of(repoRoot, file).toFile();
-        CombinedTypeSolver typeResolver = new CombinedTypeSolver();
-        typeResolver.add(new ReflectionTypeSolver());
-        typeResolver.add(new JavaParserTypeSolver(new File(repoRoot)));
+        CombinedTypeSolver initializedTypeResolver = new CombinedTypeSolver();
+        initializedTypeResolver.add(new ReflectionTypeSolver());
+        List<Path> javaSourceRoots = MethodParserUtil.findAllJavaSourceRoots(Path.of(repoRoot));
+        if (javaSourceRoots.isEmpty()) {
+            initializedTypeResolver.add(new JavaParserTypeSolver(new File(repoRoot)));
+        } else {
+            for (Path javaSourceRoot : javaSourceRoots) {
+                initializedTypeResolver.add(new JavaParserTypeSolver(javaSourceRoot.toFile()));
+            }
+        }
 
-        JavaSymbolSolver symbolSolver = new JavaSymbolSolver(typeResolver);
+        JavaSymbolSolver symbolSolver = new JavaSymbolSolver(initializedTypeResolver);
 
         ParserConfiguration config = new ParserConfiguration()
                 .setSymbolResolver(symbolSolver)
                 .setLanguageLevel(ParserConfiguration.LanguageLevel.BLEEDING_EDGE);
 
-        JavaParser parserWithSymbolResolver = new JavaParser(config);
         StaticJavaParser.setConfiguration(config);
+        this.repoRoot = repoRoot;
+        this.repoUrl = repoUrl;
+        this.commitHash = commitHash;
+        this.repositoryName = MethodParserUtil.extractRepositoryName(repoUrl);
+        this.parserWithSymbolResolver = new JavaParser(config);
+    }
+
+    @Override
+    public List<Method> scanMethod(String file) {
+        ensureInitialized();
+
+        File javaFile = Path.of(repoRoot, file).toFile();
 
         CompilationUnit cu;
         try {
@@ -143,7 +175,7 @@ public class MethodScannerImpl implements MethodScanner {
 
         cu.walk(node -> {
             if (node instanceof MethodDeclaration md) {
-                String methodType = determineMethodType(javaFile, packageName, md, typeResolver);
+                String methodType = determineMethodType(javaFile, packageName, md);
 
                 String fqn = null;
                 String fqs = null;
@@ -178,7 +210,7 @@ public class MethodScannerImpl implements MethodScanner {
                         .build()
                 );
             } else if (node instanceof ConstructorDeclaration cd) {
-                String methodType = determineMethodType(javaFile, packageName, cd, typeResolver);
+                String methodType = determineMethodType(javaFile, packageName, cd);
 
                 String fqn = null;
                 String fqs = null;
@@ -217,10 +249,16 @@ public class MethodScannerImpl implements MethodScanner {
         return result;
     }
 
+    private void ensureInitialized() {
+        if (parserWithSymbolResolver == null) {
+            throw new IllegalStateException("MethodScannerImpl.init must be called before scanMethod");
+        }
+    }
+
     private String determineMethodType(
             File file,
             String pkg,
-            com.github.javaparser.ast.Node node, TypeSolver typeResolver) {
+            com.github.javaparser.ast.Node node) {
 
         String filePath = file.getPath().replace(File.separatorChar, '/');
         String bareFileName = file.getName();

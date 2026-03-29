@@ -21,6 +21,14 @@ pip install -e ./co-evolution
 pip install -e ./co-evolution[llm]
 ```
 
+### Compile `method-parser`
+
+From the `method-parser` directory, run:
+
+```bash
+mvn clean install -DskipTests
+```
+
 ### Run
 ```bash
 mhc scan-method \
