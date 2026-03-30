@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from io import BytesIO
+import json
 from pathlib import Path
 import shutil
 import sys
@@ -13,10 +14,14 @@ if str(PTC_SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(PTC_SRC_DIRECTORY))
 
 from ptc.history_viewer.app import (
+    build_change_count_summary,
+    change_count_label,
     change_type_chip_class,
     create_app,
     format_commit_datetime,
     parse_unified_diff,
+    render_change_count_summary_table,
+    render_change_count_trend,
     render_change_chip,
     render_diff_html,
     truncate_display_text,
@@ -28,7 +33,10 @@ CACHE_DIRECTORY = REPOSITORY_ROOT / ".cache"
 DATA_DIRECTORY = CACHE_DIRECTORY / "data"
 SAMPLE_CSV = DATA_DIRECTORY / "t2p-change-sample" / "historyFinder" / "omc--nc--ncc" / "cucumber-jvm.csv"
 SAMPLE_DIR = DATA_DIRECTORY / "t2p-change-sample" / "historyFinder" / "omc--nc--ncc"
-HF_DIRECT_FILE = CACHE_DIRECTORY / "history" / "historyFinder" / "auto" / "value" / "src" / "test" / "java" / "com" / "google" / "auto" / "value" / "extension" / "toprettystring" / "ToPrettyStringTest--toPrettyString--940.json"
+HF_SAMPLE_URL = (
+    "https://github.com/cucumber/cucumber-jvm/blob/4d9dd9304fe05e15c445c6f3b4d0e364d7c70223/"
+    "cucumber-core/src/test/java/io/cucumber/core/plugin/UTF8PrintWriterTest.java#L17"
+)
 
 
 class TestHistoryViewer(unittest.TestCase):
@@ -46,9 +54,9 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertEqual(17, parsed.line)
 
     def test_format_commit_datetime_uses_readable_24_hour_output(self) -> None:
-        history = self.repository.load_history_from_file(HF_DIRECT_FILE)
+        parsed = parse_commit_datetime("07/03/21 11:16 AM")
 
-        self.assertEqual("2021 March 7, 11:16", format_commit_datetime(history.entries[0].commit_date, history.entries[0].commit_date_raw))
+        self.assertEqual("2021 March 7, 11:16", format_commit_datetime(parsed, ""))
 
     def test_change_type_chips_use_per_type_classes(self) -> None:
         self.assertEqual("type-body", change_type_chip_class("Body"))
@@ -66,6 +74,38 @@ class TestHistoryViewer(unittest.TestCase):
             "testRejectionWithFallbackRequestC...",
             truncate_display_text(value),
         )
+
+    def test_build_change_count_summary_uses_shared_helper_categories(self) -> None:
+        from_raw = {
+            "changeHistoryDetails": {
+                "a1": {"type": "Ybodychange", "diff": "x"},
+                "a2": {"type": "Yintroduced", "diff": ""},
+            }
+        }
+        to_raw = {
+            "changeHistoryDetails": {
+                "b1": {"type": "Ybodychange", "diff": "x"},
+                "b2": {"type": "Ybodychange", "diff": "y"},
+            }
+        }
+
+        summary = build_change_count_summary(from_raw, to_raw)
+        summary_map = {label: (test_count, prod_count) for label, test_count, prod_count in summary}
+
+        self.assertEqual("Return type", change_count_label("ch_return_type"))
+        self.assertEqual((2, 2), summary_map["All commits"])
+        self.assertEqual((1, 2), summary_map["Commits with diff"])
+        self.assertEqual((1, 2), summary_map["Body"])
+        self.assertEqual((1, 0), summary_map["Introduction"])
+        self.assertIn("&uarr; 2", render_change_count_trend(3, 1))
+        self.assertIn("&darr; 2", render_change_count_trend(1, 3))
+        self.assertIn("trend-flat", render_change_count_trend(2, 2))
+
+        html_output = render_change_count_summary_table(summary)
+        self.assertIn("Change count summary", html_output)
+        self.assertIn("<th>Test</th>", html_output)
+        self.assertIn("<th>Production</th>", html_output)
+        self.assertIn("<th>Trend</th>", html_output)
 
     def test_render_diff_html_uses_split_rows_with_colors(self) -> None:
         diff_text = "@@ -1,2 +1,2 @@\n-return 1;\n+return 2;\n // sharedLine\n"
@@ -114,18 +154,22 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertEqual("2010 February 11, 10:10", format_commit_datetime(parsed, ""))
 
     def test_load_historyfinder_from_direct_json_file(self) -> None:
-        history = self.repository.load_history_from_file(HF_DIRECT_FILE)
+        temp_file = REPOSITORY_ROOT / ".cache" / "test" / "history-viewer" / "historyfinder-direct.json"
+        temp_file.parent.mkdir(parents=True, exist_ok=True)
+        source_history = self.repository.load_history_from_url(HF_SAMPLE_URL, tool="historyFinder")
+        temp_file.write_text(json.dumps(source_history.raw), encoding="utf-8")
+
+        history = self.repository.load_history_from_file(temp_file)
 
         self.assertEqual("historyFinder", history.tool)
-        self.assertEqual("toPrettyString", history.function_name)
-        self.assertEqual(940, history.function_start_line)
+        self.assertEqual("println", history.function_name)
+        self.assertEqual(17, history.function_start_line)
         self.assertTrue(history.entries)
-        self.assertTrue(history.entries[0].diff_url.startswith("https://github.com/google/auto/compare/"))
+        self.assertTrue(history.entries[0].diff_url.startswith("https://github.com/cucumber/cucumber-jvm/compare/"))
 
     def test_load_historyfinder_from_url_resolves_tar_member(self) -> None:
         history = self.repository.load_history_from_url(
-            "https://github.com/cucumber/cucumber-jvm/blob/4d9dd9304fe05e15c445c6f3b4d0e364d7c70223/"
-            "cucumber-core/src/test/java/io/cucumber/core/plugin/UTF8PrintWriterTest.java#L17",
+            HF_SAMPLE_URL,
             tool="historyFinder",
         )
 
@@ -252,6 +296,10 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertIn("t2p-change/historyFinder/omc--nc--ncc", body)
         self.assertIn('name="related_source"', body)
         self.assertIn('name="calling_source"', body)
+        self.assertIn("Change count summary", body)
+        self.assertIn("<th>Change Type</th>", body)
+        self.assertIn("<th>Production</th>", body)
+        self.assertIn("<th>Trend</th>", body)
         self.assertIn("Open This Revision With Tool", body)
         self.assertIn("codeShovel", body)
         self.assertIn("historyFinder (current)", body)

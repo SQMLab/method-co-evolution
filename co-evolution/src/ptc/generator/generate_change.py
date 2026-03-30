@@ -1,14 +1,13 @@
 import json
 import logging
-import os
-import re
 import tarfile
 import warnings
 from pathlib import Path
 import pandas as pd
 import mhc.util as util
-from ptc.constants import MethodChangeType
+from ptc.util.helper import extract_change_count
 from mhc.config import *
+
 
 def main() -> None:
     repository_df = pd.read_csv(f"{DATA_DIRECTORY}/repository/repository.csv")
@@ -35,20 +34,7 @@ def main() -> None:
                                 except Exception:
                                     logging.error(f"Error loading history json for {tooName} {file}")
                                     continue
-                                change_commits = history_json["changeHistoryDetails"]
-                                change_history = {ct.value: 0 for ct in MethodChangeType}
-                                diff_commit_count = 0
-                                for commit_hash, commit_detail in change_commits.items():
-                                    changes = [p.strip() for p in re.split(r'[(),]', commit_detail['type']) if p.strip()]
-                                    for change_type in changes:
-                                        change_history[change_type] += 1
-                                    if "diff" in commit_detail and commit_detail['diff']:
-                                        diff_commit_count += 1
-                                    elif "subchanges" in commit_detail:
-                                        for subchange in commit_detail['subchanges']:
-                                            if "diff" in subchange and subchange['diff']:
-                                                diff_commit_count += 1
-                                                break
+                                change_history = extract_change_count(history_json)
 
                                 method_url = util.convert_method_file_to_method_url(
                                     repository_url, repository_hash, base_file
@@ -56,12 +42,9 @@ def main() -> None:
                                 method_history = {
                                     "url": method_url,
                                     "tool_name": tooName,
-                                    "method_file": base_file,
-                                    "ch_all": len(change_commits),
-                                    "ch_diff": diff_commit_count,
+                                    "method_file": base_file
                                 }
-                                for key, value in change_history.items():
-                                    method_history[f"ch_{MethodChangeType(key).name.lower()}"] = value
+                                method_history.update(change_history)
                                 method_history_list.append(method_history)
                 method_file = util.format_method_list_file(DATA_DIRECTORY, repository_name)
                 if os.path.exists(method_file):

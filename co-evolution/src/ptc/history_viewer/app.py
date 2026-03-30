@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import Any, Iterable
 from urllib.parse import parse_qs, quote, urlencode
 
+from ptc.util.helper import extract_change_count
+
 from .repository import (
     CallingMethod,
     CommitEntry,
@@ -579,6 +581,18 @@ th {
   color: var(--accent);
   font-weight: 700;
 }
+.trend-up {
+  color: #166534;
+  font-weight: 700;
+}
+.trend-down {
+  color: #b91c1c;
+  font-weight: 700;
+}
+.trend-flat {
+  color: var(--muted);
+  font-weight: 700;
+}
 .error {
   background: var(--danger-soft);
   color: var(--danger);
@@ -806,6 +820,7 @@ class HistoryViewerApp:
     ) -> str:
         rows = build_timeline_rows(from_history.entries, to_history.entries)
         summary = build_pair_summary(from_history.entries, to_history.entries)
+        change_count_summary = build_change_count_summary(from_history.raw, to_history.raw)
         query_params = {
             "tool": from_history.tool or to_history.tool,
             "sample_csv": sample_csv,
@@ -890,6 +905,8 @@ class HistoryViewerApp:
     {self._render_method_panel("Test / From", from_history, side="from", query_params=query_params, related_methods=related_methods, related_source_label=related_source_label, searched_related_labels=searched_related_labels)}
     {self._render_method_panel("Production / To", to_history, side="to", query_params=query_params, calling_methods=calling_methods, calling_source_label=calling_source_label, searched_calling_labels=searched_calling_labels)}
   </section>
+
+  {render_change_count_summary_table(change_count_summary)}
 
   <section class="panel">
     <div class="eyebrow">Timeline</div>
@@ -1413,6 +1430,101 @@ def truncate_display_text(value: str, max_chars: int = 36) -> str:
     if max_chars <= 3:
         return "." * max_chars
     return f"{text[:max_chars - 3]}..."
+
+
+def build_change_count_summary(from_raw: dict[str, Any], to_raw: dict[str, Any]) -> list[tuple[str, int, int]]:
+    from_counts = extract_change_count(from_raw)
+    to_counts = extract_change_count(to_raw)
+    ordered_keys = [
+        "ch_all",
+        "ch_diff",
+        "ch_introduction",
+        "ch_body",
+        "ch_rename",
+        "ch_move",
+        "ch_file_move",
+        "ch_documentation",
+        "ch_modifier",
+        "ch_return_type",
+        "ch_exception",
+        "ch_parameter",
+        "ch_parameter_meta",
+        "ch_annotation",
+        "ch_format",
+        "ch_multi",
+    ]
+    summary_rows: list[tuple[str, int, int]] = []
+    for key in ordered_keys:
+        from_value = int(from_counts.get(key, 0))
+        to_value = int(to_counts.get(key, 0))
+        if key not in {"ch_all", "ch_diff"} and from_value == 0 and to_value == 0:
+            continue
+        summary_rows.append((change_count_label(key), from_value, to_value))
+    return summary_rows
+
+
+def change_count_label(key: str) -> str:
+    labels = {
+        "ch_all": "All commits",
+        "ch_diff": "Commits with diff",
+        "ch_introduction": "Introduction",
+        "ch_body": "Body",
+        "ch_rename": "Rename",
+        "ch_move": "Move",
+        "ch_file_move": "File move",
+        "ch_documentation": "Documentation",
+        "ch_modifier": "Modifier",
+        "ch_return_type": "Return type",
+        "ch_exception": "Exception",
+        "ch_parameter": "Parameter",
+        "ch_parameter_meta": "Parameter meta",
+        "ch_annotation": "Annotation",
+        "ch_format": "Format",
+        "ch_multi": "Multi",
+    }
+    return labels.get(key, key.removeprefix("ch_").replace("_", " ").title())
+
+
+def render_change_count_summary_table(summary_rows: list[tuple[str, int, int]]) -> str:
+    table_rows = "".join(
+        f"""
+<tr>
+  <td>{html.escape(label)}</td>
+  <td>{from_count}</td>
+  <td>{to_count}</td>
+  <td>{render_change_count_trend(from_count, to_count)}</td>
+</tr>
+"""
+        for label, from_count, to_count in summary_rows
+    )
+    return f"""
+<section class="panel" style="margin-top:24px;">
+  <div class="eyebrow">Change Summary</div>
+  <h2 style="margin-top:10px;">Change count summary</h2>
+  <p class="muted" style="margin-top:8px;">Counts are extracted from each method history JSON using the shared change-count helper.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Change Type</th>
+        <th>Test</th>
+        <th>Production</th>
+        <th>Trend</th>
+      </tr>
+    </thead>
+    <tbody>
+      {table_rows}
+    </tbody>
+  </table>
+</section>
+"""
+
+
+def render_change_count_trend(from_count: int, to_count: int) -> str:
+    if from_count > to_count:
+        return f'<span class="trend-up">&uarr; {from_count - to_count}</span>'
+    if from_count < to_count:
+        return f'<span class="trend-down">&darr; {to_count - from_count}</span>'
+    return '<span class="trend-flat">-</span>'
 
 
 def render_change_chip(label: str) -> str:
