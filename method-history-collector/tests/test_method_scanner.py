@@ -68,10 +68,21 @@ class FakeJavaMethod:
 
 
 class FakeMethodScannerImpl:
+    init_calls = []
     scanned_files = []
 
-    def scanMethod(self, _repository_directory, repository_url, commit_hash, file_without_base):
+    @staticmethod
+    def getInstance():
+        return FakeMethodScannerImpl()
+
+    def init(self, repository_directory, repository_url, commit_hash):
+        FakeMethodScannerImpl.init_calls.append(
+            (repository_directory, repository_url, commit_hash)
+        )
+
+    def scanMethod(self, file_without_base):
         FakeMethodScannerImpl.scanned_files.append(file_without_base)
+        _, repository_url, commit_hash = FakeMethodScannerImpl.init_calls[-1]
         return [FakeJavaMethod(repository_url, commit_hash, file_without_base)]
 
 
@@ -132,6 +143,7 @@ class MethodScannerCacheTestCase(unittest.TestCase):
             method_cache_file.parent.mkdir(parents=True, exist_ok=True)
             seed_rows.to_csv(method_cache_file, index=False)
 
+            FakeMethodScannerImpl.init_calls = []
             FakeMethodScannerImpl.scanned_files = []
             with patch("jpype.JClass", return_value=FakeMethodScannerImpl), patch.object(
                 ms, "clone_and_checkout_commit"
@@ -143,6 +155,16 @@ class MethodScannerCacheTestCase(unittest.TestCase):
                     str(cache_directory),
                 )
 
+            self.assertEqual(
+                FakeMethodScannerImpl.init_calls,
+                [
+                    (
+                        str(project_directory),
+                        "https://github.com/example/demo-project",
+                        "abc123",
+                    )
+                ],
+            )
             self.assertEqual(FakeMethodScannerImpl.scanned_files, ["src/Beta.java"])
             self.assertFalse(method_cache_file.exists())
             self.assertTrue(output_method_file.exists())
@@ -163,6 +185,7 @@ class MethodScannerCacheTestCase(unittest.TestCase):
 
             repository_df = self._repository_df()
             output_method_file = Path(util.format_method_list_file(str(data_directory), "demo-project"))
+            FakeMethodScannerImpl.init_calls = []
             FakeMethodScannerImpl.scanned_files = []
 
             with patch("jpype.JClass", return_value=FakeMethodScannerImpl), patch.object(
@@ -179,6 +202,16 @@ class MethodScannerCacheTestCase(unittest.TestCase):
                     str(cache_directory),
                 )
 
+            self.assertEqual(
+                FakeMethodScannerImpl.init_calls,
+                [
+                    (
+                        str(project_directory),
+                        "https://github.com/example/demo-project",
+                        "abc123",
+                    )
+                ],
+            )
             self.assertGreaterEqual(flush_results.call_count, 3)
             self.assertTrue(output_method_file.exists())
 

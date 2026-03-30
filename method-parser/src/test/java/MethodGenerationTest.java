@@ -36,35 +36,29 @@ public class MethodGenerationTest extends TestConfigurationBase {
                 configurations.stream().map(projectConfig -> DynamicContainer.dynamicContainer(projectConfig.name,
                         projectConfig.cases.stream().map(testCase -> DynamicTest.dynamicTest(testCase.name, () -> {
 
-
-                            MethodScannerImpl methodScanner = new MethodScannerImpl();
+                            MethodScannerImpl methodScanner = MethodScannerImpl.getInstance();
 
                             String repoRoot = TestConfigurationBase.resolvePlaceholders(projectConfig.repositoryPath);
                             Path repoRootPath = Paths.get(repoRoot).toAbsolutePath().normalize();
                             Path targetPath = repoRootPath.resolve(testCase.targetPath).normalize();
+                            methodScanner.init(
+                                    repoRoot,
+                                    projectConfig.repositoryUrl,
+                                    projectConfig.commitHash
+                            );
 
                             List<Method> methods;
                             if (Files.isRegularFile(targetPath) && targetPath.toString().endsWith(".java")) {
                                 String relativePath = repoRootPath.relativize(targetPath).toString();
 
-                                methods = methodScanner.scanMethod(
-                                        repoRoot,
-                                        projectConfig.repositoryUrl,
-                                        projectConfig.commitHash,
-                                        relativePath
-                                );
+                                methods = methodScanner.scanMethod(relativePath);
                             } else {
                                 try (Stream<Path> pathStream = Files.walk(targetPath)) {
                                     methods = pathStream
                                             .filter(Files::isRegularFile)
                                             .filter(path -> path.toString().endsWith(".java"))
                                             .map(path -> repoRootPath.relativize(path).toString())
-                                            .flatMap(relativePath -> methodScanner.scanMethod(
-                                                    repoRoot,
-                                                    projectConfig.repositoryUrl,
-                                                    projectConfig.commitHash,
-                                                    relativePath
-                                            ).stream())
+                                            .flatMap(relativePath -> methodScanner.scanMethod(relativePath).stream())
                                             .collect(Collectors.toList());
                                 }
                             }
@@ -83,9 +77,13 @@ public class MethodGenerationTest extends TestConfigurationBase {
 
     @Test
     public void testCheckTestAnnotation() {
-        MethodScannerImpl methodScanner = new MethodScannerImpl();
-        List<Method> methods = methodScanner.scanMethod(Path.of(REPOSITORY_DIRECTORY, "checkstyle").toFile().getAbsolutePath(), "https://github.com/checkstyle/checkstyle",
-                "164a755af951cf0fd459d70873e1c199210d9d8b", "src");
+        MethodScannerImpl methodScanner = MethodScannerImpl.getInstance();
+        methodScanner.init(
+                Path.of(REPOSITORY_DIRECTORY, "checkstyle").toFile().getAbsolutePath(),
+                "https://github.com/checkstyle/checkstyle",
+                "164a755af951cf0fd459d70873e1c199210d9d8b"
+        );
+        List<Method> methods = methodScanner.scanMethod("src");
 
     }
 

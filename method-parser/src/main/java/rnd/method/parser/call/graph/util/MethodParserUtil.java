@@ -127,7 +127,7 @@ public class MethodParserUtil {
                     .flatMap(CompilationUnit::getPackageDeclaration)
                     .map(packageDeclaration -> packageDeclaration.getName().asString())
                     .filter(packageName -> !packageName.isBlank());
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return Optional.empty();
         }
     }

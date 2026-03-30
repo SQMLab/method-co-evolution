@@ -2,8 +2,58 @@ import argparse
 import sys
 from mhc.method_history_collector import *
 
+_DASH_VALUE_OPTIONS = {"--java-options", "--command-options"}
+_KNOWN_OPTION_FLAGS = {
+    "--cache-directory",
+    "--repository-directory",
+    "--data-directory",
+    "--jar-directory",
+    "--tool-name",
+    "--command-options",
+    "--java-options",
+    "--timeout-seconds",
+    "--project",
+}
 
-def main():
+
+def _normalize_dash_prefixed_option_values(argv: list[str]) -> list[str]:
+    normalized_argv = []
+    index = 0
+
+    while index < len(argv):
+        token = argv[index]
+        if (
+            token in _DASH_VALUE_OPTIONS
+            and index + 1 < len(argv)
+            and argv[index + 1].startswith("-")
+            and argv[index + 1] != "--"
+            and argv[index + 1] not in _KNOWN_OPTION_FLAGS
+        ):
+            normalized_argv.append(f"{token}={argv[index + 1]}")
+            index += 2
+            continue
+
+        normalized_argv.append(token)
+        index += 1
+
+    return normalized_argv
+
+
+def _build_method_history_collector(
+    cache_directory: str,
+    repository_directory: str,
+    data_directory: str,
+    jar_directory: str,
+) -> MethodHistoryCollector:
+    return MethodHistoryCollector(
+        cache_directory,
+        repository_directory,
+        data_directory,
+        jar_directory,
+    )
+
+
+def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="Method History Collector (MHC)")
 
     parser.add_argument(
@@ -64,9 +114,12 @@ def main():
         help="Project name (required for project-scoped commands)",
     )
 
-    args = parser.parse_args()
+    normalized_argv = _normalize_dash_prefixed_option_values(
+        list(sys.argv[1:] if argv is None else argv)
+    )
+    args = parser.parse_args(normalized_argv)
 
-    mhc = MethodHistoryCollector(
+    mhc = _build_method_history_collector(
         args.cache_directory,
         args.repository_directory,
         args.data_directory,

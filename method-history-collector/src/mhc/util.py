@@ -18,7 +18,7 @@ def format_method_code_file(data_directory: str, repository_name: str) -> str:
 
 
 def format_method_cache_file(data_directory: str, repository_name: str, commit_hash: str) -> str:
-    return os.path.join(f"{data_directory}/method_cache", f"{repository_name}.csv")
+    return os.path.join(f"{data_directory}/method-cache", f"{repository_name}.csv")
 
 
 def format_repository_history_index_file(cache_dir: str) -> str:
