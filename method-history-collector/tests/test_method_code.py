@@ -106,6 +106,78 @@ class MethodCodeGenerationTestCase(unittest.TestCase):
                 ),
             )
 
+    def test_generate_method_code_skips_non_utf8_source_files(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            root = Path(temp_directory)
+            data_directory = root / "data"
+            repository_directory = root / "repositories"
+            input_file = Path(util.format_method_list_file(str(data_directory), "argouml"))
+            input_file.parent.mkdir(parents=True, exist_ok=True)
+            source_file = (
+                repository_directory
+                / "argouml"
+                / "src"
+                / "main"
+                / "java"
+                / "org"
+                / "example"
+                / "Diagram.java"
+            )
+            source_file.parent.mkdir(parents=True, exist_ok=True)
+            source_file.write_text(
+                "\n".join(
+                    [
+                        "package org.example;",
+                        "class Diagram {",
+                        "    void helper() {",
+                        "        int a = 1;",
+                        "    }",
+                        "",
+                        "    void label() {",
+                        '        String text = "canción";',
+                        "    }",
+                        "}",
+                    ]
+                )
+                + "\n",
+                encoding="cp1252",
+            )
+
+            pd.DataFrame(
+                [
+                    {
+                        "project": "argouml",
+                        "name": "label",
+                        "url": "https://example.test/label#L7",
+                        "artifact": "production",
+                        "start_line": 7.0,
+                        "end_line": 9.0,
+                        "expression": "method",
+                        "file": "src/main/java/org/example/Diagram.java",
+                    }
+                ]
+            ).to_csv(input_file, index=False)
+
+            repository_df = pd.DataFrame(
+                [
+                    {
+                        "project": "argouml",
+                        "url": "https://github.com/example/argouml",
+                        "updated_hash": "be952fc",
+                    }
+                ]
+            )
+
+            with patch.object(ms, "clone_and_checkout_commit"):
+                output_files = ms.generate_method_code(
+                    repository_df,
+                    str(repository_directory),
+                    str(data_directory),
+                )
+
+            output_df = pd.read_csv(output_files[0], keep_default_na=False)
+            self.assertEqual(output_df.iloc[0].to_dict()["code"], "")
+
     @patch("mhc.main.MethodHistoryCollector")
     def test_main_dispatches_method_code_command(self, mock_collector_cls):
         mock_collector = mock_collector_cls.return_value

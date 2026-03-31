@@ -222,8 +222,9 @@ def _extract_method_code(repository_root: str, file_path: str, start_line, end_l
     if not os.path.exists(absolute_file_path):
         return ""
 
-    with open(absolute_file_path, "r", encoding="utf-8") as source_file:
-        lines = source_file.readlines()
+    lines = _read_source_file_lines(absolute_file_path)
+    if lines is None:
+        return ""
 
     start_index = start_line_number - 1
     end_index = min(end_line_number, len(lines))
@@ -231,6 +232,22 @@ def _extract_method_code(repository_root: str, file_path: str, start_line, end_l
         return ""
 
     return "".join(lines[start_index:end_index]).rstrip("\n")
+
+
+def _read_source_file_text(source_file_path: str) -> str | None:
+    try:
+        with open(source_file_path, "r", encoding="utf-8") as source_file:
+            return source_file.read()
+    except UnicodeDecodeError:
+        return None
+
+
+def _read_source_file_lines(source_file_path: str) -> list[str] | None:
+    source_text = _read_source_file_text(source_file_path)
+    if source_text is None:
+        return None
+
+    return source_text.splitlines(keepends=True)
 
 
 def generate_method_code(
@@ -323,8 +340,9 @@ def _scan_methods_in_file(
             )
     except Exception:
         try:
-            with open(file, "r", encoding="utf-8") as f:
-                java_code = f.read()
+            java_code = _read_source_file_text(file)
+            if java_code is None:
+                return methods_in_file
             tree = javalang.parse.parse(java_code)
             for _, node in tree.filter(javalang.tree.MethodDeclaration):
                 if node.position:
