@@ -8,7 +8,8 @@ from scipy.stats import kendalltau
 import mhc.util as util
 from mhc.config import CACHE_DIRECTORY, DATA_DIRECTORY
 from ptc.constants import ALL_REPOSITORY, CODE_SHOVEL_UNSUPPORTED_CHANGES
-from ptc.plot_util import list_csv_files, man_utest, resolve_experiment_filters, select_named_items
+from ptc.experiment_util import list_csv_files, resolve_experiment_filters, select_named_items
+from ptc.plot_util import man_utest
 
 STAT_COLUMNS = [
     "project",
