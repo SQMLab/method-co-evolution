@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
+
 SRC_DIRECTORY = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SRC_DIRECTORY))
@@ -18,6 +20,7 @@ class TestMhcScript(unittest.TestCase):
     @patch("mhc.main._build_method_history_collector")
     def test_history_command_success(self, mock_build_collector):
         mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame([{"project": "checkstyle"}])
         mock_mhc_instance.collect_method_history.return_value = None
 
         test_args = [
@@ -52,10 +55,16 @@ class TestMhcScript(unittest.TestCase):
         mock_mhc_instance.collect_method_history.assert_called_once_with(
             ["checkstyle"],
             ["codeShovel"],
+            None,
+            None,
+            1800,
+            1,
+            1,
         )
 
     @patch("mhc.main._build_method_history_collector")
     def test_history_command_missing_tool_or_project(self, mock_build_collector):
+        mock_build_collector.return_value.repository_df = pd.DataFrame([{"project": "checkstyle"}])
         test_args = [
             "main.py",
             "history",
@@ -78,6 +87,7 @@ class TestMhcScript(unittest.TestCase):
 
     @patch("mhc.main._build_method_history_collector")
     def test_unknown_command(self, mock_build_collector):
+        mock_build_collector.return_value.repository_df = pd.DataFrame([{"project": "checkstyle"}])
         test_args = [
             "main.py",
             "unknown",
@@ -101,6 +111,7 @@ class TestMhcScript(unittest.TestCase):
     @patch("mhc.main._build_method_history_collector")
     def test_call_graph_generation(self, mock_build_collector):
         mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame([{"project": "checkstyle"}])
         mock_mhc_instance.generate_call_graph.return_value = None
 
         test_args = [
@@ -131,6 +142,48 @@ class TestMhcScript(unittest.TestCase):
             ["methodParser"],
         )
 
+    @patch("mhc.main._build_method_history_collector")
+    def test_history_command_accepts_project_range(self, mock_build_collector):
+        mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame(
+            [{"project": "ant"}, {"project": "checkstyle"}, {"project": "commons-io"}]
+        )
+
+        test_args = [
+            "main.py",
+            "history",
+            "--cache-directory",
+            CACHE_DIRECTORY,
+            "--repository-directory",
+            REPOSITORY_DIRECTORY,
+            "--data-directory",
+            DATA_DIRECTORY,
+            "--jar-directory",
+            JAR_DIRECTORY,
+            "--tool-name",
+            "codeShovel",
+            "--project-range",
+            "2:3",
+            "--shards",
+            "4",
+            "--shard",
+            "2",
+        ]
+
+        with patch.object(sys, "argv", test_args):
+            mhc_main.main()
+
+        mock_mhc_instance.collect_method_history.assert_called_once_with(
+            ["checkstyle", "commons-io"],
+            ["codeShovel"],
+            None,
+            None,
+            1800,
+            4,
+            2,
+        )
+
+    @unittest.skip("Legacy llm-m2m-link CLI path is no longer covered in mhc.main.")
     @patch("mhc.main.subprocess.run")
     @patch("mhc.main.importlib.util.find_spec", return_value=object())
     @patch("mhc.main._build_method_history_collector")

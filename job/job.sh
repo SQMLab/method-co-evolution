@@ -8,6 +8,7 @@ usage() {
     cat <<'EOF'
 Usage:
   job.sh --command history --tool-name codeShovel --java-options "-Xmx4g" --timeout-seconds 1800 --command-options "--flag value" --projects "checkstyle,commons-io"
+  job.sh --command history --tool-name codeShovel --projects "checkstyle" --shards 20
   job.sh --command method-code --projects "commons-io"
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --prompt-format text --batch-size 1 --max-new-tokens 256 --resume none --projects "commons-io" --input-kind t2p
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --batch-size 1 --resume error --projects "commons-io" --input-kind t2p
@@ -28,6 +29,8 @@ Options:
   --max-new-tokens        LLM generation cap per grouped case (default: 256)
   --resume                Resume mode: none, all, or error (default: none)
   --projects              Comma-separated project list for the array job
+  --project-range         1-based inclusive project range from repository.csv, for example 10:20
+  --shards                Total method-history shards to run in parallel (default: 1)
   --input-kind            LLM input kind: t2p or p2t (default: t2p)
   --cache-directory       Relative or absolute cache directory (default: .cache)
   --data-directory        Relative or absolute data directory (default: <cache-directory>/data)
@@ -57,6 +60,8 @@ BATCH_SIZE="4"
 MAX_NEW_TOKENS="256"
 RESUME_MODE="none"
 PROJECTS_CSV=""
+PROJECT_RANGE=""
+SHARDS="1"
 INPUT_KIND="t2p"
 CACHE_DIRECTORY="$PROJECT_DIRECTORY/.cache"
 DATA_DIRECTORY=""
@@ -119,6 +124,14 @@ while [[ $# -gt 0 ]]; do
             PROJECTS_CSV="$2"
             shift 2
             ;;
+        --project-range)
+            PROJECT_RANGE="$2"
+            shift 2
+            ;;
+        --shards)
+            SHARDS="$2"
+            shift 2
+            ;;
         --input-kind)
             INPUT_KIND="$2"
             shift 2
@@ -147,8 +160,26 @@ if [[ -z "$DATA_DIRECTORY" ]]; then
     DATA_DIRECTORY="$CACHE_DIRECTORY/data"
 fi
 
-if [[ -z "$COMMAND_NAME" || -z "$PROJECTS_CSV" ]]; then
-    echo "Error: --command and --projects are required."
+if [[ -z "$COMMAND_NAME" ]]; then
+    echo "Error: --command is required."
+    usage
+    exit 1
+fi
+
+if [[ -z "$PROJECTS_CSV" && -z "$PROJECT_RANGE" && "$COMMAND_NAME" != "index" ]]; then
+    echo "Error: one of --projects or --project-range is required."
+    usage
+    exit 1
+fi
+
+if [[ -n "$PROJECTS_CSV" && -n "$PROJECT_RANGE" ]]; then
+    echo "Error: use either --projects or --project-range, not both."
+    usage
+    exit 1
+fi
+
+if ! [[ "$SHARDS" =~ ^[0-9]+$ ]] || [[ "$SHARDS" -le 0 ]]; then
+    echo "Error: --shards must be a positive integer."
     usage
     exit 1
 fi
@@ -172,14 +203,38 @@ mkdir -p "$LOG_DIR"
 cd "$PROJECT_DIRECTORY"
 source "$PROJECT_DIRECTORY/.venv/bin/activate"
 
-IFS=',' read -r -a PROJECTS <<< "$PROJECTS_CSV"
-if [[ $SLURM_ARRAY_TASK_ID -le 0 || $SLURM_ARRAY_TASK_ID -gt ${#PROJECTS[@]} ]]; then
-    echo "Invalid SLURM_ARRAY_TASK_ID: $SLURM_ARRAY_TASK_ID"
-    exit 1
-fi
+PROJECT=""
+SHARD="1"
 
-IDX=$((SLURM_ARRAY_TASK_ID - 1))
-PROJECT=${PROJECTS[$IDX]}
+if [[ "$COMMAND_NAME" != "index" ]]; then
+    if [[ "$SHARDS" -gt 1 ]]; then
+        if [[ -z "$PROJECTS_CSV" ]]; then
+            echo "Error: shard mode currently requires --projects with exactly one project."
+            usage
+            exit 1
+        fi
+        IFS=',' read -r -a PROJECTS <<< "$PROJECTS_CSV"
+        if [[ ${#PROJECTS[@]} -ne 1 ]]; then
+            echo "Error: shard mode requires exactly one project in --projects."
+            usage
+            exit 1
+        fi
+        if [[ -z "${SLURM_ARRAY_TASK_ID:-}" || $SLURM_ARRAY_TASK_ID -le 0 || $SLURM_ARRAY_TASK_ID -gt "$SHARDS" ]]; then
+            echo "Invalid SLURM_ARRAY_TASK_ID for shard mode: ${SLURM_ARRAY_TASK_ID:-unset}"
+            exit 1
+        fi
+        PROJECT=${PROJECTS[0]}
+        SHARD="$SLURM_ARRAY_TASK_ID"
+    elif [[ -n "$PROJECTS_CSV" ]]; then
+        IFS=',' read -r -a PROJECTS <<< "$PROJECTS_CSV"
+        if [[ -z "${SLURM_ARRAY_TASK_ID:-}" || $SLURM_ARRAY_TASK_ID -le 0 || $SLURM_ARRAY_TASK_ID -gt ${#PROJECTS[@]} ]]; then
+            echo "Invalid SLURM_ARRAY_TASK_ID: ${SLURM_ARRAY_TASK_ID:-unset}"
+            exit 1
+        fi
+        IDX=$((SLURM_ARRAY_TASK_ID - 1))
+        PROJECT=${PROJECTS[$IDX]}
+    fi
+fi
 
 if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
     if [[ "$RESUME_MODE" != "none" && "$RESUME_MODE" != "all" && "$RESUME_MODE" != "error" ]]; then
@@ -201,15 +256,38 @@ if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
         --project "$PROJECT"
     echo "Task finished on $(hostname) at $(date) for llm stage $STAGE, model $MODEL_NAME_OR_PATH, input kind $INPUT_KIND, and project $PROJECT"
 else
-    srun mhc "$COMMAND_NAME" \
-        --cache-directory "$CACHE_DIRECTORY" \
-        --repository-directory "$SLURM_TMPDIR/repository" \
-        --data-directory "$DATA_DIRECTORY" \
-        --jar-directory "$CACHE_DIRECTORY/jar" \
-        --tool-name "$TOOL_NAME" \
-        --java-options="$JAVA_OPTIONS" \
-        --timeout-seconds "$TIMEOUT_SECONDS" \
-        --command-options "$COMMAND_OPTIONS" \
-        --project "$PROJECT"
-    echo "Task finished on $(hostname) at $(date) for tool name $TOOL_NAME and project $PROJECT"
+    MHC_ARGS=(
+        "$COMMAND_NAME"
+        --cache-directory "$CACHE_DIRECTORY"
+        --repository-directory "$SLURM_TMPDIR/repository"
+        --data-directory "$DATA_DIRECTORY"
+        --jar-directory "$CACHE_DIRECTORY/jar"
+        --timeout-seconds "$TIMEOUT_SECONDS"
+    )
+    if [[ -n "$TOOL_NAME" ]]; then
+        MHC_ARGS+=(--tool-name "$TOOL_NAME")
+    fi
+    if [[ -n "$JAVA_OPTIONS" ]]; then
+        MHC_ARGS+=(--java-options="$JAVA_OPTIONS")
+    fi
+    if [[ -n "$COMMAND_OPTIONS" ]]; then
+        MHC_ARGS+=(--command-options "$COMMAND_OPTIONS")
+    fi
+    if [[ "$COMMAND_NAME" == "history" ]]; then
+        MHC_ARGS+=(--shards "$SHARDS" --shard "$SHARD")
+    fi
+    if [[ -n "$PROJECTS_CSV" ]]; then
+        if [[ "$SHARDS" -gt 1 ]]; then
+            MHC_ARGS+=(--project "$PROJECT")
+        elif [[ -n "$PROJECT" ]]; then
+            MHC_ARGS+=(--project "$PROJECT")
+        else
+            MHC_ARGS+=(--projects "$PROJECTS_CSV")
+        fi
+    elif [[ -n "$PROJECT_RANGE" ]]; then
+        MHC_ARGS+=(--project-range "$PROJECT_RANGE")
+    fi
+
+    srun mhc "${MHC_ARGS[@]}"
+    echo "Task finished on $(hostname) at $(date) for tool name $TOOL_NAME, project selection ${PROJECT:-$PROJECTS_CSV$PROJECT_RANGE}, shard $SHARD/$SHARDS"
 fi
