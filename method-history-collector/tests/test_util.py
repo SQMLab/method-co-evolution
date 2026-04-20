@@ -11,5 +11,11 @@ class UtilCase(unittest.TestCase):
         self.assertEqual(
             "https://github.com/elastic/elasticsearch/blob/92be385f8ea3d39cc42155417d208ba82423d983/test/framework/src/main/java/org/elasticsearch/action/support/ActionTestUtils.java#L61",
             method_url)
+
+    def test_stable_shard_for_key_is_one_based_and_repeatable(self):
+        shard = util.stable_shard_for_key("src/Foo--bar--10.json", 20)
+        self.assertGreaterEqual(shard, 1)
+        self.assertLessEqual(shard, 20)
+        self.assertEqual(shard, util.stable_shard_for_key("src/Foo--bar--10.json", 20))
 if __name__ == '__main__':
     unittest.main()

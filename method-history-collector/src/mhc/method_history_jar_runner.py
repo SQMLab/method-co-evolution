@@ -1,6 +1,7 @@
 import os
 import shlex
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -16,7 +17,9 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
                                       jar_file_map: dict[str, str],
                                       command_options: str | None = None,
                                       java_options: str | None = None,
-                                      timeout_seconds: int = 30 * 60) -> None:
+                                      timeout_seconds: int = 30 * 60,
+                                      shards: int = 1,
+                                      shard: int = 1) -> None:
     for tool_name in tool_names:
         for _, repository in repository_df.iterrows():
             repository_name = repository["project"]
@@ -33,7 +36,6 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
             method_df = pd.read_csv(util.format_method_list_file(data_directory, repository_name),
                                     keep_default_na=False, na_filter=False)
             method_df = method_df[method_df["expression"] == "method"]
-            method_df = method_df.sample(frac=1, random_state=42).reset_index(drop=True)
             ms.clone_and_checkout_commit(url, os.path.join(repository_directory, repository_name), hash)
             repo_path = Path(method_history_path)
             unzip_index = set(str(p.relative_to(repo_path)) for p in repo_path.rglob("*.json"))
@@ -44,6 +46,8 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
                 file = method['file']
                 if pd.notna(method_name) and pd.notna(start_line):
                     method_history_file_suffix = util.format_method_history_file_suffix(file, method_name, start_line)
+                    if util.stable_shard_for_key(method_history_file_suffix, shards) != shard:
+                        continue
                     method_history_file = os.path.join(method_history_path, method_history_file_suffix)
                     if method_history_file_suffix not in zip_index and method_history_file_suffix not in unzip_index:
                         execute_cmd_method_history_jar(tool_name, jar_file_map[tool_name],
@@ -51,7 +55,7 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
                                                        url, hash, file, method_name, start_line, method_history_file,
                                                        command_options, java_options, timeout_seconds)
                         unzip_index.add(method_history_file_suffix)
-                if len(unzip_index) >= 5000:
+                if len(unzip_index) >= 1000:
                     merge_folder_into_tar_gz(method_history_path)
                     zip_index = util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz),
                                                              repository_name_prefix)
@@ -152,7 +156,20 @@ def execute_cmd_method_history_jar(tool_name: str,
 
     if not os.path.exists(output_file):
         print(f"Executing .. {file}")
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_output_file = tempfile.mkstemp(
+            prefix=f"{output_path.stem}.",
+            suffix=".tmp",
+            dir=output_path.parent,
+        )
+        os.close(fd)
         try:
+            output_option_index = cmd.index("-outfile") + 1 if "-outfile" in cmd else cmd.index("-output-file") + 1
+            cmd[output_option_index] = tmp_output_file
             subprocess.run(cmd, check=True, timeout=timeout_seconds)
+            os.replace(tmp_output_file, output_file)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"Execution failed: {tool_name} {file} {e}")
+            if os.path.exists(tmp_output_file):
+                os.remove(tmp_output_file)

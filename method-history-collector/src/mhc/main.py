@@ -13,6 +13,10 @@ _KNOWN_OPTION_FLAGS = {
     "--java-options",
     "--timeout-seconds",
     "--project",
+    "--projects",
+    "--project-range",
+    "--shards",
+    "--shard",
 }
 
 
@@ -51,6 +55,46 @@ def _build_method_history_collector(
         data_directory,
         jar_directory,
     )
+
+
+def _parse_projects_csv(projects: str | None) -> list[str]:
+    if not projects:
+        return []
+    return [project.strip() for project in projects.split(",") if project.strip()]
+
+
+def _parse_project_range(project_range: str | None, known_projects: list[str]) -> list[str]:
+    if not project_range:
+        return []
+    start_text, end_text = project_range.split(":", maxsplit=1)
+    start_index = int(start_text)
+    end_index = int(end_text)
+    if start_index <= 0 or end_index <= 0 or start_index > end_index:
+        raise ValueError("project-range must use 1-based inclusive indexes like 10:20")
+    if end_index > len(known_projects):
+        raise ValueError(
+            f"project-range end {end_index} exceeds repository count {len(known_projects)}"
+        )
+    return known_projects[start_index - 1:end_index]
+
+
+def _resolve_projects(
+    project: str | None,
+    projects: str | None,
+    project_range: str | None,
+    known_projects: list[str],
+) -> list[str]:
+    provided_selection_count = sum(
+        value is not None for value in (project, projects, project_range)
+    )
+    if provided_selection_count != 1:
+        raise ValueError("exactly one of --project, --projects, or --project-range is required")
+
+    if project is not None:
+        return [project]
+    if projects is not None:
+        return _parse_projects_csv(projects)
+    return _parse_project_range(project_range, known_projects)
 
 
 def main(argv: list[str] | None = None):
@@ -113,6 +157,32 @@ def main(argv: list[str] | None = None):
         type=str,
         help="Project name (required for project-scoped commands)",
     )
+    parser.add_argument(
+        "--projects",
+        dest="projects",
+        type=str,
+        help="Comma-separated project names.",
+    )
+    parser.add_argument(
+        "--project-range",
+        dest="project_range",
+        type=str,
+        help="1-based inclusive project index range from repository.csv, for example '10:20'.",
+    )
+    parser.add_argument(
+        "--shards",
+        dest="shards",
+        type=int,
+        default=1,
+        help="Total number of method-history shards to split work into (default: 1).",
+    )
+    parser.add_argument(
+        "--shard",
+        dest="shard",
+        type=int,
+        default=1,
+        help="1-based shard number to run for history collection (default: 1).",
+    )
 
     normalized_argv = _normalize_dash_prefixed_option_values(
         list(sys.argv[1:] if argv is None else argv)
@@ -125,46 +195,62 @@ def main(argv: list[str] | None = None):
         args.data_directory,
         args.jar_directory,
     )
+    if args.shards <= 0:
+        print("Error: --shards must be positive.")
+        sys.exit(1)
+    if args.shard <= 0 or args.shard > args.shards:
+        print("Error: --shard must be between 1 and --shards.")
+        sys.exit(1)
+
+    repository_projects = mhc.repository_df["project"].tolist()
+
+    def resolve_selected_projects() -> list[str]:
+        try:
+            return _resolve_projects(
+                args.project,
+                args.projects,
+                args.project_range,
+                repository_projects,
+            )
+        except ValueError as exc:
+            print(f"Error: {exc}")
+            sys.exit(1)
 
     if args.command.lower() == "history":
-        if not args.tool_name or not args.project:
+        if not args.tool_name:
             print(
-                "Error: tool_name and project are required for history command."
+                "Error: tool_name is required for history command."
             )
             sys.exit(1)
         mhc.collect_method_history(
-            [args.project],
+            resolve_selected_projects(),
             [args.tool_name],
             args.command_options,
             args.java_options,
             args.timeout_seconds,
+            args.shards,
+            args.shard,
         )
     elif args.command.lower() == "call-graph":
-        if not args.tool_name or not args.project:
+        if not args.tool_name:
             print(
-                "Error: tool_name and project are required for call graph command."
+                "Error: tool_name is required for call graph command."
             )
             sys.exit(1)
-        mhc.generate_call_graph([args.project], [args.tool_name])
+        mhc.generate_call_graph(resolve_selected_projects(), [args.tool_name])
     elif args.command.lower() == "scan-method":
-        if not args.project:
-            print("Error: project are required to scan methods.")
-            sys.exit(1)
-        mhc.scan_method([args.project], args.java_options)
+        mhc.scan_method(resolve_selected_projects(), args.java_options)
     elif args.command.lower() == "method-code":
-        if not args.project:
-            print("Error: project is required to generate method code.")
-            sys.exit(1)
-        mhc.generate_method_code([args.project])
+        mhc.generate_method_code(resolve_selected_projects())
     elif args.command.lower() == "index":
         mhc.update_repository_index()
     elif args.command.lower() == "complexity-analyzer":
-        if not args.tool_name or not args.project:
+        if not args.tool_name:
             print(
-                "Error: tool_name and project are required for complexity analyzer command."
+                "Error: tool_name is required for complexity analyzer command."
             )
             sys.exit(1)
-        mhc.run_complexity_analyzer([args.project], args.tool_name)
+        mhc.run_complexity_analyzer(resolve_selected_projects(), args.tool_name)
     else:
         print(f"Unknown command: {args.command}")
         sys.exit(1)

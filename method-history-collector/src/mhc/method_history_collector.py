@@ -56,6 +56,8 @@ class MethodHistoryCollector:
         command_options: str | None = None,
         java_options: str | None = None,
         timeout_seconds: int = 30 * 60,
+        shards: int = 1,
+        shard: int = 1,
     ):
         execute_method_history_if_missing(
             self.repository_df[self.repository_df["project"].isin(repositories)],
@@ -67,6 +69,8 @@ class MethodHistoryCollector:
             command_options,
             java_options,
             timeout_seconds,
+            shards,
+            shard,
         )
 
     def update_repository_index(self):

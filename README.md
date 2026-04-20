@@ -48,6 +48,24 @@ mhc history \
     --java-options "-Xmx2g" \
     --timeout-seconds 1800 \
     --project "checkstyle"
+
+mhc history \
+    --cache-directory ".cache" \
+    --repository-directory ".cache/repository" \
+    --data-directory ".cache/data" \
+    --jar-directory ".cache/jar" \
+    --tool-name "codeShovel" \
+    --projects "checkstyle,commons-io" \
+    --shards 20 \
+    --shard 7
+
+mhc history \
+    --cache-directory ".cache" \
+    --repository-directory ".cache/repository" \
+    --data-directory ".cache/data" \
+    --jar-directory ".cache/jar" \
+    --tool-name "codeShovel" \
+    --project-range "10:20"
     
 mhc call-graph \
     --cache-directory ".cache" \
@@ -73,6 +91,58 @@ mhc method-code \
     --project "checkstyle"
 ```
 
+### Project Selection And History Sharding
+
+All project-scoped `mhc` commands now support exactly one of:
+
+- `--project "checkstyle"` for a single project
+- `--projects "checkstyle,commons-io"` for an explicit list
+- `--project-range "10:20"` for a 1-based inclusive range from `repository.csv`
+
+For `mhc history`, you can additionally split method-history generation into deterministic shards:
+
+- `--shards N` sets the total shard count
+- `--shard K` selects the 1-based shard to run
+
+Examples:
+
+```bash
+# Unchanged single-project execution
+mhc history \
+    --cache-directory ".cache" \
+    --repository-directory ".cache/repository" \
+    --data-directory ".cache/data" \
+    --jar-directory ".cache/jar" \
+    --tool-name "codeShovel" \
+    --project "checkstyle"
+
+# Run shard 7 of 20 for one project
+mhc history \
+    --cache-directory ".cache" \
+    --repository-directory ".cache/repository" \
+    --data-directory ".cache/data" \
+    --jar-directory ".cache/jar" \
+    --tool-name "codeShovel" \
+    --project "checkstyle" \
+    --shards 20 \
+    --shard 7
+
+# Run the same shard across an explicit project list
+mhc history \
+    --cache-directory ".cache" \
+    --repository-directory ".cache/repository" \
+    --data-directory ".cache/data" \
+    --jar-directory ".cache/jar" \
+    --tool-name "codeShovel" \
+    --projects "checkstyle,commons-io" \
+    --shards 20 \
+    --shard 7
+```
+
+Sharding is deterministic: the method-history output path is hashed to assign each method to exactly one shard. As long as you launch distinct shard numbers for the same `--shards` value, the workers will process disjoint method sets.
+
+History compaction into `.tar.gz` archives is now coordinated per `(tool, project)` and only archives completed `.json` files. This keeps concurrent shard runs consistent while still allowing workers to continue writing new method-history files in parallel.
+
 ### Method Code Output
 
 `mhc method-code` reads `<data_directory>/method/{project}.csv`, checks out the repository at the indexed `updated_hash`, extracts the source lines from `start_line` through `end_line` inclusive for each method, and writes:
@@ -92,6 +162,7 @@ The output columns are:
 For batch execution through Slurm:
 
 ```bash
+# Project-array mode: one array task per project
 sbatch \
     --job-name=method-code \
     --time=00:05:00 \
@@ -103,7 +174,31 @@ sbatch \
     --command method-code \
     --cache-directory "$HOME/projects/$SLURM_ACCOUNT/$USER/method-co-evolution/.cache" \
     --projects "checkstyle,commons-io"
+
+# Shard mode: one array task per history shard for a single project
+sbatch \
+    --job-name=history-shards \
+    --time=02:00:00 \
+    --array=1-20 \
+    --mem=8GB \
+    --output=$HOME/projects/$SLURM_ACCOUNT/$USER/method-co-evolution/.cache/log/job/%x.%A_%a.out \
+    --error=$HOME/projects/$SLURM_ACCOUNT/$USER/method-co-evolution/.cache/log/job/%x.%A_%a.err \
+    job/job.sh \
+    --command history \
+    --tool-name codeShovel \
+    --cache-directory "$HOME/projects/$SLURM_ACCOUNT/$USER/method-co-evolution/.cache" \
+    --projects "checkstyle" \
+    --shards 20
 ```
+
+`job/job.sh` now supports two history execution styles:
+
+- Project-array mode:
+  Use `--projects` with `--shards 1` or omit `--shards`. Each array task selects one project and runs the normal single-shard command.
+- Shard mode:
+  Use `--projects` with exactly one project and set `--shards N`. Submit the job as `--array=1-N`. Each array task maps directly to `--shard $SLURM_ARRAY_TASK_ID`.
+
+`--project-range` is also supported by `job/job.sh` for non-sharded runs when you want to target a contiguous slice from `repository.csv`.
 
 ### LLM M2M Link
 

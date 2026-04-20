@@ -12,6 +12,7 @@ if str(SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SRC_DIRECTORY))
 
 from mhc.method_history_jar_runner import update_repository_index
+from mhc.zip import merge_folder_into_tar_gz
 
 
 def _write_tar_gz(tar_path: Path, members: dict[str, str]) -> None:
@@ -73,6 +74,30 @@ class TestIndexOutput(unittest.TestCase):
             self.assertEqual([2], output_df["history_codeShovel"].tolist())
             self.assertEqual([1], output_df["fan-in"].tolist())
             self.assertEqual([2], output_df["fan-out"].tolist())
+
+    def test_merge_folder_into_tar_gz_only_removes_merged_json_files(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            folder = Path(temp_dir) / "history" / "codeShovel" / "checkstyle"
+            folder.mkdir(parents=True)
+            merged_file = folder / "src" / "Foo--a--1.json"
+            merged_file.parent.mkdir(parents=True)
+            merged_file.write_text("{}", encoding="utf-8")
+            temp_file = folder / "src" / "Foo--a--1.tmp"
+            temp_file.write_text("partial", encoding="utf-8")
+
+            merge_folder_into_tar_gz(str(folder))
+
+            tar_path = Path(f"{folder}.tar.gz")
+            self.assertTrue(tar_path.exists())
+            self.assertFalse(merged_file.exists())
+            self.assertTrue(temp_file.exists())
+            self.assertTrue(folder.exists())
+
+            with tarfile.open(tar_path, "r:gz") as archive:
+                self.assertIn(
+                    "checkstyle/src/Foo--a--1.json",
+                    archive.getnames(),
+                )
 
 
 if __name__ == "__main__":

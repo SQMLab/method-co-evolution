@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import hashlib
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -47,6 +48,13 @@ def convert_method_file_to_method_url(repository_url: str, hash: str, method_fil
 
 def remove_prefix_if_exists(s: set[str], prefix) -> set[str]:
     return set(map(lambda f: f[len(prefix):] if f.startswith(prefix) else f, s))
+
+
+def stable_shard_for_key(key: str, shards: int) -> int:
+    if shards <= 0:
+        raise ValueError("shards must be positive")
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()
+    return (int(digest, 16) % shards) + 1
 
 
 def sorted_directory_names(path: str | Path) -> list[str]:
