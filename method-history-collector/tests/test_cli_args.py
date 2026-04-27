@@ -67,6 +67,8 @@ class TestCliArgs(unittest.TestCase):
                 "20",
                 "--shard",
                 "7",
+                "--merge-threshold",
+                "5000",
             ]
         )
 
@@ -78,6 +80,43 @@ class TestCliArgs(unittest.TestCase):
             1800,
             20,
             7,
+            5000,
+        )
+
+    @patch("mhc.main._build_method_history_collector")
+    def test_history_accepts_negative_merge_threshold(self, mock_build_collector):
+        mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame([{"project": "checkstyle"}])
+
+        mhc_main.main(
+            [
+                "history",
+                "--cache-directory",
+                ".cache",
+                "--repository-directory",
+                ".cache/repository",
+                "--data-directory",
+                ".cache/data",
+                "--jar-directory",
+                ".cache/jar",
+                "--tool-name",
+                "codeShovel",
+                "--project",
+                "checkstyle",
+                "--merge-threshold",
+                "-2",
+            ]
+        )
+
+        mock_mhc_instance.collect_method_history.assert_called_once_with(
+            ["checkstyle"],
+            ["codeShovel"],
+            None,
+            None,
+            1800,
+            1,
+            1,
+            -2,
         )
 
 

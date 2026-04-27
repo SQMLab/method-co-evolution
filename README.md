@@ -47,6 +47,7 @@ mhc history \
     --tool-name "codeShovel" \
     --java-options "-Xmx2g" \
     --timeout-seconds 1800 \
+    --merge-threshold 10000 \
     --project "checkstyle"
 
 mhc history \
@@ -103,6 +104,7 @@ For `mhc history`, you can additionally split method-history generation into det
 
 - `--shards N` sets the total shard count
 - `--shard K` selects the 1-based shard to run
+- `--merge-threshold N` sets how many unarchived history JSON files are kept before intermediate merging into the `.tar.gz` archive (default: `10000`; `0` disables intermediate merging; negative values disable the final merge too)
 
 Examples:
 

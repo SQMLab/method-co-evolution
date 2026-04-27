@@ -4,6 +4,7 @@ import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -11,7 +12,7 @@ SRC_DIRECTORY = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SRC_DIRECTORY))
 
-from mhc.method_history_jar_runner import update_repository_index
+from mhc.method_history_jar_runner import execute_method_history_if_missing, update_repository_index
 from mhc.zip import merge_folder_into_tar_gz
 
 
@@ -26,6 +27,94 @@ def _write_tar_gz(tar_path: Path, members: dict[str, str]) -> None:
 
 
 class TestIndexOutput(unittest.TestCase):
+    def test_zero_merge_threshold_disables_intermediate_merge_only(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            data_directory = temp_path / "data"
+            method_dir = data_directory / "method"
+            method_dir.mkdir(parents=True)
+            pd.DataFrame(
+                [
+                    {
+                        "expression": "method",
+                        "name": "foo",
+                        "start_line": 10,
+                        "file": "src/Foo.java",
+                    }
+                ]
+            ).to_csv(method_dir / "checkstyle.csv", index=False)
+
+            repository_df = pd.DataFrame(
+                [
+                    {
+                        "project": "checkstyle",
+                        "url": "https://example.com/checkstyle",
+                        "updated_hash": "abc123",
+                    }
+                ]
+            )
+
+            with (
+                patch("mhc.method_history_jar_runner.ms.clone_and_checkout_commit"),
+                patch("mhc.method_history_jar_runner.execute_cmd_method_history_jar"),
+                patch("mhc.method_history_jar_runner.merge_folder_into_tar_gz") as mock_merge,
+            ):
+                execute_method_history_if_missing(
+                    repository_df,
+                    str(temp_path / "repository"),
+                    str(data_directory),
+                    str(temp_path / "cache"),
+                    ["codeShovel"],
+                    {"codeShovel": "codeShovel.jar"},
+                    merge_threshold=0,
+                )
+
+            mock_merge.assert_called_once()
+
+    def test_negative_merge_threshold_disables_all_merging(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            data_directory = temp_path / "data"
+            method_dir = data_directory / "method"
+            method_dir.mkdir(parents=True)
+            pd.DataFrame(
+                [
+                    {
+                        "expression": "method",
+                        "name": "foo",
+                        "start_line": 10,
+                        "file": "src/Foo.java",
+                    }
+                ]
+            ).to_csv(method_dir / "checkstyle.csv", index=False)
+
+            repository_df = pd.DataFrame(
+                [
+                    {
+                        "project": "checkstyle",
+                        "url": "https://example.com/checkstyle",
+                        "updated_hash": "abc123",
+                    }
+                ]
+            )
+
+            with (
+                patch("mhc.method_history_jar_runner.ms.clone_and_checkout_commit"),
+                patch("mhc.method_history_jar_runner.execute_cmd_method_history_jar"),
+                patch("mhc.method_history_jar_runner.merge_folder_into_tar_gz") as mock_merge,
+            ):
+                execute_method_history_if_missing(
+                    repository_df,
+                    str(temp_path / "repository"),
+                    str(data_directory),
+                    str(temp_path / "cache"),
+                    ["codeShovel"],
+                    {"codeShovel": "codeShovel.jar"},
+                    merge_threshold=-2,
+                )
+
+            mock_merge.assert_not_called()
+
     def test_update_repository_index_writes_into_data_aggregate_directory(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

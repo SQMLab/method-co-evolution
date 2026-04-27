@@ -11,6 +11,8 @@ import mhc.method_scanner as ms
 import mhc.util as util
 from mhc.zip import load_zip_index, merge_folder_into_tar_gz
 
+DEFAULT_MERGE_THRESHOLD = 10_000
+
 
 def execute_method_history_if_missing(repository_df: DataFrame, repository_directory: str, data_directory: str,
                                       cache_directory: str, tool_names: list[str],
@@ -19,7 +21,8 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
                                       java_options: str | None = None,
                                       timeout_seconds: int = 30 * 60,
                                       shards: int = 1,
-                                      shard: int = 1) -> None:
+                                      shard: int = 1,
+                                      merge_threshold: int = DEFAULT_MERGE_THRESHOLD) -> None:
     for tool_name in tool_names:
         for _, repository in repository_df.iterrows():
             repository_name = repository["project"]
@@ -55,12 +58,13 @@ def execute_method_history_if_missing(repository_df: DataFrame, repository_direc
                                                        url, hash, file, method_name, start_line, method_history_file,
                                                        command_options, java_options, timeout_seconds)
                         unzip_index.add(method_history_file_suffix)
-                if len(unzip_index) >= 1000:
+                if merge_threshold > 0 and len(unzip_index) >= merge_threshold:
                     merge_folder_into_tar_gz(method_history_path)
                     zip_index = util.remove_prefix_if_exists(load_zip_index(method_history_tar_gz),
                                                              repository_name_prefix)
                     unzip_index = set(str(p.relative_to(repo_path)) for p in repo_path.rglob("*.json"))
-            merge_folder_into_tar_gz(method_history_path)
+            if merge_threshold >= 0:
+                merge_folder_into_tar_gz(method_history_path)
 
 
 def update_repository_index(repository_df: DataFrame, cache_dir: str, data_dir: str) -> None:

@@ -4,6 +4,7 @@ from mhc.complexity_analyzer import ComplexityAnalyzer
 from pathlib import Path
 import os
 import pandas as pd
+from mhc.method_history_jar_runner import DEFAULT_MERGE_THRESHOLD
 
 
 class MethodHistoryCollector:
@@ -58,6 +59,7 @@ class MethodHistoryCollector:
         timeout_seconds: int = 30 * 60,
         shards: int = 1,
         shard: int = 1,
+        merge_threshold: int = DEFAULT_MERGE_THRESHOLD,
     ):
         execute_method_history_if_missing(
             self.repository_df[self.repository_df["project"].isin(repositories)],
@@ -71,6 +73,7 @@ class MethodHistoryCollector:
             timeout_seconds,
             shards,
             shard,
+            merge_threshold,
         )
 
     def update_repository_index(self):

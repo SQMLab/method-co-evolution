@@ -1,6 +1,7 @@
 import argparse
 import sys
 from mhc.method_history_collector import *
+from mhc.method_history_jar_runner import DEFAULT_MERGE_THRESHOLD
 
 _DASH_VALUE_OPTIONS = {"--java-options", "--command-options"}
 _KNOWN_OPTION_FLAGS = {
@@ -12,6 +13,7 @@ _KNOWN_OPTION_FLAGS = {
     "--command-options",
     "--java-options",
     "--timeout-seconds",
+    "--merge-threshold",
     "--project",
     "--projects",
     "--project-range",
@@ -152,6 +154,16 @@ def main(argv: list[str] | None = None):
         help="Subprocess timeout in seconds for history jar execution (default: 1800).",
     )
     parser.add_argument(
+        "--merge-threshold",
+        dest="merge_threshold",
+        type=int,
+        default=DEFAULT_MERGE_THRESHOLD,
+        help=(
+            "Number of unarchived history JSON files to accumulate before merging into tar.gz "
+            "(default: 10000; 0 disables intermediate merging; negative values disable final merging too)."
+        ),
+    )
+    parser.add_argument(
         "--project",
         dest="project",
         type=str,
@@ -201,7 +213,6 @@ def main(argv: list[str] | None = None):
     if args.shard <= 0 or args.shard > args.shards:
         print("Error: --shard must be between 1 and --shards.")
         sys.exit(1)
-
     repository_projects = mhc.repository_df["project"].tolist()
 
     def resolve_selected_projects() -> list[str]:
@@ -230,6 +241,7 @@ def main(argv: list[str] | None = None):
             args.timeout_seconds,
             args.shards,
             args.shard,
+            args.merge_threshold,
         )
     elif args.command.lower() == "call-graph":
         if not args.tool_name:
