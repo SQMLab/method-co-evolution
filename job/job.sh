@@ -7,7 +7,8 @@ set -euo pipefail
 usage() {
     cat <<'EOF'
 Usage:
-  job.sh --command history --tool-name codeShovel --java-options "-Xmx4g" --timeout-seconds 1800 --command-options "--flag value" --projects "checkstyle,commons-io"
+  job.sh --command history --tool-name codeShovel --java-options "-Xmx4g" --timeout-seconds 1800 --merge-threshold 10000 --command-options "--flag value" --projects "checkstyle,commons-io"
+  job.sh --command history --tool-name codeShovel --merge-only --projects "checkstyle,commons-io"
   job.sh --command history --tool-name codeShovel --projects "checkstyle" --shards 20
   job.sh --command method-code --projects "commons-io"
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --prompt-format text --batch-size 1 --max-new-tokens 256 --resume none --projects "commons-io" --input-kind t2p
@@ -19,6 +20,8 @@ Options:
   --tool-name             Tool name for non-LLM commands
   --java-options          Optional JVM arguments for history commands, e.g. "-Xmx4g"
   --timeout-seconds       Optional history command timeout in seconds (default: 30*60 = 1800)
+  --merge-threshold       Optional history JSON merge threshold (default: 10000; 0 disables intermediate merging; negative values disable final merging too)
+  --merge-only            Merge existing loose history JSON files without generating new history
   --command-options       Optional extra arguments forwarded to the selected command
   --stage                 LLM stage: execute or parse (default: execute)
   --api-type              LLM provider API type: auto, huggingface, or openai-responses (default: auto)
@@ -50,6 +53,8 @@ COMMAND_NAME=""
 TOOL_NAME=""
 JAVA_OPTIONS=""
 TIMEOUT_SECONDS="1800"
+MERGE_THRESHOLD="10000"
+MERGE_ONLY="false"
 COMMAND_OPTIONS=""
 STAGE="execute"
 API_TYPE="auto"
@@ -83,6 +88,14 @@ while [[ $# -gt 0 ]]; do
         --timeout-seconds)
             TIMEOUT_SECONDS="$2"
             shift 2
+            ;;
+        --merge-threshold)
+            MERGE_THRESHOLD="$2"
+            shift 2
+            ;;
+        --merge-only)
+            MERGE_ONLY="true"
+            shift
             ;;
         --command-options)
             COMMAND_OPTIONS="$2"
@@ -184,6 +197,12 @@ if ! [[ "$SHARDS" =~ ^[0-9]+$ ]] || [[ "$SHARDS" -le 0 ]]; then
     exit 1
 fi
 
+if ! [[ "$MERGE_THRESHOLD" =~ ^-?[0-9]+$ ]]; then
+    echo "Error: --merge-threshold must be an integer."
+    usage
+    exit 1
+fi
+
 if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
     if [[ -z "$MODEL_NAME_OR_PATH" ]]; then
         echo "Error: --model-name-or-path is required for $COMMAND_NAME."
@@ -263,6 +282,7 @@ else
         --data-directory "$DATA_DIRECTORY"
         --jar-directory "$CACHE_DIRECTORY/jar"
         --timeout-seconds "$TIMEOUT_SECONDS"
+        --merge-threshold "$MERGE_THRESHOLD"
     )
     if [[ -n "$TOOL_NAME" ]]; then
         MHC_ARGS+=(--tool-name "$TOOL_NAME")
@@ -275,6 +295,9 @@ else
     fi
     if [[ "$COMMAND_NAME" == "history" ]]; then
         MHC_ARGS+=(--shards "$SHARDS" --shard "$SHARD")
+        if [[ "$MERGE_ONLY" == "true" ]]; then
+            MHC_ARGS+=(--merge-only)
+        fi
     fi
     if [[ -n "$PROJECTS_CSV" ]]; then
         if [[ "$SHARDS" -gt 1 ]]; then

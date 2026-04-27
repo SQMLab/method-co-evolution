@@ -47,6 +47,16 @@ mhc history \
     --tool-name "codeShovel" \
     --java-options "-Xmx2g" \
     --timeout-seconds 1800 \
+    --merge-threshold 10000 \
+    --project "checkstyle"
+
+mhc history \
+    --cache-directory ".cache" \
+    --repository-directory ".cache/repository" \
+    --data-directory ".cache/data" \
+    --jar-directory ".cache/jar" \
+    --tool-name "codeShovel" \
+    --merge-only \
     --project "checkstyle"
 
 mhc history \
@@ -103,6 +113,8 @@ For `mhc history`, you can additionally split method-history generation into det
 
 - `--shards N` sets the total shard count
 - `--shard K` selects the 1-based shard to run
+- `--merge-threshold N` sets how many unarchived history JSON files are kept before intermediate merging into the `.tar.gz` archive (default: `10000`; `0` disables intermediate merging; negative values disable the final merge too)
+- `--merge-only` merges existing loose history JSON files without cloning repositories or generating new history
 
 Examples:
 
@@ -126,6 +138,16 @@ mhc history \
     --project "checkstyle" \
     --shards 20 \
     --shard 7
+
+# Merge existing loose JSONs without generating new history
+mhc history \
+    --cache-directory ".cache" \
+    --repository-directory ".cache/repository" \
+    --data-directory ".cache/data" \
+    --jar-directory ".cache/jar" \
+    --tool-name "codeShovel" \
+    --project "checkstyle" \
+    --merge-only
 
 # Run the same shard across an explicit project list
 mhc history \
