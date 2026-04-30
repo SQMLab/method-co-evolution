@@ -33,6 +33,8 @@ def preprocess_project(
     project: str,
     testlinker_directory: str | Path | None = None,
     include_labels: bool = False,
+    order_production_method: str = "candidate",
+    order_production_directory: str | Path | None = None,
 ) -> pd.DataFrame:
     cache_root = Path(cache_directory)
     root = testlinker_root(cache_root, testlinker_directory)
@@ -43,6 +45,7 @@ def preprocess_project(
     method_code_file = cache_root / "data" / "method-code" / f"{project}.csv"
     method_code_lookup = _load_method_code_lookup(method_code_file)
     label_lookup = _load_label_lookup(t2p_ground_truth_updated_file(cache_root, project)) if include_labels else {}
+    invocation_order_lookup = _load_invocation_order_lookup(project, order_production_method, order_production_directory)
     candidate_df = pd.read_csv(candidate_file, keep_default_na=False, na_filter=False)
     required_columns = {"project", "from_url", "from_name", "from_file", "to_url", "to_name"}
     missing_columns = required_columns.difference(candidate_df.columns)
@@ -59,6 +62,7 @@ def preprocess_project(
         labels = list(label_payload["signatures"])
         label_urls = set(label_payload["urls"])
         seen_rows: set[tuple[str, str]] = set()
+        test_rows = []
 
         for candidate_row in group_df.to_dict(orient="records"):
             signature = _candidate_signature(candidate_row)
@@ -73,7 +77,7 @@ def preprocess_project(
             seen_rows.add(dedupe_key)
 
             params = split_signature_params(signature)
-            rows.append(
+            test_rows.append(
                 {
                     "project": project,
                     "test_id": test_id,
@@ -91,6 +95,7 @@ def preprocess_project(
                     "label_json": json.dumps(labels, ensure_ascii=True),
                 }
             )
+        rows.extend(_order_rows_by_invocation(test_rows, invocation_order_lookup.get(str(first_row.get("from_name", "")))))
 
     input_df = pd.DataFrame(rows, columns=INPUT_COLUMNS)
     output_file = input_csv_path(root, project)
@@ -137,6 +142,48 @@ def _load_label_lookup(ground_truth_path: Path) -> dict[str, dict[str, object]]:
     return label_lookup
 
 
+def _load_invocation_order_lookup(
+    project: str,
+    order_production_method: str,
+    order_production_directory: str | Path | None,
+) -> dict[str, list[str]]:
+    if order_production_method == "candidate":
+        return {}
+    if order_production_method != "testlinker":
+        raise ValueError("--order-production-method must be one of: candidate, testlinker")
+
+    result_directory = Path(order_production_directory or "testlinker/code/result/TestLink")
+    detail_file = result_directory / f"{project}_detail.json"
+    if not detail_file.exists():
+        return {}
+
+    order_lookup: dict[str, list[str]] = {}
+    for line in detail_file.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        payload = json.loads(line)
+        test_name = str(payload.get("test_name", "") or "")
+        invocations = payload.get("invocations", [])
+        if test_name and isinstance(invocations, list):
+            order_lookup[test_name] = [str(invocation) for invocation in invocations]
+    return order_lookup
+
+
+def _order_rows_by_invocation(rows: list[dict[str, object]], invocation_order: list[str] | None) -> list[dict[str, object]]:
+    if not invocation_order:
+        return rows
+
+    order_index = {invocation: index for index, invocation in enumerate(invocation_order)}
+    indexed_rows = list(enumerate(rows))
+    return [
+        row
+        for _, row in sorted(
+            indexed_rows,
+            key=lambda item: (order_index.get(str(item[1].get("invocation", "")), len(order_index)), item[0]),
+        )
+    ]
+
+
 def _strip_method_declaration(code: str) -> str:
     code = str(code or "")
     brace_index = code.find("{")
@@ -162,4 +209,3 @@ def _test_path(row: pd.Series) -> str:
     if from_file.endswith(".java"):
         return from_file[:-len(".java")].replace("/", ".")
     return from_file
-

@@ -18,7 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pipeline stage to run.",
     )
     parser.add_argument("--cache-directory", required=True, help="Project cache directory.")
-    parser.add_argument("--project", required=True, help="Project name.")
+    parser.add_argument("--project", default=None, help="Project name.")
     parser.add_argument(
         "--testlinker-directory",
         default=None,
@@ -48,6 +48,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include labels from <testlinker-directory>/ground-truth/<project>.csv when present.",
     )
+    parser.add_argument(
+        "--order-production-method",
+        choices=["candidate", "testlinker"],
+        default="candidate",
+        help="Order input invocations by candidate CSV order or TestLinker author detail JSON order.",
+    )
+    parser.add_argument(
+        "--order-production-directory",
+        default=None,
+        help="Directory containing <project>_detail.json files for --order-production-method testlinker. "
+        "Defaults to testlinker/code/result/TestLink.",
+    )
     parser.add_argument("--no-cuda", action="store_true", help="Force CPU inference.")
     return parser
 
@@ -55,6 +67,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if not args.project:
+        parser.error("--project is required for the testlinker command")
     if args.top_k <= 0:
         parser.error("--top-k must be a positive integer")
 
@@ -64,6 +78,8 @@ def main() -> int:
             project=args.project,
             testlinker_directory=args.testlinker_directory,
             include_labels=args.include_labels,
+            order_production_method=args.order_production_method,
+            order_production_directory=args.order_production_directory,
         )
         print(f"Wrote TestLinker input rows: {len(preprocess_df)}")
 

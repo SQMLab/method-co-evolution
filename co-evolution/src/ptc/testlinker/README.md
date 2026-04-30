@@ -160,7 +160,8 @@ Run stages individually when debugging:
 ptc-testlinker testlinker \
   --stage preprocess \
   --cache-directory .cache \
-  --project commons-io
+  --project commons-io \
+  --order-production-method testlinker
 ```
 
 ```bash
@@ -231,6 +232,12 @@ tech_testlinker
 --model-name-or-path    Explicit pretrained CodeT5 base model/tokenizer directory or model id.
 --tokenizer-mode        original, auto, or fallback. Default: original.
 --include-labels        Include optional ground-truth labels in input/output CSVs.
+--order-production-method
+                        candidate or testlinker. Default: candidate.
+--order-production-directory
+                        Directory containing <project>_detail.json files when
+                        using testlinker order. Default:
+                        testlinker/code/result/TestLink.
 --only-model            Skip TestLinker's rule-based shortcut.
 --no-cuda               Force CPU inference.
 ```
