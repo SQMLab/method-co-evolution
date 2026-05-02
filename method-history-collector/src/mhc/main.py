@@ -275,6 +275,8 @@ def main(argv: list[str] | None = None):
             )
             sys.exit(1)
         mhc.generate_call_graph(resolve_selected_projects(), [args.tool_name], args.replace, args.java_options)
+    elif args.command.lower() == "scan-class":
+        mhc.scan_class(resolve_selected_projects(), args.java_options, args.replace)
     elif args.command.lower() == "scan-method":
         mhc.scan_method(resolve_selected_projects(), args.java_options, args.replace)
     elif args.command.lower() == "method-code":

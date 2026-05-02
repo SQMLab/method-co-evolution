@@ -1,5 +1,6 @@
 from mhc.method_history_jar_runner import *
 from mhc.call_graph import execute_call_graph_if_missing
+from mhc.class_scanner import scan_class as _scan_class
 from mhc.complexity_analyzer import ComplexityAnalyzer
 from pathlib import Path
 import os
@@ -36,6 +37,24 @@ class MethodHistoryCollector:
             for pattern in self.TOOL_NAMES:
                 if pattern.lower() in file.replace("-", "").lower():
                     self.jar_file_map[pattern] = file
+
+    def scan_class(self, repositories: list[str], java_options: str | None = None, replace: bool = False):
+        try:
+            ms.start_java_jar(
+                [self.jar_file_map["methodParser"]],
+                util.java_options_with_logback_config(java_options, self.cache_directory),
+            )
+            _scan_class(
+                self.repository_df[self.repository_df["project"].isin(repositories)],
+                self.repository_directory,
+                self.data_directory,
+                self.cache_directory,
+                replace,
+            )
+        except Exception as e:
+            raise e
+        finally:
+            ms.stop_java_jar()
 
     def scan_method(self, repositories: list[str], java_options: str | None = None, replace: bool = False):
         try:

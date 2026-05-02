@@ -1,5 +1,6 @@
 package rnd.method.parser.call.graph.util;
 
+import rnd.method.parser.call.graph.model.ClassMapping;
 import rnd.method.parser.call.graph.model.Method;
 import rnd.method.parser.call.graph.model.MethodCall;
 import tech.tablesaw.api.IntColumn;
@@ -297,6 +298,75 @@ public class TableUtil {
             }
         }
         boolean mkdirs = new File(outputPath).getParentFile().mkdirs();
+        table.write().csv(outputPath);
+    }
+
+    public static void toClassTable(List<ClassMapping> classes, String outputPath) {
+        StringColumn projectColumn      = StringColumn.create("project");
+        StringColumn nameColumn         = StringColumn.create("name");
+        StringColumn fqnColumn          = StringColumn.create("fqn");
+        StringColumn pkgColumn          = StringColumn.create("pkg");
+        StringColumn fileColumn         = StringColumn.create("file");
+        StringColumn urlColumn          = StringColumn.create("url");
+        IntColumn startLineColumn       = IntColumn.create("start_line");
+        IntColumn endLineColumn         = IntColumn.create("end_line");
+        StringColumn expressionColumn   = StringColumn.create("expression");
+        StringColumn artifactColumn     = StringColumn.create("artifact");
+        IntColumn abstractColumn        = IntColumn.create("abstract");
+        StringColumn parentNamesColumn  = StringColumn.create("parent_names");
+        StringColumn parentFqnsColumn   = StringColumn.create("parent_fqns");
+        StringColumn hashColumn         = StringColumn.create("hash");
+
+        for (ClassMapping c : classes) {
+            projectColumn.append(c.getRepositoryName());
+            nameColumn.append(c.getName());
+
+            if (c.getFqn() == null)       fqnColumn.appendMissing();
+            else                          fqnColumn.append(c.getFqn());
+
+            if (c.getPkg() == null)       pkgColumn.appendMissing();
+            else                          pkgColumn.append(c.getPkg());
+
+            if (c.getFile() == null)      fileColumn.appendMissing();
+            else                          fileColumn.append(c.getFile());
+
+            if (c.getUrl() == null)       urlColumn.appendMissing();
+            else                          urlColumn.append(c.getUrl());
+
+            if (c.getStartLine() == null) startLineColumn.appendMissing();
+            else                          startLineColumn.append(c.getStartLine());
+
+            if (c.getEndLine() == null)   endLineColumn.appendMissing();
+            else                          endLineColumn.append(c.getEndLine());
+
+            if (c.getExpression() == null) expressionColumn.appendMissing();
+            else                           expressionColumn.append(c.getExpression());
+
+            if (c.getArtifact() == null)  artifactColumn.appendMissing();
+            else                          artifactColumn.append(c.getArtifact());
+
+            if (c.getAbstractClass() == null) abstractColumn.appendMissing();
+            else                              abstractColumn.append(c.getAbstractClass());
+
+            if (c.getParentNames() == null) parentNamesColumn.appendMissing();
+            else                            parentNamesColumn.append(c.getParentNames());
+
+            if (c.getParentFqns() == null)  parentFqnsColumn.appendMissing();
+            else                            parentFqnsColumn.append(c.getParentFqns());
+
+            if (c.getHash() == null)      hashColumn.appendMissing();
+            else                          hashColumn.append(c.getHash());
+        }
+
+        Table table = Table.create("class")
+                .addColumns(
+                        projectColumn, nameColumn, fqnColumn, pkgColumn,
+                        fileColumn, urlColumn, startLineColumn, endLineColumn,
+                        expressionColumn, artifactColumn, abstractColumn,
+                        parentNamesColumn, parentFqnsColumn,
+                        hashColumn
+                );
+        new File(outputPath).getParentFile().mkdirs();
         table.write().csv(outputPath);
     }
 }

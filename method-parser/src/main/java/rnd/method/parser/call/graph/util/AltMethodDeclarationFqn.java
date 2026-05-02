@@ -79,7 +79,7 @@ public class AltMethodDeclarationFqn {
         return null;
     }
 
-    static int anonymousClassIndex(ObjectCreationExpr target) {
+    public static int anonymousClassIndex(ObjectCreationExpr target) {
         TypeDeclaration<?> enclosing = target.findAncestor(TypeDeclaration.class).orElse(null);
         if (enclosing == null) {
             return 1;
