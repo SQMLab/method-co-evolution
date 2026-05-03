@@ -81,7 +81,7 @@ at the project root. If omitted, the cache directory is used as fallback.
 The expected columns are:
 
 ```text
-project,from_fqs_alt,to_fqs_alt,from_url,to_url
+project,from_tctracer_fqs,to_tctracer_fqs,from_url,to_url
 ```
 
 If the file is missing or does not have those columns, labels are skipped

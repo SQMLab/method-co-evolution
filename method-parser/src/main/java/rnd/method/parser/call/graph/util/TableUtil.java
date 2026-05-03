@@ -27,7 +27,7 @@ public class TableUtil {
         StringColumn pkgColumn = StringColumn.create("pkg");
         StringColumn fqnColumn = StringColumn.create("fqn");
         StringColumn fqsColumn = StringColumn.create("fqs");
-        StringColumn fqsAltColumn = StringColumn.create("fqs_alt");
+        StringColumn tcTracerFqsColumn = StringColumn.create("tctracer_fqs");
         StringColumn testlinkerFqsColumn = StringColumn.create("testlinker_fqs");
         StringColumn testlinkerFqpColumn = StringColumn.create("testlinker_fqp");
         IntColumn abstractColumn = IntColumn.create("abstract");
@@ -68,8 +68,8 @@ public class TableUtil {
             if (m.getFqs() == null) fqsColumn.appendMissing();
             else fqsColumn.append(m.getFqs());
 
-            if (m.getFqsAlt() == null) fqsAltColumn.appendMissing();
-            else fqsAltColumn.append(m.getFqsAlt());
+            if (m.getTcTracerFqs() == null) tcTracerFqsColumn.appendMissing();
+            else tcTracerFqsColumn.append(m.getTcTracerFqs());
 
             if (m.getTestlinkerFqs() == null) testlinkerFqsColumn.appendMissing();
             else testlinkerFqsColumn.append(m.getTestlinkerFqs());
@@ -110,7 +110,7 @@ public class TableUtil {
                         pkgColumn,
                         fqnColumn,
                         fqsColumn,
-                        fqsAltColumn,
+                        tcTracerFqsColumn,
                         testlinkerFqsColumn,
                         testlinkerFqpColumn,
                         fileColumn,
@@ -137,7 +137,7 @@ public class TableUtil {
         StringColumn fromPkgColumn = StringColumn.create("from_pkg");
         StringColumn fromFqnColumn = StringColumn.create("from_fqn");
         StringColumn fromFqsColumn = StringColumn.create("from_fqs");
-        StringColumn fromFqsAltColumn = StringColumn.create("from_fqs_alt");
+        StringColumn fromTcTracerFqsColumn = StringColumn.create("from_tctracer_fqs");
         StringColumn fromTestlinkerFqsColumn = StringColumn.create("from_testlinker_fqs");
         StringColumn fromTestlinkerFqpColumn = StringColumn.create("from_testlinker_fqp");
         StringColumn fromResolverColumn = StringColumn.create("from_resolver");
@@ -157,7 +157,7 @@ public class TableUtil {
         StringColumn toMethodPkgColumn = StringColumn.create("to_pkg");
         StringColumn toFqnColumn = StringColumn.create("to_fqn");
         StringColumn toFqsColumn = StringColumn.create("to_fqs");
-        StringColumn toFqsAltColumn = StringColumn.create("to_fqs_alt");
+        StringColumn toTcTracerFqsColumn = StringColumn.create("to_tctracer_fqs");
         StringColumn toTestlinkerFqsColumn = StringColumn.create("to_testlinker_fqs");
         StringColumn toTestlinkerFqpColumn = StringColumn.create("to_testlinker_fqp");
         StringColumn toResolverColumn = StringColumn.create("to_resolver");
@@ -197,8 +197,8 @@ public class TableUtil {
         allColumns.add(toFqsColumn);
 
 
-        allColumns.add(fromFqsAltColumn);
-        allColumns.add(toFqsAltColumn);
+        allColumns.add(fromTcTracerFqsColumn);
+        allColumns.add(toTcTracerFqsColumn);
 
         allColumns.add(fromTestlinkerFqsColumn);
         allColumns.add(toTestlinkerFqsColumn);
@@ -268,8 +268,8 @@ public class TableUtil {
                 fromFqsColumn.append(from.getFqs());
                 toFqsColumn.append(to.getFqs());
 
-                fromFqsAltColumn.append(from.getFqsAlt());
-                toFqsAltColumn.append(to.getFqsAlt());
+                fromTcTracerFqsColumn.append(from.getTcTracerFqs());
+                toTcTracerFqsColumn.append(to.getTcTracerFqs());
 
                 fromTestlinkerFqsColumn.append(from.getTestlinkerFqs());
                 toTestlinkerFqsColumn.append(to.getTestlinkerFqs());

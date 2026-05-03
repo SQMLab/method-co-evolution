@@ -16,7 +16,7 @@ public class Method {
     String pkg;
     String fqn;
     String fqs;
-    String fqsAlt;
+    String tcTracerFqs;
     String testlinkerFqs;
     String testlinkerFqp;
     String resolver;

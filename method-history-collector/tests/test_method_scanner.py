@@ -28,7 +28,7 @@ class FakeJavaMethod:
         self.pkg = "demo.pkg"
         self.fqn = f"demo.pkg.{method_name}"
         self.fqs = f"{self.fqn}(java.lang.String)"
-        self.fqs_alt = f"{self.fqn}(String)"
+        self.tctracer_fqs = f"{self.fqn}(String)"
         self.testlinker_fqs = f"{self.fqn}(String)"
         self.testlinker_fqp = '["java.lang.String"]'
         self.abstract_method = 0
@@ -65,8 +65,8 @@ class FakeJavaMethod:
     def getFqs(self):
         return self.fqs
 
-    def getFqsAlt(self):
-        return self.fqs_alt
+    def getTcTracerFqs(self):
+        return self.tctracer_fqs
 
     def getTestlinkerFqs(self):
         return self.testlinker_fqs
@@ -180,7 +180,7 @@ class MethodScannerCacheTestCase(unittest.TestCase):
                         "pkg": "demo.pkg",
                         "fqn": "demo.pkg.Alpha",
                         "fqs": "demo.pkg.Alpha(java.lang.String)",
-                        "fqs_alt": "demo.pkg.Alpha(String)",
+                        "tctracer_fqs": "demo.pkg.Alpha(String)",
                         "testlinker_fqs": "demo.pkg.Alpha(String)",
                         "testlinker_fqp": '["java.lang.String"]',
                         "abstract": 0,

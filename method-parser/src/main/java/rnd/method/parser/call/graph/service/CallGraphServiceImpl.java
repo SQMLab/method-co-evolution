@@ -156,7 +156,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                                         String fromFqn = null;
                                         String fromFqs = null;
                                         String fromResolver = "javaparser";
-                                        String fromFqsAlt = AltMethodDeclarationFqn.getMethodFqnSimpleParams(fromMd);
+                                        String fromTcTracerFqs = AltMethodDeclarationFqn.getMethodFqnSimpleParams(fromMd);
                                         try {
                                             ResolvedMethodDeclaration resolvedFromMd = fromMd.resolve();
                                             fromFqn = resolvedFromMd.getQualifiedName();
@@ -182,7 +182,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                         .pkg(packageDeclaration.map(NodeWithName::getNameAsString).orElse(null))
                                                         .fqn(fromFqn)
                                                         .fqs(fromFqs)
-                                                        .fqsAlt(fromFqsAlt)
+                                                        .tcTracerFqs(fromTcTracerFqs)
                                                         .testlinkerFqs(TestLinkerSignatureUtil.toSignatureKey(fromFqs))
                                                         .testlinkerFqp(TestLinkerSignatureUtil.toFullyQualifiedParamArray(fromFqs))
                                                         .resolver(fromResolver)
@@ -317,7 +317,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                         expression = entry.expression() != null ? entry.expression() : expression;
                         fqn = entry.fqn() != null ? entry.fqn() : heuristic.fqn();
                         fqs = entry.fqs() != null ? entry.fqs() : heuristic.fqs();
-                        fqnSimple = entry.fqsAlt() != null ? entry.fqsAlt() : heuristic.fqsSimple();
+                        fqnSimple = entry.tcTracerFqs() != null ? entry.tcTracerFqs() : heuristic.fqsSimple();
                         filePath = entry.file();
                         startLine = entry.startLine();
                         endLine = entry.endLine();
@@ -409,7 +409,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                         expression = entry.expression() != null ? entry.expression() : expression;
                         fqn = entry.fqn() != null ? entry.fqn() : heuristic.fqn();
                         fqs = entry.fqs() != null ? entry.fqs() : heuristic.fqs();
-                        fqnSimple = entry.fqsAlt() != null ? entry.fqsAlt() : heuristic.fqsSimple();
+                        fqnSimple = entry.tcTracerFqs() != null ? entry.tcTracerFqs() : heuristic.fqsSimple();
                         filePath = entry.file();
                         startLine = entry.startLine();
                         endLine = entry.endLine();
@@ -443,7 +443,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                         .expression(expression)
                         .fqn(fqn)
                         .fqs(fqs)
-                        .fqsAlt(fqnSimple)
+                        .tcTracerFqs(fqnSimple)
                         .testlinkerFqs(testlinkerFqs)
                         .testlinkerFqp(testlinkerFqp)
                         .resolver(resolver)
@@ -782,7 +782,7 @@ public class CallGraphServiceImpl implements CallGraphService {
             String pkg,
             String fqn,
             String fqs,
-            String fqsAlt,
+            String tcTracerFqs,
             String file,
             String url,
             Integer startLine,
@@ -791,7 +791,7 @@ public class CallGraphServiceImpl implements CallGraphService {
             String artifact
     ) {
         int paramCount() {
-            String signature = fqs != null ? fqs : fqsAlt;
+            String signature = fqs != null ? fqs : tcTracerFqs;
             if (signature == null) {
                 return -1;
             }
@@ -893,7 +893,7 @@ public class CallGraphServiceImpl implements CallGraphService {
             if (Objects.equals(candidate.fqs(), heuristic.fqs())) {
                 score += 1000;
             }
-            if (Objects.equals(candidate.fqsAlt(), heuristic.fqsSimple())) {
+            if (Objects.equals(candidate.tcTracerFqs(), heuristic.fqsSimple())) {
                 score += 900;
             }
             if (Objects.equals(candidate.fqn(), heuristic.fqn())) {
@@ -902,7 +902,7 @@ public class CallGraphServiceImpl implements CallGraphService {
             if (candidate.fqs() != null && candidate.fqs().startsWith(heuristic.fqn() + "(")) {
                 score += 500;
             }
-            if (candidate.fqsAlt() != null && candidate.fqsAlt().startsWith(heuristic.fqn() + "(")) {
+            if (candidate.tcTracerFqs() != null && candidate.tcTracerFqs().startsWith(heuristic.fqn() + "(")) {
                 score += 450;
             }
             if (candidate.paramCount() == argCount) {
@@ -956,7 +956,7 @@ public class CallGraphServiceImpl implements CallGraphService {
             String pkg;
             String fqn;
             String fqs;
-            String fqsAlt;
+            String tcTracerFqs;
             String file;
             String url;
             Integer startLine;
@@ -971,7 +971,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                 pkg = get(columns, header, "pkg");
                 fqn = get(columns, header, "fqn");
                 fqs = get(columns, header, "fqs");
-                fqsAlt = get(columns, header, "fqs_alt");
+                tcTracerFqs = get(columns, header, "tctracer_fqs");
                 file = get(columns, header, "file");
                 url = get(columns, header, "url");
                 startLine = parseInteger(get(columns, header, "start_line"));
@@ -993,7 +993,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                 pkg = null;
                 fqn = null;
                 fqs = null;
-                fqsAlt = null;
+                tcTracerFqs = null;
                 hash = null;
             }
 
@@ -1001,7 +1001,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                 return null;
             }
 
-            return new MethodMappingEntry(repositoryName, name, expression, pkg, fqn, fqs, fqsAlt, file, url, startLine, endLine, hash, artifact);
+            return new MethodMappingEntry(repositoryName, name, expression, pkg, fqn, fqs, tcTracerFqs, file, url, startLine, endLine, hash, artifact);
         }
 
         private static Map<String, Integer> toHeader(List<String> columns) {

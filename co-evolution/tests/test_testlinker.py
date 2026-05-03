@@ -109,7 +109,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_fqn": "demo.ATest.testCopy",
                         "to_url": "prod://A.copy",
                         "to_name": "copy",
-                        "to_fqs_alt": "demo.A.copy(String)",
+                        "to_tctracer_fqs": "demo.A.copy(String)",
                     },
                     {
                         "project": "demo",
@@ -119,7 +119,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_fqn": "demo.ATest.testCopy",
                         "to_url": "prod://A.format",
                         "to_name": "format",
-                        "to_fqs_alt": "demo.A.format(int)",
+                        "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
             ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)
@@ -232,7 +232,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_fqn": "demo.ATest.testCopy",
                         "to_url": "prod://A.copy",
                         "to_name": "copy",
-                        "to_fqs_alt": "demo.A.copy(String)",
+                        "to_tctracer_fqs": "demo.A.copy(String)",
                     },
                     {
                         "project": "demo",
@@ -242,7 +242,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_fqn": "demo.ATest.testCopy",
                         "to_url": "prod://A.format",
                         "to_name": "format",
-                        "to_fqs_alt": "demo.A.format(int)",
+                        "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
             ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)
@@ -289,10 +289,10 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_name": "testCopy",
                         "from_file": "src/test/A.java",
                         "from_fqn": "demo.ATest.testCopy",
-                        "from_fqs_alt": "demo.ATest.testCopy()",
+                        "from_tctracer_fqs": "demo.ATest.testCopy()",
                         "to_url": "prod://A.copy",
                         "to_name": "copy",
-                        "to_fqs_alt": "demo.A.copy(String)",
+                        "to_tctracer_fqs": "demo.A.copy(String)",
                     },
                     {
                         "project": "demo",
@@ -300,10 +300,10 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_name": "testCopy",
                         "from_file": "src/test/A.java",
                         "from_fqn": "demo.ATest.testCopy",
-                        "from_fqs_alt": "demo.ATest.testCopy()",
+                        "from_tctracer_fqs": "demo.ATest.testCopy()",
                         "to_url": "prod://A.format",
                         "to_name": "format",
-                        "to_fqs_alt": "demo.A.format(int)",
+                        "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
             ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)
@@ -324,8 +324,8 @@ class TestTestLinkerPipeline(unittest.TestCase):
                 [
                     {
                         "project": "demo",
-                        "from_fqs_alt": "demo.ATest.testCopy()",
-                        "to_fqs_alt": "demo.A.copy(String)",
+                        "from_tctracer_fqs": "demo.ATest.testCopy()",
+                        "to_tctracer_fqs": "demo.A.copy(String)",
                         "from_url": "test://A.testCopy",
                         "to_url": "prod://A.copy",
                     }
@@ -353,7 +353,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_fqn": "demo.ATest.testCopy",
                         "to_url": "prod://A.copy",
                         "to_name": "copy",
-                        "to_fqs_alt": "demo.A.copy(String)",
+                        "to_tctracer_fqs": "demo.A.copy(String)",
                     },
                     {
                         "project": "demo",
@@ -363,7 +363,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "from_fqn": "demo.ATest.testCopy",
                         "to_url": "prod://A.format",
                         "to_name": "format",
-                        "to_fqs_alt": "demo.A.format(int)",
+                        "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
             ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)

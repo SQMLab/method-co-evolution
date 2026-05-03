@@ -195,7 +195,7 @@ public class MethodScannerImpl implements MethodScanner {
                 if (fqs != null && fqs.contains("Anonymous-")) {
                     fqs = AltMethodDeclarationFqn.getMethodFqnQualifiedParams(md);
                 }
-                String fqsAlt = AltMethodDeclarationFqn.getMethodFqnSimpleParams(md);
+                String tcTracerFqs = AltMethodDeclarationFqn.getMethodFqnSimpleParams(md);
                 if (fqn == null) {
                     fqn = stripParameters(AltMethodDeclarationFqn.getMethodFqnQualifiedParams(md));
                     resolver = "heuristics";
@@ -204,11 +204,11 @@ public class MethodScannerImpl implements MethodScanner {
                     fqs = AltMethodDeclarationFqn.getMethodFqnQualifiedParams(md);
                     resolver = "heuristics";
                 }
-                
+
                 int start = md.getName().getBegin().map(p -> p.line).orElse(-1);
                 Integer end = md.getEnd().map(p -> p.line).orElse(null);
                 String methodUrl = MethodParserUtil.toMethodUrl(repoUrl, commitHash, file, start);
-                
+
                 result.add(Method.builder()
                         .repositoryName(repositoryName)
                         .name(md.getNameAsString())
@@ -216,7 +216,7 @@ public class MethodScannerImpl implements MethodScanner {
                         .pkg(cu.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration).map(pd -> pd.getNameAsString()).orElse(null))
                         .fqn(fqn)
                         .fqs(fqs)
-                        .fqsAlt(fqsAlt)
+                        .tcTracerFqs(tcTracerFqs)
                         .testlinkerFqs(TestLinkerSignatureUtil.toSignatureKey(fqs))
                         .testlinkerFqp(TestLinkerSignatureUtil.toFullyQualifiedParamArray(fqs))
                         .resolver(resolver)
@@ -251,7 +251,7 @@ public class MethodScannerImpl implements MethodScanner {
                 if (fqs != null && fqs.contains("Anonymous-")) {
                     fqs = AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(cd);
                 }
-                String fqsAlt = AltConstructorDeclarationFqn.getMethodFqnSimpleParams(cd);
+                String tcTracerFqs = AltConstructorDeclarationFqn.getMethodFqnSimpleParams(cd);
                 if (fqn == null) {
                     fqn = stripParameters(AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(cd));
                     resolver = "heuristics";
@@ -272,7 +272,7 @@ public class MethodScannerImpl implements MethodScanner {
                         .pkg(cu.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration).map(pd -> pd.getNameAsString()).orElse(null))
                         .fqn(fqn)
                         .fqs(fqs)
-                        .fqsAlt(fqsAlt)
+                        .tcTracerFqs(tcTracerFqs)
                         .testlinkerFqs(TestLinkerSignatureUtil.toSignatureKey(fqs))
                         .testlinkerFqp(TestLinkerSignatureUtil.toFullyQualifiedParamArray(fqs))
                         .resolver(resolver)

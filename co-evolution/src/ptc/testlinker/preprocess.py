@@ -137,7 +137,7 @@ def _generate_functions_file(method_file: Path, functions_dir: Path, project: st
 
 
 def _best_method_signature(row: dict[str, object]) -> str:
-    for col in ("testlinker_fqs", "fqs_alt", "fqs"):
+    for col in ("testlinker_fqs", "tctracer_fqs", "fqs"):
         val = str(row.get(col, "") or "").strip()
         if val and "(" in val:
             return val
@@ -269,7 +269,7 @@ def _load_label_lookup(ground_truth_path: Path) -> dict[str, dict[str, object]]:
     for row in ground_truth_df.to_dict(orient="records"):
         from_url = str(row.get("from_url", "") or "")
         to_url = str(row.get("to_url", "") or "")
-        label = compact_signature(row.get("to_fqs_alt", ""))
+        label = compact_signature(row.get("to_tctracer_fqs", ""))
         if not from_url or not to_url:
             continue
         payload = label_lookup.setdefault(from_url, {"signatures": [], "urls": set()})
@@ -330,7 +330,7 @@ def _strip_method_declaration(code: str) -> str:
 
 
 def _candidate_signature(row: dict[str, object]) -> str:
-    for column in ("to_fqs_alt", "to_fqs", "to_fqn", "to_name"):
+    for column in ("to_tctracer_fqs", "to_fqs", "to_fqn", "to_name"):
         value = str(row.get(column, "") or "").strip()
         if value:
             return value

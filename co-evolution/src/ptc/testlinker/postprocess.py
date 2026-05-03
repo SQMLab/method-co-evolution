@@ -117,7 +117,7 @@ def _build_sig_url_pairs(method_file: Path) -> set[tuple[str, str]]:
         url = str(row.get("url", "") or "").strip()
         if not url:
             continue
-        for col in ("testlinker_fqs", "fqs_alt", "fqs", "fqn"):
+        for col in ("testlinker_fqs", "tctracer_fqs", "fqs", "fqn"):
             val = str(row.get(col, "") or "").strip()
             if not val:
                 continue

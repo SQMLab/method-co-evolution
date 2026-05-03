@@ -35,7 +35,7 @@ One row per method or constructor extracted from the repository at the indexed c
 | `pkg` | string | Java package name |
 | `fqn` | string | Fully-qualified name (`Class#method`) |
 | `fqs` | string | Fully-qualified signature (with parameter types) |
-| `fqs_alt` | string | Alternative FQS using simple type names |
+| `tctracer_fqs` | string | Alternative FQS using simple type names |
 | `testlinker_fqs` | string | FQS in TestLinker format |
 | `testlinker_fqp` | string | FQP (fully-qualified path) in TestLinker format |
 | `file` | string | Relative path to the Java source file |
@@ -59,7 +59,7 @@ One row per directed call edge. `fan-out` files record what a method calls; `fan
 | `from_pkg` / `to_pkg` | string | Java package |
 | `from_fqn` / `to_fqn` | string | Fully-qualified name |
 | `from_fqs` / `to_fqs` | string | Fully-qualified signature |
-| `from_fqs_alt` / `to_fqs_alt` | string | Alternative FQS |
+| `from_tctracer_fqs` / `to_tctracer_fqs` | string | Alternative FQS |
 | `from_testlinker_fqs` / `to_testlinker_fqs` | string | TestLinker FQS |
 | `from_testlinker_fqp` / `to_testlinker_fqp` | string | TestLinker FQP |
 | `from_start` / `from_end` | int | Line range of the `from` method |
