@@ -34,10 +34,10 @@ One row per method or constructor extracted from the repository at the indexed c
 | `expression` | string | `method` or `constructor` |
 | `pkg` | string | Java package name |
 | `fqn` | string | Fully-qualified name (`Class#method`) |
-| `fqs` | string | Fully-qualified signature (with parameter types) |
-| `tctracer_fqs` | string | Alternative FQS using simple type names |
-| `testlinker_fqs` | string | FQS in TestLinker format |
-| `testlinker_fqp` | string | FQP (fully-qualified path) in TestLinker format |
+| `fqs` | string | Fully-qualified signature: fully-qualified param types, varargs as `...` (e.g. `IOUtils.closeQuietly(java.io.Closeable...)`) |
+| `tctracer_fqs` | string | TCTracer-style FQS: simple (unqualified) **declared** param type names, varargs as `[]` (e.g. `IOUtils.closeQuietly(Closeable[])`) |
+| `testlinker_fqs` | string | In the method index (declared methods) this is identical to `tctracer_fqs`. See call-graph note below for the distinction in called-method context. |
+| `testlinker_fqp` | string | TestLinker parameter list as a JSON array of fully-qualified type names, varargs as `[]` (e.g. `["java.io.Closeable[]"]`). In the method index this is derived from the declared param types. |
 | `file` | string | Relative path to the Java source file |
 | `abstract` | int | `1` if the method is abstract, else `0` |
 | `parser` | string | Always `javaparser` |
@@ -58,10 +58,10 @@ One row per directed call edge. `fan-out` files record what a method calls; `fan
 | `from_expression` / `to_expression` | string | `method` or `constructor` |
 | `from_pkg` / `to_pkg` | string | Java package |
 | `from_fqn` / `to_fqn` | string | Fully-qualified name |
-| `from_fqs` / `to_fqs` | string | Fully-qualified signature |
-| `from_tctracer_fqs` / `to_tctracer_fqs` | string | Alternative FQS |
-| `from_testlinker_fqs` / `to_testlinker_fqs` | string | TestLinker FQS |
-| `from_testlinker_fqp` / `to_testlinker_fqp` | string | TestLinker FQP |
+| `from_fqs` / `to_fqs` | string | Fully-qualified signature: fully-qualified param types, varargs as `...` |
+| `from_tctracer_fqs` / `to_tctracer_fqs` | string | TCTracer-style FQS: simple **declared** param type names, varargs as `[]`. Always derived from the method declaration, not the call site. |
+| `from_testlinker_fqs` / `to_testlinker_fqs` | string | TestLinker-style FQS: simple param type names, varargs as `[]`. **Key distinction from `tctracer_fqs`**: for the called method (`to_testlinker_fqs`) this is built from the **actual argument types passed at the call site**, not the declared param types. This means it can contain `null` (when a null literal is passed), `<UNKNOWN>` (when the argument type cannot be resolved), or the resolved runtime argument type. For the calling method (`from_testlinker_fqs`) it is identical to `from_tctracer_fqs`. |
+| `from_testlinker_fqp` / `to_testlinker_fqp` | string | TestLinker parameter list as a JSON array of fully-qualified types, varargs as `[]`. For `to_testlinker_fqp`, argument types at the call site are used (same source as `to_testlinker_fqs`). |
 | `from_start` / `from_end` | int | Line range of the `from` method |
 | `to_start` / `to_end` | int | Line range of the `to` method |
 | `from_invocation` | int | Line where the call appears in the `from` method (fan-out only) |

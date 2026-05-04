@@ -194,16 +194,13 @@ public class TableUtil {
 
 
         allColumns.add(fromFqsColumn);
-        allColumns.add(toFqsColumn);
-
-
         allColumns.add(fromTcTracerFqsColumn);
-        allColumns.add(toTcTracerFqsColumn);
-
         allColumns.add(fromTestlinkerFqsColumn);
-        allColumns.add(toTestlinkerFqsColumn);
-
         allColumns.add(fromTestlinkerFqpColumn);
+
+        allColumns.add(toFqsColumn);
+        allColumns.add(toTcTracerFqsColumn);
+        allColumns.add(toTestlinkerFqsColumn);
         allColumns.add(toTestlinkerFqpColumn);
 
         allColumns.add(fromMethodStartLineColumn);

@@ -188,20 +188,27 @@ public class MethodScannerImpl implements MethodScanner {
                 } catch (Exception ignored) {
 //                    log.error("Failed to resolve method {}", md.getNameAsString());
                 }
-                // Symbol solver names anonymous classes with a random UUID; replace with positional $N
-                if (fqn != null && fqn.contains("Anonymous-")) {
-                    fqn = stripParameters(AltMethodDeclarationFqn.getMethodFqnQualifiedParams(md));
+                String tcTracerFqs = AltMethodDeclarationFqn.buildSimpleParamSignature(md);
+                // Fix anonymous class naming: resolver uses UUIDs (Anonymous-XXXX) or silently
+                // drops the $N level. tcTracerFqs (AST-based) is authoritative in both cases.
+                if (AltMethodDeclarationFqn.isInAnonymousClass(tcTracerFqs)) {
+                    String astQualified = AltMethodDeclarationFqn.buildQualifiedParamSignature(md);
+                    fqn = stripParameters(astQualified);
+                    fqs = astQualified;
+                } else {
+                    if (fqn != null && fqn.contains("Anonymous-")) {
+                        fqn = stripParameters(AltMethodDeclarationFqn.buildQualifiedParamSignature(md));
+                    }
+                    if (fqs != null && fqs.contains("Anonymous-")) {
+                        fqs = AltMethodDeclarationFqn.buildQualifiedParamSignature(md);
+                    }
                 }
-                if (fqs != null && fqs.contains("Anonymous-")) {
-                    fqs = AltMethodDeclarationFqn.getMethodFqnQualifiedParams(md);
-                }
-                String tcTracerFqs = AltMethodDeclarationFqn.getMethodFqnSimpleParams(md);
                 if (fqn == null) {
-                    fqn = stripParameters(AltMethodDeclarationFqn.getMethodFqnQualifiedParams(md));
+                    fqn = stripParameters(AltMethodDeclarationFqn.buildQualifiedParamSignature(md));
                     resolver = "heuristics";
                 }
                 if (fqs == null) {
-                    fqs = AltMethodDeclarationFqn.getMethodFqnQualifiedParams(md);
+                    fqs = AltMethodDeclarationFqn.buildQualifiedParamSignature(md);
                     resolver = "heuristics";
                 }
 
@@ -217,8 +224,8 @@ public class MethodScannerImpl implements MethodScanner {
                         .fqn(fqn)
                         .fqs(fqs)
                         .tcTracerFqs(tcTracerFqs)
-                        .testlinkerFqs(TestLinkerSignatureUtil.toSignatureKey(fqs))
-                        .testlinkerFqp(TestLinkerSignatureUtil.toFullyQualifiedParamArray(fqs))
+                        .testlinkerFqs(tcTracerFqs)
+                        .testlinkerFqp(TestLinkerSignatureUtil.toParamTypeJson(fqs))
                         .resolver(resolver)
                         .file(file)
                         .startLine(start)
@@ -244,20 +251,26 @@ public class MethodScannerImpl implements MethodScanner {
                     fqs = resolvedDec.getQualifiedSignature();
                 } catch (Exception ignored) {
                 }
-                // Symbol solver names anonymous classes with a random UUID; replace with positional $N
-                if (fqn != null && fqn.contains("Anonymous-")) {
-                    fqn = stripParameters(AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(cd));
+                String tcTracerFqs = AltConstructorDeclarationFqn.buildSimpleParamSignature(cd);
+                // Fix anonymous class naming (same logic as for method declarations above)
+                if (AltMethodDeclarationFqn.isInAnonymousClass(tcTracerFqs)) {
+                    String astQualified = AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd);
+                    fqn = stripParameters(astQualified);
+                    fqs = astQualified;
+                } else {
+                    if (fqn != null && fqn.contains("Anonymous-")) {
+                        fqn = stripParameters(AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd));
+                    }
+                    if (fqs != null && fqs.contains("Anonymous-")) {
+                        fqs = AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd);
+                    }
                 }
-                if (fqs != null && fqs.contains("Anonymous-")) {
-                    fqs = AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(cd);
-                }
-                String tcTracerFqs = AltConstructorDeclarationFqn.getMethodFqnSimpleParams(cd);
                 if (fqn == null) {
-                    fqn = stripParameters(AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(cd));
+                    fqn = stripParameters(AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd));
                     resolver = "heuristics";
                 }
                 if (fqs == null) {
-                    fqs = AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(cd);
+                    fqs = AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd);
                     resolver = "heuristics";
                 }
 
@@ -273,8 +286,8 @@ public class MethodScannerImpl implements MethodScanner {
                         .fqn(fqn)
                         .fqs(fqs)
                         .tcTracerFqs(tcTracerFqs)
-                        .testlinkerFqs(TestLinkerSignatureUtil.toSignatureKey(fqs))
-                        .testlinkerFqp(TestLinkerSignatureUtil.toFullyQualifiedParamArray(fqs))
+                        .testlinkerFqs(tcTracerFqs)
+                        .testlinkerFqp(TestLinkerSignatureUtil.toParamTypeJson(fqs))
                         .resolver(resolver)
                         .file(file)
                         .startLine(start)

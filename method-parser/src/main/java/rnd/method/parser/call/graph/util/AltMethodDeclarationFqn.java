@@ -15,15 +15,35 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class AltMethodDeclarationFqn {
-    public static String getMethodFqnSimpleParams(MethodDeclaration methodDeclaration) {
-        return getMethodFqnParams(methodDeclaration, false);
+
+    /**
+     * Builds the TCTracer-style FQS for a declared method: fully-qualified class name,
+     * simple (unqualified) parameter type names, varargs as {@code []}.
+     *
+     * <p>Example: {@code org.apache.IOUtils.closeQuietly(Closeable[])}
+     *
+     * <p>This is used for the {@code tctracer_fqs} column and for the
+     * {@code from_testlinker_fqs} column (calling method side), where both always
+     * reflect the declared parameter types rather than actual call-site argument types.
+     */
+    public static String buildSimpleParamSignature(MethodDeclaration methodDeclaration) {
+        return buildSignature(methodDeclaration, false);
     }
 
-    public static String getMethodFqnQualifiedParams(MethodDeclaration methodDeclaration) {
-        return getMethodFqnParams(methodDeclaration, true);
+    /**
+     * Builds the fully-qualified FQS for a declared method: fully-qualified class name,
+     * fully-qualified parameter type names, varargs as {@code []}.
+     *
+     * <p>Example: {@code org.apache.IOUtils.closeQuietly(java.io.Closeable[])}
+     *
+     * <p>This is used as a fallback for the {@code fqs} column when the symbol solver
+     * cannot resolve the method declaration.
+     */
+    public static String buildQualifiedParamSignature(MethodDeclaration methodDeclaration) {
+        return buildSignature(methodDeclaration, true);
     }
 
-    public static String getMethodFqnParams(MethodDeclaration methodDeclaration, boolean qualifiedParams) {
+    public static String buildSignature(MethodDeclaration methodDeclaration, boolean qualifiedParams) {
         String classFqn = getDeclaringTypeFqnSafe(methodDeclaration);
         String methodName = methodDeclaration.getNameAsString();
 
@@ -77,6 +97,32 @@ public class AltMethodDeclarationFqn {
             return typePath;
         }
         return null;
+    }
+
+    /**
+     * Returns {@code true} when {@code tcTracerFqs} (a signature built by
+     * {@link #buildSimpleParamSignature}) contains a {@code .$N} segment, which indicates
+     * that the method is declared inside an anonymous class.
+     *
+     * <p>The symbol resolver consistently mis-reports the class path of such methods —
+     * either by substituting a random UUID ({@code Anonymous-XXXX}) or by silently
+     * dropping the {@code $N} level. Use this check to decide whether to override
+     * {@code fqn}/{@code fqs} with the AST-based qualified signature from
+     * {@link #buildQualifiedParamSignature}.
+     *
+     * <p>Example: {@code "hudson.cli.CLI.$2.send(byte[])"} → {@code true}
+     */
+    public static boolean isInAnonymousClass(String tcTracerFqs) {
+        if (tcTracerFqs == null) return false;
+        int idx = tcTracerFqs.indexOf(".$");
+        while (idx >= 0) {
+            int j = idx + 2;
+            if (j < tcTracerFqs.length() && Character.isDigit(tcTracerFqs.charAt(j))) {
+                return true;
+            }
+            idx = tcTracerFqs.indexOf(".$", idx + 1);
+        }
+        return false;
     }
 
     public static int anonymousClassIndex(ObjectCreationExpr target) {

@@ -15,15 +15,28 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class AltConstructorDeclarationFqn {
-    public static String getMethodFqnSimpleParams(ConstructorDeclaration constructorDeclaration) {
-        return getMethodFqnParams(constructorDeclaration, false);
+
+    /**
+     * Builds the TCTracer-style FQS for a declared constructor: fully-qualified class name,
+     * simple (unqualified) parameter type names, varargs as {@code []}.
+     *
+     * @see AltMethodDeclarationFqn#buildSimpleParamSignature
+     */
+    public static String buildSimpleParamSignature(ConstructorDeclaration constructorDeclaration) {
+        return buildSignature(constructorDeclaration, false);
     }
 
-    public static String getMethodFqnQualifiedParams(ConstructorDeclaration constructorDeclaration) {
-        return getMethodFqnParams(constructorDeclaration, true);
+    /**
+     * Builds the fully-qualified FQS for a declared constructor: fully-qualified class name,
+     * fully-qualified parameter type names, varargs as {@code []}.
+     *
+     * @see AltMethodDeclarationFqn#buildQualifiedParamSignature
+     */
+    public static String buildQualifiedParamSignature(ConstructorDeclaration constructorDeclaration) {
+        return buildSignature(constructorDeclaration, true);
     }
 
-    public static String getMethodFqnParams(ConstructorDeclaration constructorDeclaration, boolean qualifiedParams) {
+    public static String buildSignature(ConstructorDeclaration constructorDeclaration, boolean qualifiedParams) {
         String classFqn = getDeclaringTypeFqnSafe(constructorDeclaration);
         String methodName = constructorDeclaration.getNameAsString();
 

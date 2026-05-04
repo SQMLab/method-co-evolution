@@ -156,7 +156,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                                         String fromFqn = null;
                                         String fromFqs = null;
                                         String fromResolver = "javaparser";
-                                        String fromTcTracerFqs = AltMethodDeclarationFqn.getMethodFqnSimpleParams(fromMd);
+                                        String fromTcTracerFqs = AltMethodDeclarationFqn.buildSimpleParamSignature(fromMd);
                                         try {
                                             ResolvedMethodDeclaration resolvedFromMd = fromMd.resolve();
                                             fromFqn = resolvedFromMd.getQualifiedName();
@@ -164,12 +164,25 @@ public class CallGraphServiceImpl implements CallGraphService {
                                         } catch (Exception e) {
                                             log.warn("Failed to parse from method FQN and FQS for {}", fromMd.getNameAsString());
                                         }
+                                        // Fix anonymous class naming: resolver uses UUIDs or silently drops $N
+                                        if (AltMethodDeclarationFqn.isInAnonymousClass(fromTcTracerFqs)) {
+                                            String astQualified = AltMethodDeclarationFqn.buildQualifiedParamSignature(fromMd);
+                                            fromFqn = stripParameters(astQualified);
+                                            fromFqs = astQualified;
+                                        } else {
+                                            if (fromFqn != null && fromFqn.contains("Anonymous-")) {
+                                                fromFqn = stripParameters(AltMethodDeclarationFqn.buildQualifiedParamSignature(fromMd));
+                                            }
+                                            if (fromFqs != null && fromFqs.contains("Anonymous-")) {
+                                                fromFqs = AltMethodDeclarationFqn.buildQualifiedParamSignature(fromMd);
+                                            }
+                                        }
                                         if (fromFqn == null) {
-                                            fromFqn = stripParameters(AltMethodDeclarationFqn.getMethodFqnQualifiedParams(fromMd));
+                                            fromFqn = stripParameters(AltMethodDeclarationFqn.buildQualifiedParamSignature(fromMd));
                                             fromResolver = "heuristics";
                                         }
                                         if (fromFqs == null) {
-                                            fromFqs = AltMethodDeclarationFqn.getMethodFqnQualifiedParams(fromMd);
+                                            fromFqs = AltMethodDeclarationFqn.buildQualifiedParamSignature(fromMd);
                                             fromResolver = "heuristics";
                                         }
                                         Optional<PackageDeclaration> packageDeclaration = fromMd.findCompilationUnit().get().getPackageDeclaration();
@@ -183,8 +196,8 @@ public class CallGraphServiceImpl implements CallGraphService {
                                                         .fqn(fromFqn)
                                                         .fqs(fromFqs)
                                                         .tcTracerFqs(fromTcTracerFqs)
-                                                        .testlinkerFqs(TestLinkerSignatureUtil.toSignatureKey(fromFqs))
-                                                        .testlinkerFqp(TestLinkerSignatureUtil.toFullyQualifiedParamArray(fromFqs))
+                                                        .testlinkerFqs(fromTcTracerFqs)
+                                                        .testlinkerFqp(TestLinkerSignatureUtil.toParamTypeJson(fromFqs))
                                                         .resolver(fromResolver)
                                                         .startLine(targetMethodStartLine)
                                                         .endLine(fromMd.getEnd().get().line)
@@ -288,7 +301,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                                         .map(NodeWithName::getNameAsString))
                                 .orElse(null);   // empty if default
 
-                        fqnSimple = AltMethodDeclarationFqn.getMethodFqnSimpleParams(methodAst);
+                        fqnSimple = AltMethodDeclarationFqn.buildSimpleParamSignature(methodAst);
                         if (resolvedDec.isPresent()) {
                             try {
                                 fqn = resolvedDec.get().getQualifiedName();
@@ -298,11 +311,11 @@ public class CallGraphServiceImpl implements CallGraphService {
                             }
                         }
                         if (fqn == null) {
-                            fqn = stripParameters(AltMethodDeclarationFqn.getMethodFqnQualifiedParams(methodAst));
+                            fqn = stripParameters(AltMethodDeclarationFqn.buildQualifiedParamSignature(methodAst));
                             resolver = "heuristics";
                         }
                         if (fqs == null) {
-                            fqs = AltMethodDeclarationFqn.getMethodFqnQualifiedParams(methodAst);
+                            fqs = AltMethodDeclarationFqn.buildQualifiedParamSignature(methodAst);
                             resolver = "heuristics";
                         }
                     }
@@ -380,7 +393,7 @@ public class CallGraphServiceImpl implements CallGraphService {
                                 .flatMap(cu -> cu.getPackageDeclaration()
                                         .map(NodeWithName::getNameAsString))
                                 .orElse(null);   // empty if default
-                        fqnSimple = AltConstructorDeclarationFqn.getMethodFqnSimpleParams(constructorAst);
+                        fqnSimple = AltConstructorDeclarationFqn.buildSimpleParamSignature(constructorAst);
                         if (resolvedDec.isPresent()) {
                             try {
                                 fqn = resolvedDec.get().getQualifiedName();
@@ -390,11 +403,11 @@ public class CallGraphServiceImpl implements CallGraphService {
                             }
                         }
                         if (fqn == null) {
-                            fqn = stripParameters(AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(constructorAst));
+                            fqn = stripParameters(AltConstructorDeclarationFqn.buildQualifiedParamSignature(constructorAst));
                             resolver = "heuristics";
                         }
                         if (fqs == null) {
-                            fqs = AltConstructorDeclarationFqn.getMethodFqnQualifiedParams(constructorAst);
+                            fqs = AltConstructorDeclarationFqn.buildQualifiedParamSignature(constructorAst);
                             resolver = "heuristics";
                         }
                     }
@@ -427,11 +440,11 @@ public class CallGraphServiceImpl implements CallGraphService {
             List<String> invocationParamTypes = getInvocationArgumentTypes(callNode);
             String testlinkerOwnerAndName = fqn != null ? fqn : stripParameters(fqs);
             if (testlinkerOwnerAndName != null) {
-                testlinkerFqs = TestLinkerSignatureUtil.toSignatureKey(testlinkerOwnerAndName, invocationParamTypes);
-                testlinkerFqp = TestLinkerSignatureUtil.toFullyQualifiedParamArray(invocationParamTypes);
+                testlinkerFqs = TestLinkerSignatureUtil.fromInvocationArgs(testlinkerOwnerAndName, invocationParamTypes);
+                testlinkerFqp = TestLinkerSignatureUtil.toParamTypeJson(invocationParamTypes);
             } else {
-                testlinkerFqs = TestLinkerSignatureUtil.toSignatureKey(fqs);
-                testlinkerFqp = TestLinkerSignatureUtil.toFullyQualifiedParamArray(fqs);
+                testlinkerFqs = TestLinkerSignatureUtil.fromDeclaredFqs(fqs);
+                testlinkerFqp = TestLinkerSignatureUtil.toParamTypeJson(fqs);
             }
 
             if (filePath != null || fqn != null || fqs != null || methodName != null) {

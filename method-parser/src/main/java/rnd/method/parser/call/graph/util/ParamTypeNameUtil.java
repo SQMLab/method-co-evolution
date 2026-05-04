@@ -20,7 +20,13 @@ final class ParamTypeNameUtil {
     static String getParamTypeSafe(Parameter parameter, boolean qualified) {
         try {
             String resolvedType = parameter.getType().resolve().describe();
-            return qualified ? normalizeQualifiedTypeName(resolvedType) : toSimpleTypeName(resolvedType);
+            String typeName = qualified ? normalizeQualifiedTypeName(resolvedType) : toSimpleTypeName(resolvedType);
+            // Always append [] for varargs regardless of whether the element type is already an array
+            // (e.g. boolean[]... → boolean[][]; the resolver returns the element type boolean[])
+            if (parameter.isVarArgs() && !typeName.endsWith("...")) {
+                typeName = typeName + "[]";
+            }
+            return typeName;
         } catch (Exception ignored) {
             String sourceType = parameter.getType().asString();
             return qualified

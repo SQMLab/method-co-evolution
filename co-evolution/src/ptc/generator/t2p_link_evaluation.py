@@ -3,7 +3,7 @@ from mhc.config import *
 from mhc.util import *
 from ptc.experiment_util import build_experiment_parser, list_csv_files, resolve_experiment_filters
 
-ground_truth_dir = Path(f"{CACHE_DIRECTORY}/data/t2p-ground-truth-updated")
+ground_truth_dir = Path(f"{PROJECT_DIRECTORY}/data/ground-truth/testlinker-t2p-ground-truth")
 link_root_dir = Path(f"{CACHE_DIRECTORY}/data/t2p-link")
 output_dir = Path(f"{CACHE_DIRECTORY}/data/aggregate")
 mismatch_root_dir = Path(f"{CACHE_DIRECTORY}/data/t2p-link-metric")
@@ -172,6 +172,9 @@ def main(argv: list[str] | None = None) -> None:
                     rows.append(calculate_aggregate_score(project_label, strategy_name, aggregate_pairs))
 
     result_df = pd.DataFrame(rows)
+    if result_df.empty:
+        print(f"No results: ground-truth dir={ground_truth_dir}, link dir={link_root_dir}")
+        return
     result_df = convert_float_int_columns_to_nullable_int(result_df)
     result_df = result_df.sort_values(["project", "strategy"]).reset_index(drop=True)
     result_df.to_csv(output_file, index=False)
