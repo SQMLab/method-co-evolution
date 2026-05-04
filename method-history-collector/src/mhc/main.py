@@ -104,24 +104,28 @@ def _resolve_projects(
     project_index: str | None,
     known_projects: list[str],
 ) -> list[str]:
-    provided_selection_count = sum(
-        value is not None for value in (project, projects, project_index)
-    )
-    if provided_selection_count != 1:
-        raise ValueError("exactly one of --project, --projects, or --project-index is required")
+    if project is not None and projects is not None:
+        raise ValueError("use either --project or --projects, not both")
 
     if project is not None:
-        return [project]
-    if projects is not None:
-        return _parse_projects_csv(projects)
-    return _parse_project_index(project_index, known_projects)
+        candidate_projects = [project]
+    elif projects is not None:
+        candidate_projects = _parse_projects_csv(projects)
+    else:
+        candidate_projects = known_projects
+
+    if project_index is not None:
+        return _parse_project_index(project_index, candidate_projects)
+    if project is not None or projects is not None:
+        return candidate_projects
+    raise ValueError("exactly one of --project, --projects, or --project-index is required")
 
 
 def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="Method History Collector (MHC)")
 
     parser.add_argument(
-        "command", type=str, help="Command to execute (e.g., history, method-callgraph)"
+        "command", type=str, help="Command to execute (e.g., method-history, method-callgraph)"
     )
     parser.add_argument(
         "--cache-directory",
@@ -153,9 +157,9 @@ def main(argv: list[str] | None = None):
         help="Jar directory path"
     )
 
-    # Conditional args for history command
+    # Conditional args for method-history command
     parser.add_argument(
-        "--tool-name", dest="tool_name", type=str, help="Tool name (required for history command)"
+        "--tool-name", dest="tool_name", type=str, help="Tool name (required for method-history command)"
     )
     parser.add_argument(
         "--command-options",
@@ -192,7 +196,7 @@ def main(argv: list[str] | None = None):
         nargs="*",
         choices=("delete-empty", "delete-tmp", "delete-lock"),
         help=(
-            "For history command, merge existing loose history JSON files without generating new history. "
+            "For method-history command, merge existing loose history JSON files without generating new history. "
             "Optional cleanup modes: delete-empty, delete-tmp, delete-lock."
         ),
     )
@@ -272,11 +276,13 @@ def main(argv: list[str] | None = None):
             sys.exit(1)
 
     command = args.command.lower()
-
     if command == "history":
+        command = "method-history"
+
+    if command == "method-history":
         if not args.tool_name:
             print(
-                "Error: tool_name is required for history command."
+                "Error: tool_name is required for method-history command."
             )
             sys.exit(1)
         mhc.collect_method_history(

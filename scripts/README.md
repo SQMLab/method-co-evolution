@@ -26,17 +26,20 @@ Slurm `sbatch` wrapper for all `mhc`, `ptc-llm`, and `ptc-testlinker` commands. 
 job.sh --command <cmd> [options]
 ```
 
-`--command` must be one of: `history`, `method-callgraph`, `method-scan`, `class-scan`, `method-code`, `complexity-analyzer`, `llm-m2m-link`, `testlinker`.
+`--command` must be one of: `method-history`, `method-callgraph`, `method-scan`, `class-scan`, `method-code`, `complexity-analyzer`, `llm-m2m-link`, `testlinker`.
 
 ### Project selection
 
-Use exactly one of:
+Use one project selector for normal project-scoped runs:
 
 | Flag | Example |
 |------|---------|
+| `--project` | `"checkstyle"` |
 | `--projects` | `"checkstyle,commons-io"` |
 | `--project-index` | `"10:20"` |
 | `--project-index` | `"-1"` |
+
+In `method-history` shard mode (`--shards > 1`), omit `--project-index`; `job.sh` derives it from the Slurm array task id. `--project` and `--projects` are optional filters and are forwarded to `mhc`.
 
 ### Execution modes
 
@@ -50,17 +53,34 @@ sbatch --array=1-2 scripts/job.sh \
 
 Each array task index maps to the corresponding project in the list.
 
-**Shard mode** — one Slurm array task per history shard:
+**Shard mode** — one Slurm array task per `(project_index, shard)` pair. Use a zero-based Slurm array where the upper bound is `project_count * shards - 1`:
 
 ```bash
-sbatch --array=1-20 scripts/job.sh \
-    --command history \
+sbatch --array=0-99 scripts/job.sh \
+    --command method-history \
     --tool-name codeShovel \
-    --projects "checkstyle" \
-    --shards 20
+    --shards 10
 ```
 
-Array task index maps directly to `--shard $SLURM_ARRAY_TASK_ID`.
+The job index is treated as a flattened project/shard coordinate:
+
+```text
+project_index = SLURM_ARRAY_TASK_ID / shards
+shard = SLURM_ARRAY_TASK_ID % shards + 1
+```
+
+For 10 projects and 10 shards per project, use `--array=0-99`:
+
+| `SLURM_ARRAY_TASK_ID` | Forwarded project index | Forwarded shard |
+|-----------------------|-------------------------|-----------------|
+| `0` | `0` | `1` |
+| `9` | `0` | `10` |
+| `10` | `1` | `1` |
+| `99` | `9` | `10` |
+
+Optional filters are forwarded. With `--projects "checkstyle,commons-io"`, the derived project index is applied within that list. With `--project "checkstyle"`, only project index `0` is valid, so use an array range such as `--array=0-9` for `--shards 10`.
+
+Do not pass `--project-index` in shard mode; it is computed from the Slurm array task id.
 
 ### `llm-m2m-link` example
 
@@ -90,7 +110,7 @@ sbatch --array=1-2 scripts/job.sh \
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--command` | required | Command to run |
-| `--tool-name` | — | Tool name for `history`, `method-callgraph`, `complexity-analyzer` |
+| `--tool-name` | — | Tool name for `method-history`, `method-callgraph`, `complexity-analyzer` |
 | `--java-options` | — | Extra JVM flags (e.g. `"-Xmx4g"`) |
 | `--timeout-seconds` | `1800` | Per-method history timeout |
 | `--merge-threshold` | `10000` | History JSON merge threshold |
@@ -104,7 +124,7 @@ sbatch --array=1-2 scripts/job.sh \
 | `--max-new-tokens` | `256` | LLM token generation cap |
 | `--resume` | `none` | Resume mode: `none`, `all`, `error` |
 | `--input-kind` | `t2p` | LLM input direction: `t2p` or `p2t` |
-| `--shards` | `1` | Total shard count |
+| `--shards` | `1` | Total shard count per project |
 | `--top-k` | `1` | TestLinker top-k invocations |
 | `--cache-directory` | `.cache` | Cache root |
 | `--history-directory` | `ME_HISTORY_DIRECTORY` or `$HOME/scratch/$USER/method-co-evolution/.cache` | Method history JSON/archive root |

@@ -7,9 +7,9 @@ set -euo pipefail
 usage() {
     cat <<'EOF'
 Usage:
-  job.sh --command history --tool-name codeShovel --java-options "-Xmx4g" --timeout-seconds 1800 --merge-threshold 10000 --command-options "--flag value" --projects "checkstyle,commons-io"
-  job.sh --command history --tool-name codeShovel --merge-only --projects "checkstyle,commons-io"
-  job.sh --command history --tool-name codeShovel --projects "checkstyle" --shards 20
+  job.sh --command method-history --tool-name codeShovel --java-options "-Xmx4g" --timeout-seconds 1800 --merge-threshold 10000 --command-options "--flag value" --projects "checkstyle,commons-io"
+  job.sh --command method-history --tool-name codeShovel --merge-only --projects "checkstyle,commons-io"
+  job.sh --command method-history --tool-name codeShovel --shards 10
   job.sh --command method-code --projects "commons-io"
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --prompt-format text --batch-size 1 --max-new-tokens 256 --resume none --projects "commons-io" --input-kind t2p
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --batch-size 1 --resume error --projects "commons-io" --input-kind t2p
@@ -17,10 +17,10 @@ Usage:
   job.sh --command testlinker --stage all --projects "commons-io" --top-k 1
 
 Options:
-  --command               Command to run: history, method-callgraph, method-scan, class-scan, method-code, complexity-analyzer, llm-m2m-link, testlinker
+  --command               Command to run: method-history, method-callgraph, method-scan, class-scan, method-code, complexity-analyzer, llm-m2m-link, testlinker
   --tool-name             Tool name for non-LLM commands
-  --java-options          Optional JVM arguments for history commands, e.g. "-Xmx4g"
-  --timeout-seconds       Optional history command timeout in seconds (default: 30*60 = 1800)
+  --java-options          Optional JVM arguments for method-history commands, e.g. "-Xmx4g"
+  --timeout-seconds       Optional method-history command timeout in seconds (default: 30*60 = 1800)
   --merge-threshold       Optional history JSON merge threshold (default: 10000; 0 disables intermediate merging; negative values disable final merging too)
   --merge-only            Merge existing loose history JSON files without generating new history
   --command-options       Optional extra arguments forwarded to the selected command
@@ -32,9 +32,10 @@ Options:
   --batch-size            LLM grouped case batch size (default: 4)
   --max-new-tokens        LLM generation cap per grouped case (default: 256)
   --resume                Resume mode: none, all, or error (default: none)
+  --project               Single project name
   --projects              Comma-separated project list for the array job
   --project-index         Python-style project index or slice from repository.csv, for example 10, -1, 10:20, :10, 10:, or :
-  --shards                Total method-history shards to run in parallel (default: 1)
+  --shards                Total method-history shards per project (default: 1)
   --input-kind            LLM input kind: t2p or p2t (default: t2p)
   --top-k                 TestLinker top-k invocation count (default: 1)
   --cache-directory       Relative or absolute cache directory (default: .cache)
@@ -67,6 +68,7 @@ PROMPT_FORMAT="auto"
 BATCH_SIZE="4"
 MAX_NEW_TOKENS="256"
 RESUME_MODE="none"
+PROJECT_NAME=""
 PROJECTS_CSV=""
 PROJECT_INDEX=""
 SHARDS="1"
@@ -138,6 +140,10 @@ while [[ $# -gt 0 ]]; do
             RESUME_MODE="$2"
             shift 2
             ;;
+        --project)
+            PROJECT_NAME="$2"
+            shift 2
+            ;;
         --projects)
             PROJECTS_CSV="$2"
             shift 2
@@ -197,6 +203,9 @@ if [[ -z "$COMMAND_NAME" ]]; then
 fi
 
 case "$COMMAND_NAME" in
+    history)
+        COMMAND_NAME="method-history"
+        ;;
     call-graph)
         COMMAND_NAME="method-callgraph"
         ;;
@@ -208,16 +217,15 @@ case "$COMMAND_NAME" in
         ;;
 esac
 
-if [[ -z "$PROJECTS_CSV" && -z "$PROJECT_INDEX" && "$COMMAND_NAME" != "index" ]]; then
-    echo "Error: one of --projects or --project-index is required."
-    usage
-    exit 1
+SELECTION_COUNT=0
+if [[ -n "$PROJECT_NAME" ]]; then
+    SELECTION_COUNT=$((SELECTION_COUNT + 1))
 fi
-
-if [[ -n "$PROJECTS_CSV" && -n "$PROJECT_INDEX" ]]; then
-    echo "Error: use either --projects or --project-index, not both."
-    usage
-    exit 1
+if [[ -n "$PROJECTS_CSV" ]]; then
+    SELECTION_COUNT=$((SELECTION_COUNT + 1))
+fi
+if [[ -n "$PROJECT_INDEX" ]]; then
+    SELECTION_COUNT=$((SELECTION_COUNT + 1))
 fi
 
 if ! [[ "$SHARDS" =~ ^[0-9]+$ ]] || [[ "$SHARDS" -le 0 ]]; then
@@ -226,8 +234,38 @@ if ! [[ "$SHARDS" =~ ^[0-9]+$ ]] || [[ "$SHARDS" -le 0 ]]; then
     exit 1
 fi
 
+if [[ "$SELECTION_COUNT" -eq 0 && "$COMMAND_NAME" != "index" && ! ( "$COMMAND_NAME" == "method-history" && "$SHARDS" -gt 1 ) ]]; then
+    echo "Error: one of --project, --projects, or --project-index is required."
+    usage
+    exit 1
+fi
+
+if [[ -n "$PROJECT_NAME" && -n "$PROJECTS_CSV" ]]; then
+    echo "Error: use either --project or --projects, not both."
+    usage
+    exit 1
+fi
+
+if [[ "$SHARDS" -eq 1 && -n "$PROJECT_INDEX" && ( -n "$PROJECT_NAME" || -n "$PROJECTS_CSV" ) ]]; then
+    echo "Error: use --project-index by itself unless --shards is greater than 1."
+    usage
+    exit 1
+fi
+
 if ! [[ "$MERGE_THRESHOLD" =~ ^-?[0-9]+$ ]]; then
     echo "Error: --merge-threshold must be an integer."
+    usage
+    exit 1
+fi
+
+if [[ "$SHARDS" -gt 1 && "$COMMAND_NAME" != "method-history" ]]; then
+    echo "Error: --shards greater than 1 is supported only for method-history."
+    usage
+    exit 1
+fi
+
+if [[ "$SHARDS" -gt 1 && -n "$PROJECT_INDEX" ]]; then
+    echo "Error: --project-index is derived from SLURM_ARRAY_TASK_ID in shard mode."
     usage
     exit 1
 fi
@@ -262,23 +300,14 @@ SHARD="1"
 
 if [[ "$COMMAND_NAME" != "index" ]]; then
     if [[ "$SHARDS" -gt 1 ]]; then
-        if [[ -z "$PROJECTS_CSV" ]]; then
-            echo "Error: shard mode currently requires --projects with exactly one project."
-            usage
-            exit 1
-        fi
-        IFS=',' read -r -a PROJECTS <<< "$PROJECTS_CSV"
-        if [[ ${#PROJECTS[@]} -ne 1 ]]; then
-            echo "Error: shard mode requires exactly one project in --projects."
-            usage
-            exit 1
-        fi
-        if [[ -z "${SLURM_ARRAY_TASK_ID:-}" || $SLURM_ARRAY_TASK_ID -le 0 || $SLURM_ARRAY_TASK_ID -gt "$SHARDS" ]]; then
+        if [[ -z "${SLURM_ARRAY_TASK_ID:-}" || ! "$SLURM_ARRAY_TASK_ID" =~ ^[0-9]+$ ]]; then
             echo "Invalid SLURM_ARRAY_TASK_ID for shard mode: ${SLURM_ARRAY_TASK_ID:-unset}"
             exit 1
         fi
-        PROJECT=${PROJECTS[0]}
-        SHARD="$SLURM_ARRAY_TASK_ID"
+        PROJECT_INDEX=$((SLURM_ARRAY_TASK_ID / SHARDS))
+        SHARD=$((SLURM_ARRAY_TASK_ID % SHARDS + 1))
+    elif [[ -n "$PROJECT_NAME" ]]; then
+        PROJECT="$PROJECT_NAME"
     elif [[ -n "$PROJECTS_CSV" ]]; then
         IFS=',' read -r -a PROJECTS <<< "$PROJECTS_CSV"
         if [[ -z "${SLURM_ARRAY_TASK_ID:-}" || $SLURM_ARRAY_TASK_ID -le 0 || $SLURM_ARRAY_TASK_ID -gt ${#PROJECTS[@]} ]]; then
@@ -350,21 +379,20 @@ else
     if [[ -n "$COMMAND_OPTIONS" ]]; then
         MHC_ARGS+=(--command-options "$COMMAND_OPTIONS")
     fi
-    if [[ "$COMMAND_NAME" == "history" ]]; then
+    if [[ "$COMMAND_NAME" == "method-history" ]]; then
         MHC_ARGS+=(--shards "$SHARDS" --shard "$SHARD")
         if [[ "$MERGE_ONLY" == "true" ]]; then
             MHC_ARGS+=(--merge-only)
         fi
     fi
-    if [[ -n "$PROJECTS_CSV" ]]; then
-        if [[ "$SHARDS" -gt 1 ]]; then
-            MHC_ARGS+=(--project "$PROJECT")
-        elif [[ -n "$PROJECT" ]]; then
-            MHC_ARGS+=(--project "$PROJECT")
-        else
-            MHC_ARGS+=(--projects "$PROJECTS_CSV")
-        fi
-    elif [[ -n "$PROJECT_INDEX" ]]; then
+    if [[ -n "$PROJECT_NAME" ]]; then
+        MHC_ARGS+=(--project "$PROJECT_NAME")
+    elif [[ -n "$PROJECT" ]]; then
+        MHC_ARGS+=(--project "$PROJECT")
+    elif [[ -n "$PROJECTS_CSV" ]]; then
+        MHC_ARGS+=(--projects "$PROJECTS_CSV")
+    fi
+    if [[ -n "$PROJECT_INDEX" ]]; then
         MHC_ARGS+=(--project-index "$PROJECT_INDEX")
     fi
 

@@ -43,7 +43,7 @@ cd method-parser && mvn clean install -DskipTests
 repository.csv
   → mhc method-scan        → data/method/{project}.csv
   → mhc method-callgraph   → data/callgraph/{project}.csv (fanin / callgraph)
-  → mhc history            → history/{tool}/{project}/ (.tar.gz archives)
+  → mhc method-history     → history/{tool}/{project}/ (.tar.gz archives)
   → mhc method-code        → data/method-code/{project}.csv
   → generator scripts      → data/fanin/, data/callgraph/   (candidate pairs)
   → generate_callgraph_degree → data/callgraph-degree/{project}.csv

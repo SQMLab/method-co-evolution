@@ -25,7 +25,7 @@ class TestMhcScript(unittest.TestCase):
 
         test_args = [
             "main.py",
-            "history",
+            "method-history",
             "--cache-directory",
             CACHE_DIRECTORY,
             "--repository-directory",
@@ -73,7 +73,7 @@ class TestMhcScript(unittest.TestCase):
         mock_build_collector.return_value.repository_df = pd.DataFrame([{"project": "checkstyle"}])
         test_args = [
             "main.py",
-            "history",
+            "method-history",
             "--cache-directory",
             CACHE_DIRECTORY,
             "--repository-directory",
@@ -159,7 +159,7 @@ class TestMhcScript(unittest.TestCase):
 
         test_args = [
             "main.py",
-            "history",
+            "method-history",
             "--cache-directory",
             CACHE_DIRECTORY,
             "--repository-directory",

@@ -22,7 +22,7 @@ All subcommands accept:
 
 ### Project selection
 
-Exactly one of the following must be provided:
+Provide one of the following selectors. `--project-index` may also be combined with `--project` or `--projects` to index within that explicit project set; this is useful when `scripts/job.sh` derives a project index for sharded array jobs.
 
 | Flag | Example | Effect |
 |------|---------|--------|
@@ -54,12 +54,12 @@ If `<cache-directory>/config/logback.xml` exists it is passed to the JVM automat
 
 ---
 
-### `mhc history`
+### `mhc method-history`
 
 Traces the change history of each method using a history tool (CodeShovel, HistoryFinder, or CodeTracker) and stores loose JSON files and `.tar.gz` archives under `<history-directory>/{tool}/{project}`. If `--history-directory` is omitted, MHC uses `ME_HISTORY_DIRECTORY`; if that environment variable is unset, it falls back to `<cache-directory>/history`.
 
 ```bash
-mhc history \
+mhc method-history \
     --cache-directory ".cache" \
     --history-directory "/scratch/method-history" \
     --repository-directory ".cache/repository" \
@@ -77,7 +77,7 @@ mhc history \
 Split work across parallel workers deterministically (hash-based, disjoint):
 
 ```bash
-mhc history ... --project "checkstyle" --shards 20 --shard 7
+mhc method-history ... --project "checkstyle" --shards 20 --shard 7
 ```
 
 #### Merging
@@ -85,9 +85,9 @@ mhc history ... --project "checkstyle" --shards 20 --shard 7
 Merge loose `.json` files into the `.tar.gz` archive without generating new history:
 
 ```bash
-mhc history ... --project "checkstyle" --merge-only
+mhc method-history ... --project "checkstyle" --merge-only
 # with cleanup:
-mhc history ... --project "checkstyle" --merge-only delete-empty delete-tmp delete-lock
+mhc method-history ... --project "checkstyle" --merge-only delete-empty delete-tmp delete-lock
 ```
 
 `delete-tmp` and `delete-lock` are safe only when no history worker is running for the same cache.

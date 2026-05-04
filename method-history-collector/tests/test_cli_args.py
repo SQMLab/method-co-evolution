@@ -110,7 +110,7 @@ class TestCliArgs(unittest.TestCase):
 
         mhc_main.main(
             [
-                "history",
+                "method-history",
                 "--cache-directory",
                 ".cache",
                 "--repository-directory",
@@ -148,13 +148,59 @@ class TestCliArgs(unittest.TestCase):
         )
 
     @patch("mhc.main._build_method_history_collector")
+    def test_history_project_index_can_filter_project_list(self, mock_build_collector):
+        mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame(
+            [{"project": "ant"}, {"project": "checkstyle"}, {"project": "commons-io"}]
+        )
+
+        mhc_main.main(
+            [
+                "method-history",
+                "--cache-directory",
+                ".cache",
+                "--repository-directory",
+                ".cache/repository",
+                "--data-directory",
+                ".cache/data",
+                "--jar-directory",
+                ".cache/jar",
+                "--tool-name",
+                "codeShovel",
+                "--projects",
+                "checkstyle,commons-io",
+                "--project-index",
+                "1",
+                "--shards",
+                "10",
+                "--shard",
+                "3",
+            ]
+        )
+
+        mock_mhc_instance.collect_method_history.assert_called_once_with(
+            ["commons-io"],
+            ["codeShovel"],
+            None,
+            None,
+            1800,
+            10,
+            3,
+            10000,
+            False,
+            False,
+            False,
+            False,
+        )
+
+    @patch("mhc.main._build_method_history_collector")
     def test_history_accepts_history_directory(self, mock_build_collector):
         mock_mhc_instance = mock_build_collector.return_value
         mock_mhc_instance.repository_df = pd.DataFrame([{"project": "checkstyle"}])
 
         mhc_main.main(
             [
-                "history",
+                "method-history",
                 "--cache-directory",
                 ".cache",
                 "--history-directory",
@@ -187,7 +233,7 @@ class TestCliArgs(unittest.TestCase):
 
         mhc_main.main(
             [
-                "history",
+                "method-history",
                 "--cache-directory",
                 ".cache",
                 "--repository-directory",
@@ -227,7 +273,7 @@ class TestCliArgs(unittest.TestCase):
 
         mhc_main.main(
             [
-                "history",
+                "method-history",
                 "--cache-directory",
                 ".cache",
                 "--repository-directory",
@@ -266,7 +312,7 @@ class TestCliArgs(unittest.TestCase):
 
         mhc_main.main(
             [
-                "history",
+                "method-history",
                 "--cache-directory",
                 ".cache",
                 "--repository-directory",
