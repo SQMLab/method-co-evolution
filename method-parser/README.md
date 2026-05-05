@@ -2,6 +2,21 @@
 
 Java 21 / Maven module that extracts methods and call graphs from Java source using JavaParser. Produces CSV datasets consumed by the `mhc` CLI.
 
+## Requirements
+
+- **Java 21** — the module is compiled with `--release 21`; other JDK versions are not supported
+- **Maven 3.6+** — used for dependency resolution and packaging
+
+On HPC/cluster environments (e.g. Slurm), load the required modules before building:
+
+```bash
+module load java/21.0.1
+module load maven
+mvn -version   # verify both are on PATH
+```
+
+On a local machine, install Java 21 and Maven through your package manager and confirm with `mvn -version`.
+
 ## Build
 
 ```bash
@@ -9,7 +24,7 @@ cd method-parser
 mvn clean install -DskipTests
 ```
 
-The fat JAR is written to `target/method-parser-*.jar`. The helper script builds and copies it to the cache in one step:
+The fat JAR is written to `target/method-parser-*.jar`. The helper script builds and copies it to the workspace JAR directory in one step:
 
 ```bash
 scripts/build-method-parser.sh   # copies JAR to <ME_WORKSPACE_DIRECTORY>/jar/
