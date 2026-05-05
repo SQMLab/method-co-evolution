@@ -228,9 +228,27 @@ class MethodHistoryCollector:
         )
         ca.run_complexity_analyzer()
 
-    def generate_method_code(self, repositories: list[str]):
+    def generate_method_code(
+        self,
+        repositories: list[str],
+        shards: int = 1,
+        shard: int = 1,
+        replace: bool = False,
+        merge_only: bool = False,
+        merge_only_delete_empty: bool = False,
+        merge_only_delete_tmp: bool = False,
+        merge_only_delete_lock: bool = False,
+    ):
         ms.generate_method_code(
             self.repository_df[self.repository_df["project"].isin(repositories)],
             self.repository_directory,
             self.data_directory,
+            self.cache_directory,
+            replace,
+            shards,
+            shard,
+            merge_only,
+            merge_only_delete_empty,
+            merge_only_delete_tmp,
+            merge_only_delete_lock,
         )

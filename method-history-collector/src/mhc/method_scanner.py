@@ -117,6 +117,17 @@ METHOD_CODE_COLUMNS = [
     "end_line",
     "code",
 ]
+METHOD_CODE_MARKER = "__scan_marker__"
+METHOD_CODE_ERROR_MARKER = "__error_marker__"
+METHOD_CODE_FLAG_COLUMN = "_flag"
+METHOD_CODE_ERROR_COLUMN = "_error"
+METHOD_CODE_KEY_COLUMN = "_key"
+METHOD_CODE_ERROR_MAX_LENGTH = 256
+METHOD_CODE_CACHE_COLUMNS = METHOD_CODE_COLUMNS + [
+    METHOD_CODE_KEY_COLUMN,
+    METHOD_CODE_FLAG_COLUMN,
+    METHOD_CODE_ERROR_COLUMN,
+]
 SCAN_METHOD_FLUSH_INTERVAL_SECONDS = 1 * 15 * 60
 METHOD_SCAN_MARKER = "__scan_marker__"
 METHOD_SCAN_ERROR_MARKER = "__error_marker__"
@@ -336,6 +347,155 @@ def _extract_method_code(repository_root: str, file_path: str, start_line, end_l
     return "".join(lines[start_index:end_index]).rstrip("\n")
 
 
+def _method_code_key(row) -> str:
+    url = row.get("url")
+    if pd.notna(url) and str(url):
+        return str(url)
+    return "::".join(
+        [
+            str(row.get("file") or ""),
+            str(row.get("name") or ""),
+            str(row.get("start_line") or ""),
+        ]
+    )
+
+
+def _read_method_code_cache(cache_file: str) -> pd.DataFrame:
+    if not os.path.exists(cache_file):
+        return pd.DataFrame(columns=METHOD_CODE_CACHE_COLUMNS)
+    try:
+        return pd.read_csv(cache_file, dtype=str).reindex(columns=METHOD_CODE_CACHE_COLUMNS)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=METHOD_CODE_CACHE_COLUMNS)
+
+
+def _completed_method_code_keys(cache_df: pd.DataFrame) -> set[str]:
+    if cache_df.empty:
+        return set()
+    rows = cache_df[cache_df[METHOD_CODE_FLAG_COLUMN] != METHOD_CODE_ERROR_MARKER]
+    return set(rows[METHOD_CODE_KEY_COLUMN].dropna().astype(str))
+
+
+def _tried_method_code_keys(cache_df: pd.DataFrame) -> set[str]:
+    if cache_df.empty:
+        return set()
+    return set(cache_df[METHOD_CODE_KEY_COLUMN].dropna().astype(str))
+
+
+def _failed_method_code_keys(cache_df: pd.DataFrame) -> set[str]:
+    if cache_df.empty:
+        return set()
+    completed_keys = _completed_method_code_keys(cache_df)
+    error_keys = set(
+        cache_df.loc[
+            cache_df[METHOD_CODE_FLAG_COLUMN] == METHOD_CODE_ERROR_MARKER,
+            METHOD_CODE_KEY_COLUMN,
+        ].dropna().astype(str)
+    )
+    return error_keys - completed_keys
+
+
+def _load_cached_method_code_keys(cache_file: str) -> set[str]:
+    if not os.path.exists(cache_file):
+        return set()
+    return _completed_method_code_keys(_read_method_code_cache(cache_file))
+
+
+def _is_method_code_key_completed(cache_file: str, lock_path: str, key: str) -> bool:
+    with file_lock(lock_path):
+        return key in _completed_method_code_keys(_read_method_code_cache(cache_file))
+
+
+def _method_code_cache_row(method_row, repository_root: str, key: str) -> dict:
+    row = {
+        column: method_row.get(column)
+        for column in METHOD_CODE_COLUMNS
+        if column != "code"
+    }
+    row["code"] = _extract_method_code(
+        repository_root,
+        method_row.get("file"),
+        method_row.get("start_line"),
+        method_row.get("end_line"),
+    )
+    row[METHOD_CODE_KEY_COLUMN] = key
+    row[METHOD_CODE_FLAG_COLUMN] = None
+    row[METHOD_CODE_ERROR_COLUMN] = None
+    return row
+
+
+def _method_code_error_row(method_row, key: str, error: Exception | str | None = None) -> dict:
+    row = {
+        column: method_row.get(column)
+        for column in METHOD_CODE_COLUMNS
+        if column != "code"
+    }
+    row["code"] = None
+    row[METHOD_CODE_KEY_COLUMN] = key
+    row[METHOD_CODE_FLAG_COLUMN] = METHOD_CODE_ERROR_MARKER
+    row[METHOD_CODE_ERROR_COLUMN] = str(error)[:METHOD_CODE_ERROR_MAX_LENGTH] if error is not None else None
+    return row
+
+
+def _flush_method_code_buffers(cache_file: str, lock_path: str, pending_rows: list[dict]) -> None:
+    if not pending_rows:
+        return
+    rows_copy = list(pending_rows)
+    pending_rows.clear()
+    with file_lock(lock_path):
+        completed_keys = _completed_method_code_keys(_read_method_code_cache(cache_file))
+        rows_copy = [
+            row for row in rows_copy
+            if row.get(METHOD_CODE_KEY_COLUMN) not in completed_keys
+        ]
+        _append_dataframe_csv(cache_file, rows_copy, METHOD_CODE_CACHE_COLUMNS)
+
+
+def _finalize_method_code_outputs(
+    cache_file: str,
+    output_file: str,
+    error_output_file: str,
+    expected_keys: set[str],
+    lock_path: str | None = None,
+    delete_tmp: bool = True,
+    delete_lock: bool = True,
+) -> bool:
+    context = file_lock(lock_path) if lock_path else nullcontext()
+    with context:
+        cache_df = _read_method_code_cache(cache_file)
+        missing_keys = expected_keys - _tried_method_code_keys(cache_df)
+        if missing_keys:
+            logging.info(
+                "Skipping method-code merge for %s; %s methods have not been tried",
+                Path(output_file).stem,
+                len(missing_keys),
+            )
+            return False
+
+        failed_keys = _failed_method_code_keys(cache_df)
+        error_rows = cache_df[cache_df[METHOD_CODE_KEY_COLUMN].isin(failed_keys)].copy()
+        output_df = cache_df[cache_df[METHOD_CODE_FLAG_COLUMN].isna()].copy()
+        output_df = util.convert_float_int_columns_to_nullable_int(output_df)
+        _write_dataframe_csv(output_file, output_df, METHOD_CODE_COLUMNS)
+
+        if not error_rows.empty:
+            error_rows[METHOD_CODE_ERROR_COLUMN] = error_rows[METHOD_CODE_ERROR_COLUMN].apply(
+                lambda value: str(value)[:METHOD_CODE_ERROR_MAX_LENGTH] if pd.notna(value) else value
+            )
+            _write_dataframe_csv(error_output_file, error_rows, METHOD_CODE_CACHE_COLUMNS)
+        elif os.path.exists(error_output_file):
+            os.remove(error_output_file)
+
+        if delete_tmp:
+            remove_file_if_exists(cache_file)
+            remove_file_if_exists(f"{cache_file}.tmp")
+            remove_file_if_exists(f"{output_file}.tmp")
+            remove_file_if_exists(f"{error_output_file}.tmp")
+    if delete_lock and lock_path:
+        remove_file_if_exists(lock_path)
+    return True
+
+
 def _read_source_file_text(source_file_path: str) -> str | None:
     try:
         with open(source_file_path, "r", encoding="utf-8") as source_file:
@@ -356,8 +516,18 @@ def generate_method_code(
     repository_df: DataFrame,
     repository_directory: str,
     data_directory: str,
+    cache_directory: str | None = None,
+    replace: bool = False,
+    shards: int = 1,
+    shard: int = 1,
+    merge_only: bool = False,
+    merge_only_delete_empty: bool = False,
+    merge_only_delete_tmp: bool = False,
+    merge_only_delete_lock: bool = False,
 ) -> list[str]:
     output_files = []
+    if cache_directory is None:
+        cache_directory = data_directory
 
     for _, repository in repository_df.iterrows():
         repository_name = repository["project"]
@@ -366,11 +536,20 @@ def generate_method_code(
         repository_root = util.format_git_project_directory(repository_directory, repository_name)
         input_file = util.format_method_list_file(data_directory, repository_name)
         output_file = util.format_method_code_file(data_directory, repository_name)
+        cache_dir = os.path.join(cache_directory, "data", ".method-code")
+        cache_file = os.path.join(cache_dir, f"{repository_name}.csv")
+        lock_path = os.path.join(cache_dir, f"{repository_name}.lock")
+        error_dir = os.path.join(cache_directory, "data", ".method-code-error")
+        error_output_file = os.path.join(error_dir, f"{repository_name}.csv")
 
-        clone_and_checkout_commit(repository_url, repository_root, commit_hash)
+        if replace:
+            for existing_file in (output_file, cache_file, error_output_file):
+                remove_file_if_exists(existing_file)
+        elif not merge_only and shards == 1 and os.path.exists(output_file) and not os.path.exists(cache_file):
+            output_files.append(output_file)
+            continue
 
         method_df = pd.read_csv(input_file)
-
         missing_columns = [
             column for column in METHOD_CODE_COLUMNS if column != "code" and column not in method_df.columns
         ]
@@ -379,18 +558,65 @@ def generate_method_code(
                 f"Missing required columns in {input_file}: {', '.join(missing_columns)}"
             )
 
-        output_df = method_df[[column for column in METHOD_CODE_COLUMNS if column != "code"]].copy()
-        output_df["code"] = method_df.apply(
-            lambda row: _extract_method_code(
-                repository_root,
-                row.get("file"),
-                row.get("start_line"),
-                row.get("end_line"),
-            ),
-            axis=1,
-        )
-        output_df = util.convert_float_int_columns_to_nullable_int(output_df)
-        _write_dataframe_csv(output_file, output_df, METHOD_CODE_COLUMNS)
+        expected_keys = {
+            _method_code_key(row)
+            for _, row in method_df.iterrows()
+        }
+
+        if merge_only:
+            merged = _finalize_method_code_outputs(
+                cache_file,
+                output_file,
+                error_output_file,
+                expected_keys,
+                lock_path,
+                True,
+                True,
+            )
+            if merged and merge_only_delete_empty:
+                remove_empty_directory_tree(cache_dir)
+                remove_empty_directory_tree(error_dir)
+            if merged:
+                output_files.append(output_file)
+            continue
+
+        clone_and_checkout_commit(repository_url, repository_root, commit_hash)
+        os.makedirs(cache_dir, exist_ok=True)
+
+        cached_keys = _load_cached_method_code_keys(cache_file)
+        pending_rows: list[dict] = []
+        last_flush = time.monotonic()
+
+        for _, method_row in method_df.iterrows():
+            key = _method_code_key(method_row)
+            if util.stable_shard_for_key(key, shards) != shard:
+                continue
+            if key in cached_keys:
+                continue
+            if _is_method_code_key_completed(cache_file, lock_path, key):
+                cached_keys.add(key)
+                continue
+
+            try:
+                pending_rows.append(_method_code_cache_row(method_row, repository_root, key))
+            except Exception as error:
+                pending_rows.append(_method_code_error_row(method_row, key, error))
+
+            if time.monotonic() - last_flush >= SCAN_METHOD_FLUSH_INTERVAL_SECONDS:
+                _flush_method_code_buffers(cache_file, lock_path, pending_rows)
+                cached_keys = _load_cached_method_code_keys(cache_file)
+                last_flush = time.monotonic()
+
+        _flush_method_code_buffers(cache_file, lock_path, pending_rows)
+
+        if shards == 1:
+            _finalize_method_code_outputs(
+                cache_file,
+                output_file,
+                error_output_file,
+                expected_keys,
+                lock_path,
+            )
         output_files.append(output_file)
 
     return output_files

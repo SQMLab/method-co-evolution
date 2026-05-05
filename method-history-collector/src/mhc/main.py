@@ -224,7 +224,7 @@ def main(argv: list[str] | None = None):
         dest="shards",
         type=int,
         default=1,
-        help="Total number of method-history, method-scan, class-scan, or method-callgraph shards to split work into (default: 1).",
+        help="Total number of method-history, method-scan, class-scan, method-code, or method-callgraph shards to split work into (default: 1).",
     )
     parser.add_argument(
         "--shard",
@@ -343,7 +343,16 @@ def main(argv: list[str] | None = None):
             "delete-lock" in (args.merge_only or []),
         )
     elif command == "method-code":
-        mhc.generate_method_code(resolve_selected_projects())
+        mhc.generate_method_code(
+            resolve_selected_projects(),
+            args.shards,
+            args.shard,
+            args.replace,
+            args.merge_only is not None,
+            "delete-empty" in (args.merge_only or []),
+            "delete-tmp" in (args.merge_only or []),
+            "delete-lock" in (args.merge_only or []),
+        )
     elif command == "index":
         mhc.update_repository_index()
     elif command == "complexity-analyzer":
