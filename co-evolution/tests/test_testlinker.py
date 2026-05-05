@@ -97,7 +97,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = Path(tmpdir)
             data_dir = cache_dir / "data"
-            (data_dir / "t2p-candidate").mkdir(parents=True)
+            (data_dir / "t2p-candidate-filtered").mkdir(parents=True)
             (data_dir / "method-code").mkdir(parents=True)
             pd.DataFrame(
                 [
@@ -122,7 +122,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
-            ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)
+            ).to_csv(data_dir / "t2p-candidate-filtered" / "demo.csv", index=False)
             pd.DataFrame(
                 [
                     {
@@ -219,7 +219,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
             cache_dir = Path(tmpdir)
             data_dir = cache_dir / "data"
             author_result_dir = cache_dir / "testlinker"
-            (data_dir / "t2p-candidate").mkdir(parents=True)
+            (data_dir / "t2p-candidate-filtered").mkdir(parents=True)
             (data_dir / "method-code").mkdir(parents=True)
             author_result_dir.mkdir(parents=True)
             pd.DataFrame(
@@ -245,7 +245,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
-            ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)
+            ).to_csv(data_dir / "t2p-candidate-filtered" / "demo.csv", index=False)
             pd.DataFrame(
                 [
                     {
@@ -278,7 +278,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
             cache_dir = Path(tmpdir)
             data_dir = cache_dir / "data"
             testlinker_dir = cache_dir / "testlinker"
-            (data_dir / "t2p-candidate").mkdir(parents=True)
+            (data_dir / "t2p-candidate-filtered").mkdir(parents=True)
             (data_dir / "method-code").mkdir(parents=True)
             (data_dir / "t2p-ground-truth-updated").mkdir(parents=True)
             pd.DataFrame(
@@ -306,7 +306,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
-            ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)
+            ).to_csv(data_dir / "t2p-candidate-filtered" / "demo.csv", index=False)
             pd.DataFrame(
                 [
                     {
@@ -341,7 +341,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = Path(tmpdir)
             data_dir = cache_dir / "data"
-            (data_dir / "t2p-candidate").mkdir(parents=True)
+            (data_dir / "t2p-candidate-filtered").mkdir(parents=True)
             (data_dir / "method-code").mkdir(parents=True)
             pd.DataFrame(
                 [
@@ -366,7 +366,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "to_tctracer_fqs": "demo.A.format(int)",
                     },
                 ]
-            ).to_csv(data_dir / "t2p-candidate" / "demo.csv", index=False)
+            ).to_csv(data_dir / "t2p-candidate-filtered" / "demo.csv", index=False)
             pd.DataFrame(
                 [
                     {

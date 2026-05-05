@@ -14,18 +14,14 @@ from pytctracer.techniques.tfidf import TFIDF
 import mhc.util as util
 from mhc.config import *
 from ptc.experiment_util import build_experiment_parser, resolve_experiment_filters, select_named_items
-from ptc.link_strategy import LinkStrategy, STRATEGY_KEYS
+from ptc.link_strategy import STRATEGY_KEYS
 
 # ---------------------------
 # Config
 # ---------------------------
 
-MAX_EXPANSION_DEPTH = 5
-
-FANOUT_DIR = f"{DATA_DIRECTORY}/callgraph"
-METHOD_DIR = f"{DATA_DIRECTORY}/method"
-T2P_CANDIDATE_DIR = f"{DATA_DIRECTORY}/t2p-candidate"
-OUTPUT_DIR = f"{DATA_DIRECTORY}/m2m-tech"
+T2P_CANDIDATE_DIR = f"{DATA_DIRECTORY}/t2p-candidate-filtered"
+OUTPUT_DIR = f"{DATA_DIRECTORY}/t2p-tech"
 LLM_PREDICTION_DIR = Path(WORKSPACE_DIRECTORY) / "data" / "llm" / "t2p-link"
 TESTLINKER_PREDICTION_DIR = Path(WORKSPACE_DIRECTORY) / "data" / "testlinker" / "t2p-link" / "codet5"
 
@@ -56,7 +52,7 @@ def llm_strategy_directory_names() -> list[str]:
 
 def build_parser():
     return build_experiment_parser(
-        "Generate method-to-method technique scores.",
+        "Generate test-to-production technique scores.",
         include_tools=False,
         include_strategies=False,
         projects_help="Comma-separated project names to process.",
@@ -296,7 +292,6 @@ def main(argv: list[str] | None = None) -> None:
         commit_hash = repo["updated_hash"]
 
         t2p_candidate_file = f"{T2P_CANDIDATE_DIR}/{project}.csv"
-        method_file = f"{METHOD_DIR}/{project}.csv"
 
         if os.path.exists(t2p_candidate_file):
             print("Processing:", project)

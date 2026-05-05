@@ -244,7 +244,7 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertEqual(
             [
                 "t2p-link/ncc",
-                "m2m-tech",
+                "t2p-tech",
                 "t2p-link/gpt-oss-120b",
                 "t2p-link/gpt-oss-20b",
                 "t2p-link/lc",
@@ -257,7 +257,7 @@ class TestHistoryViewer(unittest.TestCase):
                 "t2p-link/omc--nc--ncc--lcba",
                 "t2p-link/omc--nc--ncc--max",
                 "t2p-link/qwen-2d5b",
-                "t2p-candidate",
+                "t2p-candidate-filtered",
                 "callgraph",
             ],
             options,

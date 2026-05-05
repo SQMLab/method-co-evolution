@@ -477,7 +477,7 @@ class HistoryRepository:
 
     def related_source_options(self, *, tool: str, sample_csv: str) -> list[str]:
         options: list[str] = []
-        for preferred_option in ("t2p-link/ncc", "m2m-tech"):
+        for preferred_option in ("t2p-link/ncc", "t2p-tech"):
             if preferred_option in self._available_source_options():
                 options.append(preferred_option)
         options.extend(
@@ -607,7 +607,7 @@ class HistoryRepository:
                 continue
             candidates.append((csv_file, self._source_label(csv_file)))
 
-        for root_name in ("t2p-candidate", "m2m-tech", "callgraph"):
+        for root_name in ("t2p-candidate-filtered", "t2p-tech", "callgraph"):
             csv_file = data_directory / root_name / f"{project}.csv"
             candidates.append((csv_file, self._source_label(csv_file)))
 
@@ -724,8 +724,8 @@ class HistoryRepository:
     def _available_source_options(self) -> list[str]:
         return [
             *self._t2p_link_options(),
-            "t2p-candidate",
-            "m2m-tech",
+            "t2p-candidate-filtered",
+            "t2p-tech",
             "callgraph",
         ]
 

@@ -1,7 +1,7 @@
 # TestLinker Integration
 
 This module runs TestLinker as a project technique and writes predictions that
-`generate_m2m_tech.py` can merge as `tech_testlinker`.
+`generate_t2p_tech.py` can merge as `tech_testlinker`.
 
 ## Install
 
@@ -21,7 +21,7 @@ versions.
 Before running TestLinker, generate the normal project artifacts:
 
 ```text
-WORKSPACE_DIRECTORY/data/t2p-candidate/<project>.csv
+WORKSPACE_DIRECTORY/data/t2p-candidate-filtered/<project>.csv
 WORKSPACE_DIRECTORY/data/method-code/<project>.csv
 ```
 
@@ -289,7 +289,7 @@ project,from_name,to_name,label,testlinker_symbolsolver,from_url,to_url
 resolves to `to_url` according to our JavaParser symbol-solver method index
 (`data/method/<project>.csv`).
 
-`generate_m2m_tech.py` merges the `testlinker-original` output by
+`generate_t2p_tech.py` merges the `testlinker-original` output by
 `from_url,to_url` and creates:
 
 ```text

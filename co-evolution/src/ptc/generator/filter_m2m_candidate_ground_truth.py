@@ -6,7 +6,7 @@ from mhc.config import DATA_DIRECTORY, PROJECT_DIRECTORY
 from ptc.experiment_util import build_experiment_parser, list_csv_files, resolve_experiment_filters
 
 
-T2P_CANDIDATE_DIR = Path(DATA_DIRECTORY) / "t2p-candidate"
+T2P_CANDIDATE_DIR = Path(DATA_DIRECTORY) / "t2p-candidate-filtered"
 GROUND_TRUTH_DIR = Path(PROJECT_DIRECTORY) / "data" / "ground-truth" / "testlinker-t2p-ground-truth"
 
 

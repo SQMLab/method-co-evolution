@@ -24,7 +24,7 @@ class TestLlmMainHelpers(unittest.TestCase):
         input_file = resolve_input_file(str(TEST_WORKSPACE_DIRECTORY), "commons-io", "t2p")
 
         self.assertEqual(
-            TEST_WORKSPACE_DIRECTORY / "data" / "t2p-candidate" / "commons-io.csv",
+            TEST_WORKSPACE_DIRECTORY / "data" / "t2p-candidate-filtered" / "commons-io.csv",
             input_file,
         )
 

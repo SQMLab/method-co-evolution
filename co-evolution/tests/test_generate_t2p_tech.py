@@ -12,7 +12,7 @@ try:
 except ImportError:  # pragma: no cover - local shell may not have pandas installed
     pd = None
 
-from ptc.generator.generate_m2m_tech import (
+from ptc.generator.generate_t2p_tech import (
     apply_llm_techniques,
     apply_testlinker_technique,
     apply_traceability_techniques,
@@ -20,7 +20,7 @@ from ptc.generator.generate_m2m_tech import (
 )
 
 
-@unittest.skipIf(pd is None, "pandas is required for generate_m2m_tech tests")
+@unittest.skipIf(pd is None, "pandas is required for generate_t2p_tech tests")
 class TestApplyLlmTechniques(unittest.TestCase):
     def test_traceability_techniques_score_all_pairs_in_batch(self):
         candidate_df = pd.DataFrame(

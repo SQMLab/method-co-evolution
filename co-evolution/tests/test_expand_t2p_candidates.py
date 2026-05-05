@@ -1,0 +1,85 @@
+from pathlib import Path
+import sys
+import unittest
+
+SRC_DIRECTORY = Path(__file__).resolve().parents[1] / "src"
+if str(SRC_DIRECTORY) not in sys.path:
+    sys.path.insert(0, str(SRC_DIRECTORY))
+
+try:
+    import pandas as pd
+except ImportError:  # pragma: no cover - local shell may not have pandas installed
+    pd = None
+
+from ptc.generator.expand_t2p_candidate import expand_candidate_df
+
+
+@unittest.skipIf(pd is None, "pandas is required for expand candidate tests")
+class TestExpandT2PCandidates(unittest.TestCase):
+    def test_direct_call_depth_is_one(self):
+        fan_out_df = pd.DataFrame(
+            [
+                {
+                    "project": "demo",
+                    "from_url": "test://A.testCopy",
+                    "from_name": "testCopy",
+                    "to_url": "prod://A.copy",
+                    "to_name": "copy",
+                    "to_call_depth": "",
+                }
+            ]
+        )
+        method_df = pd.DataFrame(
+            [
+                {"url": "test://A.testCopy", "artifact": "test"},
+                {"url": "prod://A.copy", "artifact": "production"},
+            ]
+        )
+
+        expanded_df = expand_candidate_df(fan_out_df, method_df)
+
+        self.assertEqual(1, len(expanded_df))
+        self.assertEqual(1, expanded_df.loc[0, "to_call_depth"])
+
+    def test_test_helper_call_expands_to_production_with_depth(self):
+        fan_out_df = pd.DataFrame(
+            [
+                {
+                    "project": "demo",
+                    "from_url": "test://A.testCopy",
+                    "from_name": "testCopy",
+                    "to_url": "test-util://A.helper",
+                    "to_name": "helper",
+                    "to_call_depth": "",
+                    "to_caller_url": "",
+                },
+                {
+                    "project": "demo",
+                    "from_url": "test-util://A.helper",
+                    "from_name": "helper",
+                    "to_url": "prod://A.copy",
+                    "to_name": "copy",
+                    "to_call_depth": "",
+                    "to_caller_url": "",
+                },
+            ]
+        )
+        method_df = pd.DataFrame(
+            [
+                {"url": "test://A.testCopy", "artifact": "test"},
+                {"url": "test-util://A.helper", "artifact": "test_util"},
+                {"url": "prod://A.copy", "artifact": "production"},
+            ]
+        )
+
+        expanded_df = expand_candidate_df(fan_out_df, method_df)
+
+        test_rows = expanded_df[expanded_df["from_url"] == "test://A.testCopy"].reset_index(drop=True)
+        self.assertEqual(1, len(test_rows))
+        self.assertEqual("prod://A.copy", test_rows.loc[0, "to_url"])
+        self.assertEqual(2, test_rows.loc[0, "to_call_depth"])
+        self.assertEqual("test-util://A.helper", test_rows.loc[0, "to_caller_url"])
+
+
+if __name__ == "__main__":
+    unittest.main()

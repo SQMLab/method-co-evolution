@@ -176,7 +176,7 @@ def preprocess_project(
         input_df = pd.read_csv(output_file, keep_default_na=False, na_filter=False)
     else:
         generate_mapping_files(workspace_directory, project, testlinker_directory, project_directory)
-        candidate_file = workspace_root / "data" / "t2p-candidate" / f"{project}.csv"
+        candidate_file = workspace_root / "data" / "t2p-candidate-filtered" / f"{project}.csv"
         if not candidate_file.exists():
             raise FileNotFoundError(f"Candidate file not found: {candidate_file}")
 
