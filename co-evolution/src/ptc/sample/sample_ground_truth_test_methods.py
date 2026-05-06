@@ -23,6 +23,7 @@ GROUND_TRUTH_COLUMNS = [
     "to_testlinker_fqs",
     "to_call_depth",
     "label",
+    "note",
 ]
 
 # Mapping from callgraph columns to ground truth columns
