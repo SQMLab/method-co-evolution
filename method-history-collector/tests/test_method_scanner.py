@@ -104,6 +104,29 @@ class FakeMethodScannerImpl:
 
 
 class MethodScannerCacheTestCase(unittest.TestCase):
+    def test_error_markers_can_be_treated_as_completed_when_retry_disabled(self):
+        cache_df = pd.DataFrame(
+            [
+                ms._build_scan_error_row(
+                    "demo-project",
+                    "src/Broken.java",
+                    "abc123",
+                    "parse failed",
+                ),
+                ms._build_scan_marker_row("demo-project", "src/Done.java", "abc123"),
+            ],
+            columns=ms.METHOD_SCAN_CACHE_COLUMNS,
+        )
+
+        self.assertEqual(
+            {"src/Done.java"},
+            ms._completed_method_scan_files(cache_df),
+        )
+        self.assertEqual(
+            {"src/Broken.java", "src/Done.java"},
+            ms._completed_method_scan_files(cache_df, retry_errors=False),
+        )
+
     def _repository_df(self) -> pd.DataFrame:
         return pd.DataFrame(
             [

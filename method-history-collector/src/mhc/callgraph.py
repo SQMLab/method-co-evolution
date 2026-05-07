@@ -67,19 +67,27 @@ def _collect_java_files(repository_path: str) -> list[str]:
     return sorted(map(os.fspath, Path(repository_path).rglob("*.java")))
 
 
-def _load_cached_callgraph_files(cache_file: str) -> set[str]:
+def _load_cached_callgraph_files(cache_file: str, retry_errors: bool = True) -> set[str]:
     if not os.path.exists(cache_file):
         return set()
     try:
         df = _read_callgraph_cache(cache_file)
-        return _completed_callgraph_files(df)
+        return _completed_callgraph_files(df, retry_errors)
     except (ValueError, pd.errors.EmptyDataError):
         return set()
 
 
-def _is_callgraph_file_completed(cache_file: str, lock_path: str, file_without_base: str) -> bool:
+def _is_callgraph_file_completed(
+    cache_file: str,
+    lock_path: str,
+    file_without_base: str,
+    retry_errors: bool = True,
+) -> bool:
     with file_lock(lock_path):
-        return file_without_base in _completed_callgraph_files(_read_callgraph_cache(cache_file))
+        return file_without_base in _completed_callgraph_files(
+            _read_callgraph_cache(cache_file),
+            retry_errors,
+        )
 
 
 def _read_callgraph_cache(cache_file: str) -> pd.DataFrame:
@@ -91,10 +99,12 @@ def _read_callgraph_cache(cache_file: str) -> pd.DataFrame:
         return pd.DataFrame(columns=CALLGRAPH_CACHE_COLUMNS)
 
 
-def _completed_callgraph_files(df: pd.DataFrame) -> set[str]:
+def _completed_callgraph_files(df: pd.DataFrame, retry_errors: bool = True) -> set[str]:
     if df.empty:
         return set()
-    rows = df[df[CALLGRAPH_FLAG_COLUMN] != CALLGRAPH_ERROR_MARKER]
+    rows = df
+    if retry_errors:
+        rows = df[df[CALLGRAPH_FLAG_COLUMN] != CALLGRAPH_ERROR_MARKER]
     return set(rows["from_file"].dropna())
 
 
@@ -188,13 +198,21 @@ def _method_call_to_rows(mc, repository_name: str, commit_hash: str) -> list[dic
     return rows
 
 
-def _flush_callgraph(cache_file: str, lock_path: str, pending_rows: list[dict]) -> None:
+def _flush_callgraph(
+    cache_file: str,
+    lock_path: str,
+    pending_rows: list[dict],
+    retry_errors: bool = True,
+) -> None:
     if not pending_rows:
         return
     rows_copy = list(pending_rows)
     pending_rows.clear()
     with file_lock(lock_path):
-        completed_files = _completed_callgraph_files(_read_callgraph_cache(cache_file))
+        completed_files = _completed_callgraph_files(
+            _read_callgraph_cache(cache_file),
+            retry_errors,
+        )
         rows_copy = [
             row for row in rows_copy
             if row.get("from_file") not in completed_files
@@ -300,6 +318,7 @@ def execute_callgraph_per_file(
     merge_only_delete_empty: bool = False,
     merge_only_delete_tmp: bool = False,
     merge_only_delete_lock: bool = False,
+    retry_errors: bool = True,
 ) -> None:
     CallGraphServiceImpl = None
     if not merge_only:
@@ -364,7 +383,7 @@ def execute_callgraph_per_file(
         scanner = CallGraphServiceImpl.getInstance()
         scanner.init(url, repository_path, commit_hash, method_mapping_file)
 
-        cached_files = _load_cached_callgraph_files(cache_file)
+        cached_files = _load_cached_callgraph_files(cache_file, retry_errors)
 
         last_flush_time = time.monotonic()
         pending_rows: list[dict] = []
@@ -375,7 +394,7 @@ def execute_callgraph_per_file(
                 continue
             if file_without_base in cached_files:
                 continue
-            if _is_callgraph_file_completed(cache_file, lock_path, file_without_base):
+            if _is_callgraph_file_completed(cache_file, lock_path, file_without_base, retry_errors):
                 cached_files.add(file_without_base)
                 continue
 
@@ -389,11 +408,11 @@ def execute_callgraph_per_file(
                 pending_rows.append(_build_callgraph_error_marker(file_without_base, e))
 
             if time.monotonic() - last_flush_time >= CALLGRAPH_FLUSH_INTERVAL_SECONDS:
-                _flush_callgraph(cache_file, lock_path, pending_rows)
-                cached_files = _load_cached_callgraph_files(cache_file)
+                _flush_callgraph(cache_file, lock_path, pending_rows, retry_errors)
+                cached_files = _load_cached_callgraph_files(cache_file, retry_errors)
                 last_flush_time = time.monotonic()
 
-        _flush_callgraph(cache_file, lock_path, pending_rows)
+        _flush_callgraph(cache_file, lock_path, pending_rows, retry_errors)
         if shards == 1:
             _finalize_callgraph(
                 cache_file,

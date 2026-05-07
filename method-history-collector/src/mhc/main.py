@@ -22,7 +22,20 @@ _KNOWN_OPTION_FLAGS = {
     "--project-index",
     "--shards",
     "--shard",
+    "--replace",
+    "--retry-errors",
 }
+
+
+def _parse_bool(value: str | bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "t", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "f", "no", "n", "off"}:
+        return False
+    raise argparse.ArgumentTypeError("expected a boolean value: true or false")
 
 
 def _normalize_dash_prefixed_option_values(argv: list[str]) -> list[str]:
@@ -239,6 +252,15 @@ def main(argv: list[str] | None = None):
         action="store_true",
         help="Regenerate outputs even when existing output/cache files are present. Supported by method-scan and method-callgraph.",
     )
+    parser.add_argument(
+        "--retry-errors",
+        dest="retry_errors",
+        nargs="?",
+        const=True,
+        default=True,
+        type=_parse_bool,
+        help="Retry rows/files previously marked with __error_marker__ (default: true). Use '--retry-errors false' to skip them.",
+    )
 
     normalized_argv = _normalize_dash_prefixed_option_values(
         list(sys.argv[1:] if argv is None else argv)
@@ -317,6 +339,7 @@ def main(argv: list[str] | None = None):
             "delete-empty" in (args.merge_only or []),
             "delete-tmp" in (args.merge_only or []),
             "delete-lock" in (args.merge_only or []),
+            args.retry_errors,
         )
     elif command in ("class-scan", "scan-class"):
         mhc.scan_class(
@@ -329,6 +352,7 @@ def main(argv: list[str] | None = None):
             "delete-empty" in (args.merge_only or []),
             "delete-tmp" in (args.merge_only or []),
             "delete-lock" in (args.merge_only or []),
+            args.retry_errors,
         )
     elif command in ("method-scan", "scan-method"):
         mhc.scan_method(
@@ -341,6 +365,7 @@ def main(argv: list[str] | None = None):
             "delete-empty" in (args.merge_only or []),
             "delete-tmp" in (args.merge_only or []),
             "delete-lock" in (args.merge_only or []),
+            args.retry_errors,
         )
     elif command == "method-code":
         mhc.generate_method_code(
@@ -352,6 +377,7 @@ def main(argv: list[str] | None = None):
             "delete-empty" in (args.merge_only or []),
             "delete-tmp" in (args.merge_only or []),
             "delete-lock" in (args.merge_only or []),
+            args.retry_errors,
         )
     elif command == "index":
         mhc.update_repository_index()

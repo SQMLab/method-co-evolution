@@ -16,6 +16,31 @@ import mhc.util as util
 
 
 class MethodCodeGenerationTestCase(unittest.TestCase):
+    def test_error_markers_can_be_treated_as_completed_when_retry_disabled(self):
+        cache_df = pd.DataFrame(
+            [
+                {
+                    **{col: None for col in ms.METHOD_CODE_CACHE_COLUMNS},
+                    ms.METHOD_CODE_KEY_COLUMN: "broken-url",
+                    ms.METHOD_CODE_FLAG_COLUMN: ms.METHOD_CODE_ERROR_MARKER,
+                },
+                {
+                    **{col: None for col in ms.METHOD_CODE_CACHE_COLUMNS},
+                    ms.METHOD_CODE_KEY_COLUMN: "ok-url",
+                },
+            ],
+            columns=ms.METHOD_CODE_CACHE_COLUMNS,
+        )
+
+        self.assertEqual(
+            {"ok-url"},
+            ms._completed_method_code_keys(cache_df),
+        )
+        self.assertEqual(
+            {"broken-url", "ok-url"},
+            ms._completed_method_code_keys(cache_df, retry_errors=False),
+        )
+
     def test_generate_method_code_extracts_code_from_checked_out_repository(self):
         with tempfile.TemporaryDirectory() as temp_directory:
             root = Path(temp_directory)
@@ -207,6 +232,7 @@ class MethodCodeGenerationTestCase(unittest.TestCase):
             False,
             False,
             False,
+            True,
         )
 
     @patch("mhc.main.MethodHistoryCollector")

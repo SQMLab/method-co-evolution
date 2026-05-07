@@ -67,6 +67,8 @@ For method-scan sharding, use `--command method-scan --shards N`; after shard jo
 For class-scan sharding, use `--command class-scan --shards N`; after shard jobs finish, run `class-scan --merge-only` with the same project selection to write the final class CSVs.
 For method-code sharding, use `--command method-code --shards N`; after shard jobs finish, run `method-code --merge-only` with the same project selection to write the final method-code CSVs.
 
+By default, scan/cache commands retry files or methods that previously produced `__error_marker__` rows. Pass `--retry-errors false` to `method-scan`, `class-scan`, `method-code`, or `method-callgraph` jobs when you want those prior errors to be treated as already attempted and skipped.
+
 The job index is treated as a flattened project/shard coordinate:
 
 ```text
@@ -120,6 +122,7 @@ sbatch --array=1-2 scripts/job.sh \
 | `--timeout-seconds` | `1800` | Per-method history timeout |
 | `--merge-threshold` | `10000` | History JSON merge threshold |
 | `--merge-only` | off | Merge without running history tools |
+| `--retry-errors` | `true` | Retry previous `__error_marker__` rows for `method-scan`, `class-scan`, `method-code`, and `method-callgraph`; set to `false` to skip them |
 | `--stage` | `execute` | LLM or TestLinker stage |
 | `--api-type` | `auto` | LLM provider: `auto`, `huggingface`, `openai-responses` |
 | `--model-name-or-path` | — | HuggingFace model id or path |

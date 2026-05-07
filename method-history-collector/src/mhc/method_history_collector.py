@@ -51,6 +51,7 @@ class MethodHistoryCollector:
         merge_only_delete_empty: bool = False,
         merge_only_delete_tmp: bool = False,
         merge_only_delete_lock: bool = False,
+        retry_errors: bool = True,
     ):
         try:
             if not merge_only:
@@ -70,6 +71,7 @@ class MethodHistoryCollector:
                 merge_only_delete_empty,
                 merge_only_delete_tmp,
                 merge_only_delete_lock,
+                retry_errors,
             )
         except Exception as e:
             raise e
@@ -88,6 +90,7 @@ class MethodHistoryCollector:
         merge_only_delete_empty: bool = False,
         merge_only_delete_tmp: bool = False,
         merge_only_delete_lock: bool = False,
+        retry_errors: bool = True,
     ):
         try:
             if not merge_only:
@@ -107,6 +110,7 @@ class MethodHistoryCollector:
                 merge_only_delete_empty,
                 merge_only_delete_tmp,
                 merge_only_delete_lock,
+                retry_errors,
             )
         except Exception as e:
             raise e
@@ -167,6 +171,7 @@ class MethodHistoryCollector:
         merge_only_delete_empty: bool = False,
         merge_only_delete_tmp: bool = False,
         merge_only_delete_lock: bool = False,
+        retry_errors: bool = True,
     ):
         self.generate_callgraph_per_file(
             repositories,
@@ -178,6 +183,7 @@ class MethodHistoryCollector:
             merge_only_delete_empty,
             merge_only_delete_tmp,
             merge_only_delete_lock,
+            retry_errors,
         )
 
     def generate_callgraph_per_file(
@@ -191,6 +197,7 @@ class MethodHistoryCollector:
         merge_only_delete_empty: bool = False,
         merge_only_delete_tmp: bool = False,
         merge_only_delete_lock: bool = False,
+        retry_errors: bool = True,
     ):
         try:
             if not merge_only:
@@ -210,6 +217,7 @@ class MethodHistoryCollector:
                 merge_only_delete_empty,
                 merge_only_delete_tmp,
                 merge_only_delete_lock,
+                retry_errors,
             )
         except Exception as e:
             raise e
@@ -238,6 +246,7 @@ class MethodHistoryCollector:
         merge_only_delete_empty: bool = False,
         merge_only_delete_tmp: bool = False,
         merge_only_delete_lock: bool = False,
+        retry_errors: bool = True,
     ):
         ms.generate_method_code(
             self.repository_df[self.repository_df["project"].isin(repositories)],
@@ -251,4 +260,5 @@ class MethodHistoryCollector:
             merge_only_delete_empty,
             merge_only_delete_tmp,
             merge_only_delete_lock,
+            retry_errors,
         )

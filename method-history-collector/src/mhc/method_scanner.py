@@ -225,10 +225,12 @@ def _read_method_scan_cache(method_cache_file: str) -> pd.DataFrame:
         return pd.DataFrame(columns=METHOD_SCAN_CACHE_COLUMNS)
 
 
-def _completed_method_scan_files(cache_df: pd.DataFrame) -> set[str]:
+def _completed_method_scan_files(cache_df: pd.DataFrame, retry_errors: bool = True) -> set[str]:
     if cache_df.empty:
         return set()
-    rows = cache_df[cache_df[METHOD_SCAN_FLAG_COLUMN] != METHOD_SCAN_ERROR_MARKER]
+    rows = cache_df
+    if retry_errors:
+        rows = cache_df[cache_df[METHOD_SCAN_FLAG_COLUMN] != METHOD_SCAN_ERROR_MARKER]
     return set(rows["file"].dropna().astype(str))
 
 
@@ -251,28 +253,40 @@ def _failed_method_scan_files(cache_df: pd.DataFrame) -> set[str]:
     return error_files - completed_files
 
 
-def _load_cached_method_scan_files(method_cache_file: str) -> set[str]:
+def _load_cached_method_scan_files(method_cache_file: str, retry_errors: bool = True) -> set[str]:
     if not os.path.exists(method_cache_file):
         return set()
-    return _completed_method_scan_files(_read_method_scan_cache(method_cache_file))
+    return _completed_method_scan_files(_read_method_scan_cache(method_cache_file), retry_errors)
 
 
-def _is_method_scan_file_completed(method_cache_file: str, lock_path: str, file_without_base: str) -> bool:
+def _is_method_scan_file_completed(
+    method_cache_file: str,
+    lock_path: str,
+    file_without_base: str,
+    retry_errors: bool = True,
+) -> bool:
     with file_lock(lock_path):
-        return file_without_base in _completed_method_scan_files(_read_method_scan_cache(method_cache_file))
+        return file_without_base in _completed_method_scan_files(
+            _read_method_scan_cache(method_cache_file),
+            retry_errors,
+        )
 
 
 def _flush_method_scan_buffers(
     method_cache_file: str,
     lock_path: str,
     pending_method_rows: list[dict],
+    retry_errors: bool = True,
 ) -> None:
     if not pending_method_rows:
         return
     rows_copy = list(pending_method_rows)
     pending_method_rows.clear()
     with file_lock(lock_path):
-        completed_files = _completed_method_scan_files(_read_method_scan_cache(method_cache_file))
+        completed_files = _completed_method_scan_files(
+            _read_method_scan_cache(method_cache_file),
+            retry_errors,
+        )
         rows_copy = [
             row for row in rows_copy
             if row.get("file") not in completed_files
@@ -369,10 +383,12 @@ def _read_method_code_cache(cache_file: str) -> pd.DataFrame:
         return pd.DataFrame(columns=METHOD_CODE_CACHE_COLUMNS)
 
 
-def _completed_method_code_keys(cache_df: pd.DataFrame) -> set[str]:
+def _completed_method_code_keys(cache_df: pd.DataFrame, retry_errors: bool = True) -> set[str]:
     if cache_df.empty:
         return set()
-    rows = cache_df[cache_df[METHOD_CODE_FLAG_COLUMN] != METHOD_CODE_ERROR_MARKER]
+    rows = cache_df
+    if retry_errors:
+        rows = cache_df[cache_df[METHOD_CODE_FLAG_COLUMN] != METHOD_CODE_ERROR_MARKER]
     return set(rows[METHOD_CODE_KEY_COLUMN].dropna().astype(str))
 
 
@@ -395,15 +411,23 @@ def _failed_method_code_keys(cache_df: pd.DataFrame) -> set[str]:
     return error_keys - completed_keys
 
 
-def _load_cached_method_code_keys(cache_file: str) -> set[str]:
+def _load_cached_method_code_keys(cache_file: str, retry_errors: bool = True) -> set[str]:
     if not os.path.exists(cache_file):
         return set()
-    return _completed_method_code_keys(_read_method_code_cache(cache_file))
+    return _completed_method_code_keys(_read_method_code_cache(cache_file), retry_errors)
 
 
-def _is_method_code_key_completed(cache_file: str, lock_path: str, key: str) -> bool:
+def _is_method_code_key_completed(
+    cache_file: str,
+    lock_path: str,
+    key: str,
+    retry_errors: bool = True,
+) -> bool:
     with file_lock(lock_path):
-        return key in _completed_method_code_keys(_read_method_code_cache(cache_file))
+        return key in _completed_method_code_keys(
+            _read_method_code_cache(cache_file),
+            retry_errors,
+        )
 
 
 def _method_code_cache_row(method_row, repository_root: str, key: str) -> dict:
@@ -437,13 +461,21 @@ def _method_code_error_row(method_row, key: str, error: Exception | str | None =
     return row
 
 
-def _flush_method_code_buffers(cache_file: str, lock_path: str, pending_rows: list[dict]) -> None:
+def _flush_method_code_buffers(
+    cache_file: str,
+    lock_path: str,
+    pending_rows: list[dict],
+    retry_errors: bool = True,
+) -> None:
     if not pending_rows:
         return
     rows_copy = list(pending_rows)
     pending_rows.clear()
     with file_lock(lock_path):
-        completed_keys = _completed_method_code_keys(_read_method_code_cache(cache_file))
+        completed_keys = _completed_method_code_keys(
+            _read_method_code_cache(cache_file),
+            retry_errors,
+        )
         rows_copy = [
             row for row in rows_copy
             if row.get(METHOD_CODE_KEY_COLUMN) not in completed_keys
@@ -524,6 +556,7 @@ def generate_method_code(
     merge_only_delete_empty: bool = False,
     merge_only_delete_tmp: bool = False,
     merge_only_delete_lock: bool = False,
+    retry_errors: bool = True,
 ) -> list[str]:
     output_files = []
     if workspace_directory is None:
@@ -583,7 +616,7 @@ def generate_method_code(
         clone_and_checkout_commit(repository_url, repository_root, commit_hash)
         os.makedirs(cache_dir, exist_ok=True)
 
-        cached_keys = _load_cached_method_code_keys(cache_file)
+        cached_keys = _load_cached_method_code_keys(cache_file, retry_errors)
         pending_rows: list[dict] = []
         last_flush = time.monotonic()
 
@@ -593,7 +626,7 @@ def generate_method_code(
                 continue
             if key in cached_keys:
                 continue
-            if _is_method_code_key_completed(cache_file, lock_path, key):
+            if _is_method_code_key_completed(cache_file, lock_path, key, retry_errors):
                 cached_keys.add(key)
                 continue
 
@@ -603,11 +636,11 @@ def generate_method_code(
                 pending_rows.append(_method_code_error_row(method_row, key, error))
 
             if time.monotonic() - last_flush >= SCAN_METHOD_FLUSH_INTERVAL_SECONDS:
-                _flush_method_code_buffers(cache_file, lock_path, pending_rows)
-                cached_keys = _load_cached_method_code_keys(cache_file)
+                _flush_method_code_buffers(cache_file, lock_path, pending_rows, retry_errors)
+                cached_keys = _load_cached_method_code_keys(cache_file, retry_errors)
                 last_flush = time.monotonic()
 
-        _flush_method_code_buffers(cache_file, lock_path, pending_rows)
+        _flush_method_code_buffers(cache_file, lock_path, pending_rows, retry_errors)
 
         if shards == 1:
             _finalize_method_code_outputs(
@@ -721,6 +754,7 @@ def scan_method(
     merge_only_delete_empty: bool = False,
     merge_only_delete_tmp: bool = False,
     merge_only_delete_lock: bool = False,
+    retry_errors: bool = True,
 ):
     MethodScannerImpl = None
     if not merge_only:
@@ -773,7 +807,7 @@ def scan_method(
 
         scanner = MethodScannerImpl.getInstance()
         scanner.init(dot_file_directory, url, commit_hash)
-        cached_files = _load_cached_method_scan_files(method_cache_file)
+        cached_files = _load_cached_method_scan_files(method_cache_file, retry_errors)
 
         last_flush_time = time.monotonic()
         pending_method_rows = []
@@ -783,7 +817,7 @@ def scan_method(
                 continue
             if file_without_base in cached_files:
                 continue
-            if _is_method_scan_file_completed(method_cache_file, lock_path, file_without_base):
+            if _is_method_scan_file_completed(method_cache_file, lock_path, file_without_base, retry_errors):
                 cached_files.add(file_without_base)
                 continue
 
@@ -810,14 +844,16 @@ def scan_method(
                     method_cache_file,
                     lock_path,
                     pending_method_rows,
+                    retry_errors,
                 )
-                cached_files = _load_cached_method_scan_files(method_cache_file)
+                cached_files = _load_cached_method_scan_files(method_cache_file, retry_errors)
                 last_flush_time = time.monotonic()
 
         _flush_method_scan_buffers(
             method_cache_file,
             lock_path,
             pending_method_rows,
+            retry_errors,
         )
         if shards == 1:
             _finalize_method_scan_outputs(

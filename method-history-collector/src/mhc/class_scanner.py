@@ -87,10 +87,12 @@ def _read_class_scan_cache(cache_file: str) -> pd.DataFrame:
         return pd.DataFrame(columns=CLASS_SCAN_CACHE_COLUMNS)
 
 
-def _completed_class_scan_files(cache_df: pd.DataFrame) -> set[str]:
+def _completed_class_scan_files(cache_df: pd.DataFrame, retry_errors: bool = True) -> set[str]:
     if cache_df.empty:
         return set()
-    rows = cache_df[cache_df[CLASS_SCAN_FLAG_COLUMN] != CLASS_SCAN_ERROR_MARKER]
+    rows = cache_df
+    if retry_errors:
+        rows = cache_df[cache_df[CLASS_SCAN_FLAG_COLUMN] != CLASS_SCAN_ERROR_MARKER]
     return set(rows["file"].dropna().astype(str))
 
 
@@ -113,24 +115,40 @@ def _failed_class_scan_files(cache_df: pd.DataFrame) -> set[str]:
     return error_files - completed_files
 
 
-def _load_cached_class_scan_files(cache_file: str) -> set[str]:
+def _load_cached_class_scan_files(cache_file: str, retry_errors: bool = True) -> set[str]:
     if not os.path.exists(cache_file):
         return set()
-    return _completed_class_scan_files(_read_class_scan_cache(cache_file))
+    return _completed_class_scan_files(_read_class_scan_cache(cache_file), retry_errors)
 
 
-def _is_class_scan_file_completed(cache_file: str, lock_path: str, file_without_base: str) -> bool:
+def _is_class_scan_file_completed(
+    cache_file: str,
+    lock_path: str,
+    file_without_base: str,
+    retry_errors: bool = True,
+) -> bool:
     with file_lock(lock_path):
-        return file_without_base in _completed_class_scan_files(_read_class_scan_cache(cache_file))
+        return file_without_base in _completed_class_scan_files(
+            _read_class_scan_cache(cache_file),
+            retry_errors,
+        )
 
 
-def _flush_class_scan_buffers(cache_file: str, lock_path: str, pending: list[dict]) -> None:
+def _flush_class_scan_buffers(
+    cache_file: str,
+    lock_path: str,
+    pending: list[dict],
+    retry_errors: bool = True,
+) -> None:
     if not pending:
         return
     rows_copy = list(pending)
     pending.clear()
     with file_lock(lock_path):
-        completed_files = _completed_class_scan_files(_read_class_scan_cache(cache_file))
+        completed_files = _completed_class_scan_files(
+            _read_class_scan_cache(cache_file),
+            retry_errors,
+        )
         rows_copy = [
             row for row in rows_copy
             if row.get("file") not in completed_files
@@ -234,6 +252,7 @@ def scan_class(
     merge_only_delete_empty: bool = False,
     merge_only_delete_tmp: bool = False,
     merge_only_delete_lock: bool = False,
+    retry_errors: bool = True,
 ) -> None:
     ClassScannerImpl = None
     if not merge_only:
@@ -284,7 +303,7 @@ def scan_class(
 
         scanner = ClassScannerImpl.getInstance()
         scanner.init(repository_root, url, commit_hash)
-        cached_files = _load_cached_class_scan_files(cache_file)
+        cached_files = _load_cached_class_scan_files(cache_file, retry_errors)
 
         last_flush = time.monotonic()
         pending: list[dict] = []
@@ -295,7 +314,7 @@ def scan_class(
                 continue
             if file_without_base in cached_files:
                 continue
-            if _is_class_scan_file_completed(cache_file, lock_path, file_without_base):
+            if _is_class_scan_file_completed(cache_file, lock_path, file_without_base, retry_errors):
                 cached_files.add(file_without_base)
                 continue
 
@@ -312,11 +331,11 @@ def scan_class(
                 pending.append(_build_class_scan_error_marker(repository_name, file_without_base, commit_hash, scan_error))
 
             if time.monotonic() - last_flush >= SCAN_CLASS_FLUSH_INTERVAL_SECONDS:
-                _flush_class_scan_buffers(cache_file, lock_path, pending)
-                cached_files = _load_cached_class_scan_files(cache_file)
+                _flush_class_scan_buffers(cache_file, lock_path, pending, retry_errors)
+                cached_files = _load_cached_class_scan_files(cache_file, retry_errors)
                 last_flush = time.monotonic()
 
-        _flush_class_scan_buffers(cache_file, lock_path, pending)
+        _flush_class_scan_buffers(cache_file, lock_path, pending, retry_errors)
 
         if shards == 1:
             _finalize_class_scan_outputs(

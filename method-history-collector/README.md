@@ -32,6 +32,10 @@ Provide one of the following selectors. `--project-index` may also be combined w
 | `--project-index` | `-1` | Last project |
 | `--project-index` | `:` | All projects |
 
+### Error retry behavior
+
+`method-scan`, `class-scan`, `method-code`, and `method-callgraph` retry prior `__error_marker__` cache rows by default. Pass `--retry-errors false` to treat those failures as already attempted and skip them on the next run.
+
 ## Commands
 
 ### `mhc method-scan`
@@ -51,6 +55,8 @@ mhc method-scan \
 Use `--replace` to regenerate the CSV even if it already exists.
 
 If `<workspace-directory>/config/logback.xml` exists it is passed to the JVM automatically as `-Dlogback.configurationFile=...`.
+
+Previous `__error_marker__` cache rows are retried by default. Use `--retry-errors false` to treat those prior failures as already attempted and skip them on the next run.
 
 ---
 
@@ -122,6 +128,8 @@ mhc method-callgraph \
 
 Use `--replace` to regenerate even if the CSV already exists.
 
+Previous `__error_marker__` cache rows are retried by default. Use `--retry-errors false` to skip files that already failed in a prior run.
+
 ---
 
 ### `mhc complexity-analyzer`
@@ -152,5 +160,7 @@ mhc method-code \
     --jar-directory "workspace/jar" \
     --project "checkstyle"
 ```
+
+Previous `__error_marker__` cache rows are retried by default. Use `--retry-errors false` to skip methods that already failed in a prior run.
 
 Output columns: `project`, `name`, `url`, `artifact`, `start_line`, `end_line`, `code`.

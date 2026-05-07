@@ -46,6 +46,7 @@ class TestCliArgs(unittest.TestCase):
             False,
             False,
             False,
+            True,
         )
 
     @patch("mhc.main._build_method_history_collector")
@@ -80,6 +81,7 @@ class TestCliArgs(unittest.TestCase):
             False,
             False,
             False,
+            True,
         )
 
     @patch("mhc.main._build_method_history_collector")
@@ -113,6 +115,43 @@ class TestCliArgs(unittest.TestCase):
             None,
             1,
             1,
+            False,
+            False,
+            False,
+            False,
+            True,
+        )
+
+    @patch("mhc.main._build_method_history_collector")
+    def test_scan_method_accepts_retry_errors_false(self, mock_build_collector):
+        mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame([{"project": "checkstyle"}])
+
+        mhc_main.main(
+            [
+                "method-scan",
+                "--workspace-directory",
+                "workspace",
+                "--repository-directory",
+                "workspace/repository",
+                "--data-directory",
+                "workspace/data",
+                "--jar-directory",
+                "workspace/jar",
+                "--project",
+                "checkstyle",
+                "--retry-errors",
+                "false",
+            ]
+        )
+
+        mock_mhc_instance.scan_method.assert_called_once_with(
+            ["checkstyle"],
+            None,
+            False,
+            1,
+            1,
+            False,
             False,
             False,
             False,

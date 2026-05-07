@@ -140,6 +140,10 @@ class CallGraphRunnerTest(unittest.TestCase):
                 {"src/Done.java", "src/Caller.java"},
                 _load_cached_callgraph_files(str(cache_file)),
             )
+            self.assertEqual(
+                {"src/Broken.java", "src/Done.java", "src/Caller.java"},
+                _load_cached_callgraph_files(str(cache_file), retry_errors=False),
+            )
 
     def test_finalize_waits_until_all_files_are_tried(self):
         with tempfile.TemporaryDirectory() as temp_directory:

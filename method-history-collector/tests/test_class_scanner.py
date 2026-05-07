@@ -13,6 +13,29 @@ import mhc.class_scanner as cs
 
 
 class ClassScannerCacheTestCase(unittest.TestCase):
+    def test_error_markers_can_be_treated_as_completed_when_retry_disabled(self):
+        cache_df = pd.DataFrame(
+            [
+                cs._build_class_scan_error_marker(
+                    "demo-project",
+                    "src/Broken.java",
+                    "abc123",
+                    "parse failed",
+                ),
+                cs._build_class_scan_marker("demo-project", "src/Done.java", "abc123"),
+            ],
+            columns=cs.CLASS_SCAN_CACHE_COLUMNS,
+        )
+
+        self.assertEqual(
+            {"src/Done.java"},
+            cs._completed_class_scan_files(cache_df),
+        )
+        self.assertEqual(
+            {"src/Broken.java", "src/Done.java"},
+            cs._completed_class_scan_files(cache_df, retry_errors=False),
+        )
+
     def test_finalize_class_scan_writes_errors_and_deletes_cache_and_lock(self):
         with tempfile.TemporaryDirectory() as temp_directory:
             root = Path(temp_directory)

@@ -23,6 +23,7 @@ Options:
   --timeout-seconds       Optional method-history command timeout in seconds (default: 30*60 = 1800)
   --merge-threshold       Optional history JSON merge threshold (default: 10000; 0 disables intermediate merging; negative values disable final merging too)
   --merge-only            Merge existing loose history JSON files without generating new history
+  --retry-errors          Whether method-scan, class-scan, method-code, and method-callgraph retry previous __error_marker__ rows (default: true)
   --command-options       Optional extra arguments forwarded to the selected command
   --stage                 LLM stage: execute or parse (default: execute)
   --api-type              LLM provider API type: auto, huggingface, or openai-responses (default: auto)
@@ -59,6 +60,7 @@ JAVA_OPTIONS=""
 TIMEOUT_SECONDS="1800"
 MERGE_THRESHOLD="10000"
 MERGE_ONLY="false"
+RETRY_ERRORS="true"
 COMMAND_OPTIONS=""
 STAGE="execute"
 API_TYPE="auto"
@@ -102,6 +104,19 @@ while [[ $# -gt 0 ]]; do
             ;;
         --merge-only)
             MERGE_ONLY="true"
+            shift
+            ;;
+        --retry-errors)
+            if [[ $# -lt 2 || "$2" == --* ]]; then
+                RETRY_ERRORS="true"
+                shift
+            else
+                RETRY_ERRORS="$2"
+                shift 2
+            fi
+            ;;
+        --retry-errors=*)
+            RETRY_ERRORS="${1#*=}"
             shift
             ;;
         --command-options)
@@ -260,6 +275,18 @@ if ! [[ "$MERGE_THRESHOLD" =~ ^-?[0-9]+$ ]]; then
     exit 1
 fi
 
+RETRY_ERRORS_NORMALIZED="$(printf '%s' "$RETRY_ERRORS" | tr '[:upper:]' '[:lower:]')"
+case "$RETRY_ERRORS_NORMALIZED" in
+    true|false)
+        RETRY_ERRORS="$RETRY_ERRORS_NORMALIZED"
+        ;;
+    *)
+        echo "Error: --retry-errors must be true or false."
+        usage
+        exit 1
+        ;;
+esac
+
 if [[ "$SHARDS" -gt 1 && "$COMMAND_NAME" != "method-history" && "$COMMAND_NAME" != "method-callgraph" && "$COMMAND_NAME" != "method-scan" && "$COMMAND_NAME" != "class-scan" && "$COMMAND_NAME" != "method-code" ]]; then
     echo "Error: --shards greater than 1 is supported only for method-history, method-scan, class-scan, method-code, and method-callgraph."
     usage
@@ -391,6 +418,9 @@ else
         if [[ "$MERGE_ONLY" == "true" ]]; then
             MHC_ARGS+=(--merge-only)
         fi
+    fi
+    if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-callgraph" ]]; then
+        MHC_ARGS+=(--retry-errors "$RETRY_ERRORS")
     fi
     if [[ -n "$PROJECT_NAME" ]]; then
         MHC_ARGS+=(--project "$PROJECT_NAME")
