@@ -35,6 +35,7 @@ testlinker = [
 ptc-llm = "ptc.llm.main:main"
 ptc-history-viewer = "ptc.history_viewer.cli:main"
 ptc-testlinker = "ptc.testlinker.main:main"
+ptc-sbatch = "ptc.drac.main:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
