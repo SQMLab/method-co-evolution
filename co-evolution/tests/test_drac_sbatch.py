@@ -14,6 +14,7 @@ from ptc.drac.main import (
     _expand_indices,
     _group_consecutive,
     _indices_to_task_ranges,
+    _shift_task_groups,
     _output_exists,
     process,
 )
@@ -101,6 +102,22 @@ class TestIndicesToTaskRanges(unittest.TestCase):
         )
 
 
+class TestShiftTaskGroups(unittest.TestCase):
+    def test_no_shift_when_max_within_nibi_limit(self):
+        task_groups, shift = _shift_task_groups([(4400, 4599), (9800, 9999)])
+        self.assertEqual(task_groups, [(4400, 4599), (9800, 9999)])
+        self.assertEqual(shift, 0)
+
+    def test_shift_when_max_exceeds_nibi_limit(self):
+        task_groups, shift = _shift_task_groups([(10000, 10199)])
+        self.assertEqual(task_groups, [(0, 199)])
+        self.assertEqual(shift, 10000)
+
+    def test_raise_when_shifted_span_still_exceeds_nibi_limit(self):
+        with self.assertRaises(ValueError):
+            _shift_task_groups([(4400, 4599), (16000, 16199)])
+
+
 class TestOutputExists(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -171,6 +188,27 @@ class TestProcess(unittest.TestCase):
     def test_indices_expanded_to_ranges(self):
         result = process(self._input(), self.repo_df, replace=True, workspace_override=self.workspace)
         self.assertIn("--array=4400-4599,5800-5999,7200-7399,9400-9599", result)
+        self.assertNotIn("--job-index-shift", result)
+
+    def test_array_above_nibi_limit_is_shifted_and_job_shift_is_passed(self):
+        text = self._input().replace("--array=22,29,36,47", "--array=50")
+        result = process(text, self.repo_df, replace=True, workspace_override=self.workspace)
+        self.assertIn("--array=0-199", result)
+        self.assertIn("--job-index-shift 10000", result)
+
+    def test_existing_job_shift_is_replaced_when_recomputed(self):
+        text = self._input().replace("--array=22,29,36,47", "--array=50")
+        text = f"{text} --job-index-shift 1"
+        result = process(text, self.repo_df, replace=True, workspace_override=self.workspace)
+        self.assertIn("--array=0-199", result)
+        self.assertIn("--job-index-shift 10000", result)
+        self.assertEqual(result.count("--job-index-shift"), 1)
+
+    def test_existing_job_shift_is_removed_when_not_needed(self):
+        text = f"{self._input()} --job-index-shift 1"
+        result = process(text, self.repo_df, replace=True, workspace_override=self.workspace)
+        self.assertIn("--array=4400-4599,5800-5999,7200-7399,9400-9599", result)
+        self.assertNotIn("--job-index-shift", result)
 
     def test_no_existing_files_keeps_all(self):
         result = process(self._input(), self.repo_df, replace=False, workspace_override=self.workspace)

@@ -12,10 +12,12 @@ _COMMAND_ALIASES = {
     "scan-method": "method-scan",
     "scan-class": "class-scan",
 }
+_SLURM_ARRAY_MAX_INDEX = 9999
 
 _ARRAY_RE = re.compile(r"--array=(\S+)")
-_SPACED_RE = re.compile(r"--(?P<key>shards|command|workspace-directory|tool-name)\s+(\S+)")
-_EQUALS_RE = re.compile(r"--(?P<key>shards|command|workspace-directory|tool-name)=(\S+)")
+_JOB_INDEX_SHIFT_RE = re.compile(r"--job-index-shift(?:\s+\S+|=\S+)")
+_SPACED_RE = re.compile(r"--(?P<key>shards|command|workspace-directory|tool-name|job-index-shift)\s+(\S+)")
+_EQUALS_RE = re.compile(r"--(?P<key>shards|command|workspace-directory|tool-name|job-index-shift)=(\S+)")
 
 
 def _parse_arg(text: str, key: str) -> str | None:
@@ -73,11 +75,49 @@ def _indices_to_task_ranges(index_groups: list[tuple[int, int]], shards: int) ->
     A group (a, b) of consecutive indices covers [a*shards, (b+1)*shards - 1].
     """
     result = []
+    for task_start, task_end in _indices_to_task_groups(index_groups, shards):
+        result.append(f"{task_start}-{task_end}")
+    return result
+
+
+def _indices_to_task_groups(index_groups: list[tuple[int, int]], shards: int) -> list[tuple[int, int]]:
+    """Convert project index groups to Slurm task ID range tuples."""
+    result = []
     for start_idx, end_idx in index_groups:
         task_start = start_idx * shards
         task_end = (end_idx + 1) * shards - 1
-        result.append(f"{task_start}-{task_end}")
+        result.append((task_start, task_end))
     return result
+
+
+def _format_task_ranges(task_groups: list[tuple[int, int]]) -> str:
+    return ",".join(f"{start}-{end}" if start != end else str(start) for start, end in task_groups)
+
+
+def _shift_task_groups(task_groups: list[tuple[int, int]]) -> tuple[list[tuple[int, int]], int]:
+    """Shift task IDs down when needed to satisfy Nibi's 0-9999 array index limit."""
+    max_task_id = max(end for _, end in task_groups)
+    if max_task_id <= _SLURM_ARRAY_MAX_INDEX:
+        return task_groups, 0
+
+    shift = min(start for start, _ in task_groups)
+    shifted_groups = [(start - shift, end - shift) for start, end in task_groups]
+    shifted_max = max(end for _, end in shifted_groups)
+    if shifted_max > _SLURM_ARRAY_MAX_INDEX:
+        raise ValueError(
+            "Expanded array task IDs exceed the 0-9999 limit even after shifting; "
+            "submit a narrower project index range."
+        )
+    return shifted_groups, shift
+
+
+def _set_job_index_shift(text: str, shift: int) -> str:
+    if shift <= 0:
+        return _JOB_INDEX_SHIFT_RE.sub("", text, count=1)
+    replacement = f"--job-index-shift {shift}"
+    if _JOB_INDEX_SHIFT_RE.search(text):
+        return _JOB_INDEX_SHIFT_RE.sub(replacement, text, count=1)
+    return f"{text} {replacement}"
 
 
 def _load_repository(workspace_dir: str | Path) -> pd.DataFrame:
@@ -134,9 +174,11 @@ def process(
         raise ValueError("No indices remaining after filtering existing outputs")
 
     groups = _group_consecutive(indices)
-    task_ranges = _indices_to_task_ranges(groups, shards)
-    new_array = ",".join(task_ranges)
-    return text[: array_match.start()] + f"--array={new_array}" + text[array_match.end():]
+    task_groups = _indices_to_task_groups(groups, shards)
+    shifted_groups, job_index_shift = _shift_task_groups(task_groups)
+    new_array = _format_task_ranges(shifted_groups)
+    updated_text = text[: array_match.start()] + f"--array={new_array}" + text[array_match.end():]
+    return _set_job_index_shift(updated_text, job_index_shift)
 
 
 def main() -> None:
