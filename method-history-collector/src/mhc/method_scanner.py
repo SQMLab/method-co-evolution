@@ -743,7 +743,7 @@ def _scan_methods_in_file(
                             "project": repository_name,
                             "name": node.name,
                             "url": util.format_to_git_url(url, commit_hash, file_without_base, start_line),
-                            "artifact": "unknown",
+                            "artifact": "",
                             "start_line": start_line,
                             "end_line": None,
                             "expression": None,
@@ -782,6 +782,7 @@ def scan_method(
     retry_errors: bool = True,
     merge_threshold: int = DEFAULT_SCAN_MERGE_THRESHOLD,
     merge_interval_seconds: int | None = None,
+    artifact_config_path: str | None = None,
 ):
     MethodScannerImpl = None
     if merge_interval_seconds is None:
@@ -835,7 +836,10 @@ def scan_method(
         os.makedirs(method_workspace_directory, exist_ok=True)
 
         scanner = MethodScannerImpl.getInstance()
-        scanner.init(dot_file_directory, url, commit_hash)
+        if artifact_config_path:
+            scanner.init(dot_file_directory, url, commit_hash, artifact_config_path)
+        else:
+            scanner.init(dot_file_directory, url, commit_hash)
         cached_files = _load_cached_method_scan_files(method_cache_file, retry_errors)
 
         last_flush_time = time.monotonic()
@@ -903,17 +907,6 @@ def start_java_jar(jars: [str], java_options: str | None = None):
     if not jpype.isJVMStarted():
         jvm_args = shlex.split(java_options) if java_options else []
         jpype.startJVM(*jvm_args, classpath=jars)
-        # class MethodLister(VoidVisitorAdapter):
-        #     def __init__(self):
-        #         self.methods = []
-        #
-        #     def visit(self, mt, file):
-        #         super(MethodLister, self).visit(mt, file)
-        #
-        #         method_name = mt.getNameAsString()
-        #         line_number = mt.getName().getBegin().get().line
-        #         artifact = "test" if 'test' in file.lower() or 'androidTest'.lower() in file.lower() else "production"
-        #         self.methods.append(Method(file, artifact, method_name, line_number))
 
 
 def stop_java_jar():

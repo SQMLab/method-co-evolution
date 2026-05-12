@@ -257,6 +257,7 @@ def scan_class(
     retry_errors: bool = True,
     merge_threshold: int = DEFAULT_SCAN_MERGE_THRESHOLD,
     merge_interval_seconds: int | None = None,
+    artifact_config_path: str | None = None,
 ) -> None:
     ClassScannerImpl = None
     if merge_interval_seconds is None:
@@ -308,7 +309,10 @@ def scan_class(
         os.makedirs(cache_dir, exist_ok=True)
 
         scanner = ClassScannerImpl.getInstance()
-        scanner.init(repository_root, url, commit_hash)
+        if artifact_config_path:
+            scanner.init(repository_root, url, commit_hash, artifact_config_path)
+        else:
+            scanner.init(repository_root, url, commit_hash)
         cached_files = _load_cached_class_scan_files(cache_file, retry_errors)
 
         last_flush = time.monotonic()

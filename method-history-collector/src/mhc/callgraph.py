@@ -322,6 +322,7 @@ def execute_callgraph_per_file(
     retry_errors: bool = True,
     merge_threshold: int = DEFAULT_SCAN_MERGE_THRESHOLD,
     merge_interval_seconds: int | None = None,
+    artifact_config_path: str | None = None,
 ) -> None:
     CallGraphServiceImpl = None
     if merge_interval_seconds is None:
@@ -386,7 +387,10 @@ def execute_callgraph_per_file(
             )
 
         scanner = CallGraphServiceImpl.getInstance()
-        scanner.init(url, repository_path, commit_hash, method_mapping_file)
+        if artifact_config_path:
+            scanner.init(url, repository_path, commit_hash, method_mapping_file, artifact_config_path)
+        else:
+            scanner.init(url, repository_path, commit_hash, method_mapping_file)
 
         cached_files = _load_cached_callgraph_files(cache_file, retry_errors)
 

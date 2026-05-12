@@ -20,7 +20,7 @@ class FakeJavaMethod:
         method_name = Path(file_path).stem
         self.name = f"{method_name}_method"
         self.url = util.format_to_git_url(repository_url, commit_hash, file_path, 1)
-        self.artifact = "production"
+        self.artifact = "#production-code"
         self.start_line = 1
         self.end_line = 2
         self.expression = "method"
@@ -202,7 +202,7 @@ class MethodScannerCacheTestCase(unittest.TestCase):
                         "project": "demo-project",
                         "name": "Alpha_method",
                         "url": "https://github.com/example/demo-project/blob/abc123/src/Alpha.java#L1",
-                        "artifact": "production",
+                        "artifact": "#production-code",
                         "start_line": 1,
                         "end_line": 2,
                         "expression": "method",
