@@ -56,7 +56,7 @@ mhc method-scan \
     --project "checkstyle"
 ```
 
-Pass `--artifact-config-path "$ME_PROJECT_DIRECTORY/config/artifact-detection"` to use hierarchical artifact tags such as `#test-code #test-unit #test-method` and `#production-code`.
+Pass `--artifact-config-path "$ME_WORKSPACE_DIRECTORY/config/artifact-detection"` to use hierarchical artifact tags such as `#test-code #test-unit #test-method` and `#production-code`.
 
 Use `--replace` to regenerate the CSV even if it already exists.
 
@@ -78,7 +78,7 @@ mhc artifact-update \
     --repository-directory "workspace/repository" \
     --data-directory "workspace/data" \
     --jar-directory "workspace/jar" \
-    --artifact-config-path "$ME_PROJECT_DIRECTORY/config/artifact-detection" \
+    --artifact-config-path "$ME_WORKSPACE_DIRECTORY/config/artifact-detection" \
     --project "jgit" \
     --target method,class \
     --backup

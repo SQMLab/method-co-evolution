@@ -12,13 +12,12 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 : "${ME_WORKSPACE_DIRECTORY:?ME_WORKSPACE_DIRECTORY must be set in .env}"
-PROJECT_DIRECTORY="${ME_PROJECT_DIRECTORY:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 mhc artifact-update \
     --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
     --repository-directory "$ME_WORKSPACE_DIRECTORY/repository" \
     --data-directory "$ME_WORKSPACE_DIRECTORY/data" \
     --jar-directory "$ME_WORKSPACE_DIRECTORY/jar" \
-    --artifact-config-path "$PROJECT_DIRECTORY/config/artifact-detection" \
+    --artifact-config-path "$ME_WORKSPACE_DIRECTORY/config/artifact-detection" \
     --project-index "1:" \
     --target method

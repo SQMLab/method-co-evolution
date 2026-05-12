@@ -134,7 +134,7 @@ mhc method-scan \
   --repository-directory "$ME_WORKSPACE_DIRECTORY/repository" \
   --data-directory "$ME_WORKSPACE_DIRECTORY/data" \
   --jar-directory "$ME_WORKSPACE_DIRECTORY/jar" \
-  --artifact-config-path "$ME_PROJECT_DIRECTORY/config/artifact-detection" \
+  --artifact-config-path "$ME_WORKSPACE_DIRECTORY/config/artifact-detection" \
   --project jgit \
   --replace
 ```
@@ -147,7 +147,7 @@ mhc artifact-update \
   --repository-directory "$ME_WORKSPACE_DIRECTORY/repository" \
   --data-directory "$ME_WORKSPACE_DIRECTORY/data" \
   --jar-directory "$ME_WORKSPACE_DIRECTORY/jar" \
-  --artifact-config-path "$ME_PROJECT_DIRECTORY/config/artifact-detection" \
+  --artifact-config-path "$ME_WORKSPACE_DIRECTORY/config/artifact-detection" \
   --project jgit \
   --target method,class \
   --backup
