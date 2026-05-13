@@ -9,7 +9,7 @@ SRC_DIRECTORY = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SRC_DIRECTORY))
 
-from ptc.migrate_integer_csv_columns import (
+from ptc.migration.migrate_integer_csv_columns import (
     migrate_file,
     normalize_integer_columns,
     parse_targets,

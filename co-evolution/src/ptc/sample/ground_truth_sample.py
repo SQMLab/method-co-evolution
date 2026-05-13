@@ -1,0 +1,337 @@
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+from pathlib import Path
+
+import pandas as pd
+from mhc.artifacts import is_test_code, is_test_method
+
+from mhc.config import DATA_DIRECTORY
+
+RANDOM_SEED = 42
+GROUND_TRUTH_COLUMNS = [
+    "project",
+    "from_name",
+    "to_name",
+    "from_url",
+    "to_url",
+    "from_fqs",
+    "from_tctracer_fqs",
+    "from_testlinker_fqs",
+    "to_fqs",
+    "to_tctracer_fqs",
+    "to_testlinker_fqs",
+    "to_artifact",
+    "to_call_depth",
+    "label",
+    "tags",
+    "notes",
+]
+
+_DATA = Path(DATA_DIRECTORY)
+REPOSITORY_FILE = _DATA / "repository" / "repository.csv"
+T2P_CANDIDATE_DIR = _DATA / "t2p-candidate-expanded"
+METHOD_DIR = _DATA / "method"
+
+OUTPUT_DIR = _DATA / "t2p-ground-truth-labelling" / "t2plinker-t2p-ground-truth-labelling"
+
+
+@dataclass(frozen=True)
+class GroundTruthProjectStats:
+    project: str
+    working_test_methods: int
+    reused_test_methods: int
+    added_test_methods: int
+    selected_test_methods: int
+    generated_rows: int
+    carried_label_rows: int
+    new_or_unlabelled_rows: int
+    output_file: Path
+
+
+def _load_repository_projects() -> list[str]:
+    repo_df = pd.read_csv(REPOSITORY_FILE, keep_default_na=False, na_filter=False)
+    if "project" not in repo_df.columns:
+        raise ValueError(f"repository index is missing project column: {REPOSITORY_FILE}")
+    return repo_df["project"].dropna().astype(str).tolist()
+
+
+def _parse_project_index(project_index: str, known_projects: list[str]) -> list[str]:
+    if ":" not in project_index:
+        try:
+            return [known_projects[int(project_index)]]
+        except (ValueError, IndexError):
+            raise ValueError(
+                "project-index must use Python-style indexes or slices like 10, -1, 10:20, :10, 10:, or :"
+            )
+
+    if project_index.count(":") != 1:
+        raise ValueError(
+            "project-index must use Python-style indexes or slices like 10, -1, 10:20, :10, 10:, or :"
+        )
+
+    start_text, end_text = project_index.split(":", maxsplit=1)
+    try:
+        start_index = int(start_text) if start_text else None
+        end_index = int(end_text) if end_text else None
+    except ValueError:
+        raise ValueError(
+            "project-index must use Python-style indexes or slices like 10, -1, 10:20, :10, 10:, or :"
+        )
+    return known_projects[start_index:end_index]
+
+
+def _test_caller_pool(project: str) -> tuple[set[str], pd.DataFrame, str | None]:
+    """Return (unique test from_urls, matching callgraph df, skip reason) for a project."""
+    cg_file = T2P_CANDIDATE_DIR / f"{project}.csv"
+    method_file = METHOD_DIR / f"{project}.csv"
+
+    empty = (set(), pd.DataFrame())
+    missing = [str(path) for path in (cg_file, method_file) if not path.exists()]
+    if missing:
+        return (*empty, f"missing input file(s): {', '.join(missing)}")
+
+    method_df = pd.read_csv(method_file, keep_default_na=False, na_filter=False, usecols=["url", "artifact"])
+    artifact_by_url = dict(zip(method_df["url"], method_df["artifact"]))
+    test_urls = set(method_df[method_df["artifact"].map(is_test_method)]["url"])
+    if not test_urls:
+        return (*empty, "no methods marked artifact=#test-method")
+
+    cg_df = pd.read_csv(cg_file, keep_default_na=False, na_filter=False)
+    cg_test = cg_df[cg_df["from_url"].isin(test_urls)].copy()
+    if cg_test.empty:
+        return (*empty, "no candidate rows whose from_url matches an artifact=#test-method method")
+
+    cg_test["to_artifact"] = cg_test["to_url"].map(artifact_by_url).fillna("")
+
+    return test_urls, cg_test, None
+
+
+def _build_output_df(cg_rows: pd.DataFrame, selected_urls: set[str]) -> pd.DataFrame:
+    """Filter callgraph rows to selected test URLs and map to ground truth columns."""
+    rows = cg_rows[cg_rows["from_url"].isin(selected_urls)].copy()
+    rows["_to_call_depth_sort"] = pd.to_numeric(rows.get("to_call_depth", ""), errors="coerce")
+    rows = (
+        rows.sort_values(["from_url", "to_url", "_to_call_depth_sort"], na_position="last")
+        .drop_duplicates(subset=["from_url", "to_url"], keep="first")
+        .drop(columns=["_to_call_depth_sort"])
+    )
+
+    out = pd.DataFrame(index=rows.index)
+    for gt_col in GROUND_TRUTH_COLUMNS:
+        cg_col = gt_col  # column names align where present
+        if cg_col in rows.columns:
+            out[gt_col] = rows[cg_col].values
+        else:
+            out[gt_col] = pd.NA
+    out.loc[out["to_artifact"].map(is_test_code), "label"] = 0
+    return out[GROUND_TRUTH_COLUMNS].reset_index(drop=True)
+
+
+def _read_working_ground_truth(project: str, working_dir: Path) -> pd.DataFrame:
+    working_file = working_dir / f"{project}.csv"
+    if not working_file.exists():
+        return pd.DataFrame(columns=GROUND_TRUTH_COLUMNS)
+
+    working_df = pd.read_csv(working_file, keep_default_na=False, na_filter=False)
+    if "notes" not in working_df.columns and "note" in working_df.columns:
+        working_df["notes"] = working_df["note"]
+    for column in GROUND_TRUTH_COLUMNS:
+        if column not in working_df.columns:
+            working_df[column] = ""
+    return working_df
+
+
+def _working_labels_by_pair(working_df: pd.DataFrame) -> dict[tuple[str, str], dict[str, str]]:
+    labels: dict[tuple[str, str], dict[str, str]] = {}
+    if working_df.empty or not {"from_url", "to_url"}.issubset(working_df.columns):
+        return labels
+
+    for row in working_df.to_dict(orient="records"):
+        key = (str(row.get("from_url", "")), str(row.get("to_url", "")))
+        if not all(key):
+            continue
+        labels[key] = {
+            "label": str(row.get("label", "")),
+            "tags": str(row.get("tags", "")),
+            "notes": str(row.get("notes", row.get("note", ""))),
+        }
+    return labels
+
+
+def _select_test_methods(
+    *,
+    available_urls: list[str],
+    working_urls: list[str],
+    sample_count_per_project: int,
+    random_seed: int = RANDOM_SEED,
+) -> tuple[set[str], int, int]:
+    available_set = set(available_urls)
+    reused_urls = [url for url in working_urls if url in available_set]
+    reused_unique = list(dict.fromkeys(reused_urls))
+
+    remaining_needed = max(0, sample_count_per_project - len(reused_unique))
+    candidate_urls = [url for url in available_urls if url not in set(reused_unique)]
+    if remaining_needed >= len(candidate_urls):
+        added_urls = candidate_urls
+    elif remaining_needed == 0:
+        added_urls = []
+    else:
+        added_urls = (
+            pd.Series(candidate_urls)
+            .sample(n=remaining_needed, random_state=random_seed)
+            .tolist()
+        )
+
+    selected_urls = set(reused_unique + added_urls)
+    return selected_urls, len(reused_unique), len(added_urls)
+
+
+def _merge_working_labels(output_df: pd.DataFrame, working_df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    working_labels = _working_labels_by_pair(working_df)
+    if not working_labels:
+        return output_df, 0
+
+    merged_df = output_df.copy()
+    carried_label_rows = 0
+    for index, row in merged_df.iterrows():
+        labels = working_labels.get((str(row["from_url"]), str(row["to_url"])))
+        if labels is None:
+            continue
+        for column in ("label", "tags", "notes"):
+            merged_df.at[index, column] = labels[column]
+        if labels["label"].strip():
+            carried_label_rows += 1
+    return merged_df, carried_label_rows
+
+
+def regenerate_project(
+    *,
+    project: str,
+    sample_count_per_project: int,
+    working_dir: Path,
+    output_dir: Path = OUTPUT_DIR,
+    random_seed: int = RANDOM_SEED,
+) -> GroundTruthProjectStats | None:
+    _, cg_df, skip_reason = _test_caller_pool(project)
+    if skip_reason:
+        print(f"  {project}: {skip_reason} - skipped")
+        return None
+
+    working_df = _read_working_ground_truth(project, working_dir)
+    working_urls = (
+        working_df["from_url"].dropna().astype(str).tolist()
+        if "from_url" in working_df.columns
+        else []
+    )
+    unique_available_urls = list(cg_df["from_url"].drop_duplicates())
+    selected_urls, reused_count, added_count = _select_test_methods(
+        available_urls=unique_available_urls,
+        working_urls=working_urls,
+        sample_count_per_project=sample_count_per_project,
+        random_seed=random_seed,
+    )
+
+    output_df = _build_output_df(cg_df, selected_urls)
+    output_df, carried_label_rows = _merge_working_labels(output_df, working_df)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_file = output_dir / f"{project}.csv"
+    output_df.to_csv(output_file, index=False)
+
+    new_or_unlabelled_rows = int((output_df["label"].astype(str).str.strip() == "").sum())
+    return GroundTruthProjectStats(
+        project=project,
+        working_test_methods=working_df["from_url"].nunique() if "from_url" in working_df.columns else 0,
+        reused_test_methods=reused_count,
+        added_test_methods=added_count,
+        selected_test_methods=len(selected_urls),
+        generated_rows=len(output_df),
+        carried_label_rows=carried_label_rows,
+        new_or_unlabelled_rows=new_or_unlabelled_rows,
+        output_file=output_file,
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Regenerate sampled ground truth CSVs for labeling.")
+    parser.add_argument(
+        "--project-index",
+        required=True,
+        help="Python-style project index or slice from data/repository/repository.csv.",
+    )
+    parser.add_argument(
+        "--sample-count-per-project",
+        type=int,
+        required=True,
+        help="Number of test methods to sample per selected project.",
+    )
+    parser.add_argument(
+        "--ground-truth-working-inprogress",
+        type=Path,
+        required=True,
+        help="Directory containing in-progress per-project ground truth CSVs.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.sample_count_per_project <= 0:
+        parser.error("--sample-count-per-project must be a positive integer")
+
+    working_dir = args.ground_truth_working_inprogress.expanduser()
+    if not working_dir.is_dir():
+        parser.error(f"--ground-truth-working-inprogress does not exist: {working_dir}")
+
+    try:
+        projects = _parse_project_index(args.project_index, _load_repository_projects())
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    if not projects:
+        print("No projects selected.")
+        return 0
+
+    print(f"Selected projects: {len(projects)}")
+    print(f"Sample count per project: {args.sample_count_per_project}")
+    print(f"Working in-progress directory: {working_dir}")
+    print(f"Output directory: {OUTPUT_DIR}\n")
+
+    stats: list[GroundTruthProjectStats] = []
+    for project in projects:
+        project_stats = regenerate_project(
+            project=project,
+            sample_count_per_project=args.sample_count_per_project,
+            working_dir=working_dir,
+            output_dir=OUTPUT_DIR,
+        )
+        if project_stats is None:
+            continue
+        stats.append(project_stats)
+        print(
+            f"  {project}: reused {project_stats.reused_test_methods}/"
+            f"{project_stats.working_test_methods} working test methods, "
+            f"added {project_stats.added_test_methods}, "
+            f"rows {project_stats.generated_rows}, "
+            f"carried labels {project_stats.carried_label_rows}, "
+            f"unlabelled {project_stats.new_or_unlabelled_rows} -> "
+            f"{project_stats.output_file}"
+        )
+
+    print(
+        "\nTotal: "
+        f"{len(stats)} projects, "
+        f"{sum(item.reused_test_methods for item in stats)} reused test methods, "
+        f"{sum(item.added_test_methods for item in stats)} added test methods, "
+        f"{sum(item.generated_rows for item in stats)} rows, "
+        f"{sum(item.carried_label_rows for item in stats)} carried labels, "
+        f"{sum(item.new_or_unlabelled_rows for item in stats)} unlabelled rows"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
