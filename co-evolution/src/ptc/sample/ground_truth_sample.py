@@ -24,6 +24,7 @@ GROUND_TRUTH_COLUMNS = [
     "to_fqs",
     "to_tctracer_fqs",
     "to_testlinker_fqs",
+    "from_artifact",
     "to_artifact",
     "to_call_depth",
     "label",
@@ -32,6 +33,11 @@ GROUND_TRUTH_COLUMNS = [
 ]
 PROTECTED_UPDATE_COLUMNS = {"from_url", "to_url", "label", "tags", "notes"}
 METHOD_TO_GT_COLUMNS = {
+    "from_name": "name",
+    "from_fqs": "fqs",
+    "from_tctracer_fqs": "tctracer_fqs",
+    "from_testlinker_fqs": "testlinker_fqs",
+    "from_artifact": "artifact",
     "to_name": "name",
     "to_fqs": "fqs",
     "to_tctracer_fqs": "tctracer_fqs",
@@ -97,6 +103,7 @@ def _test_caller_pool(
     if cg_test.empty:
         return pd.DataFrame(), [], 0, "no candidate rows whose from_url matches an artifact=#test-method method"
 
+    cg_test["from_artifact"] = cg_test["from_url"].map(artifact_by_url).fillna("")
     cg_test["to_artifact"] = cg_test["to_url"].map(artifact_by_url).fillna("")
     candidate_urls = list(cg_test["from_url"].drop_duplicates())
 
@@ -277,7 +284,8 @@ def _append_missing_working_rows(
         manual_row = {column: str(row.get(column, "")) for column in GROUND_TRUTH_COLUMNS}
         refreshed = _refresh_manual_row_from_method(
             manual_row,
-            method_row=method_rows_by_url.get(to_url),
+            from_method_row=method_rows_by_url.get(from_url),
+            to_method_row=method_rows_by_url.get(to_url),
             update_columns=update_columns,
         )
         if update_columns:
@@ -306,16 +314,18 @@ def _append_missing_working_rows(
 def _refresh_manual_row_from_method(
     manual_row: dict[str, str],
     *,
-    method_row: dict[str, str] | None,
+    from_method_row: dict[str, str] | None,
+    to_method_row: dict[str, str] | None,
     update_columns: list[str],
 ) -> bool:
-    if not update_columns or method_row is None:
+    if not update_columns:
         return False
 
     refreshed = False
     for column in update_columns:
         method_column = METHOD_TO_GT_COLUMNS.get(column)
-        if method_column is None or method_column not in method_row:
+        method_row = from_method_row if column.startswith("from_") else to_method_row
+        if method_column is None or method_row is None or method_column not in method_row:
             continue
         manual_row[column] = method_row.get(method_column, "")
         refreshed = True

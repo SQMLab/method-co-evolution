@@ -1799,6 +1799,7 @@ class HistoryViewerApp:
         candidates: list[GroundTruthCandidateRow],
     ) -> str:
         from_name = candidates[0].values.get("from_name", from_url) if candidates else from_url
+        from_artifact = candidates[0].values.get("from_artifact", "").strip() if candidates else ""
         labelled_count = sum(1 for candidate in candidates if candidate.is_labelled)
         tag_values = self.repository.collect_ground_truth_tags(ground_truth_csv)
         tag_options = "\n".join(f'<option value="{html.escape(tag)}"></option>' for tag in tag_values)
@@ -1852,6 +1853,7 @@ class HistoryViewerApp:
     <p>Label each called production method as <span class="mono">1</span> or <span class="mono">0</span>, then save notes beside that method.</p>
     <div class="chip-row ground-truth-detail-chips">
       <span class="chip" id="ground-truth-progress">{labelled_count} of {len(candidates)} labelled</span>
+      {f'<span class="chip">{html.escape(from_artifact)}</span>' if from_artifact else ''}
       <a class="chip" href="{html.escape(back_url)}">Back to test methods</a>
     </div>
   </section>
@@ -1885,6 +1887,7 @@ class HistoryViewerApp:
           <select class="ground-truth-add-mode">
             <option value="name">Method name</option>
             <option value="url">URL</option>
+            <option value="file">File</option>
           </select>
         </label>
         <label>
@@ -1902,9 +1905,9 @@ class HistoryViewerApp:
         <col style="width:6%;" />
         <col style="width:6%;" />
         <col style="width:10%;" />
-        <col style="width:15%;" />
-        <col style="width:18%;" />
-        <col style="width:6%;" />
+        <col style="width:14%;" />
+        <col style="width:16%;" />
+        <col style="width:9%;" />
       </colgroup>
       <thead>
         <tr>
@@ -3124,8 +3127,12 @@ if (addToggle && addPanel) {
         const meta = document.createElement("span");
         meta.className = "muted mono";
         meta.textContent = option.artifact || "";
+        const fqs = document.createElement("span");
+        fqs.className = "muted mono";
+        fqs.textContent = option.fqs || "";
         text.appendChild(name);
         text.appendChild(meta);
+        if (fqs.textContent) text.appendChild(fqs);
         const select = document.createElement("button");
         select.type = "button";
         select.textContent = "Add";

@@ -31,8 +31,8 @@ class TestGroundTruthSample(unittest.TestCase):
 
     def test_parse_update_columns_accepts_comma_separated_values(self):
         self.assertEqual(
-            ["to_artifact", "to_name", "to_fqs"],
-            ground_truth_sample.parse_update_columns("to_artifact, to_name,to_fqs,to_name"),
+            ["from_artifact", "to_artifact", "to_name", "to_fqs"],
+            ground_truth_sample.parse_update_columns("from_artifact,to_artifact, to_name,to_fqs,to_name"),
         )
 
     def test_parse_update_columns_rejects_unknown_and_protected_columns(self):
@@ -77,6 +77,7 @@ class TestGroundTruthSample(unittest.TestCase):
             self.assertEqual(1, stats.added_test_methods)
             self.assertEqual(2, result["from_url"].nunique())
             preserved = result[(result["from_url"] == "test://A") & (result["to_url"] == "prod://1")].iloc[0]
+            self.assertEqual("#test-code #test-unit #test-method", preserved["from_artifact"])
             self.assertEqual("1", str(preserved["label"]))
             self.assertEqual("needs-check", preserved["tags"])
             self.assertEqual("keep this", preserved["notes"])
@@ -94,6 +95,7 @@ class TestGroundTruthSample(unittest.TestCase):
                         "to_name": "staleProd",
                         "from_url": "test://A",
                         "to_url": "prod://1",
+                        "from_artifact": "stale-from-artifact",
                         "to_artifact": "stale-artifact",
                         "label": "1",
                         "tags": "reviewed",
@@ -109,13 +111,14 @@ class TestGroundTruthSample(unittest.TestCase):
                     working_dir=working_dir,
                     output_dir=output_dir,
                     temp_dir=root / ".output",
-                    update_columns=["to_artifact", "to_name"],
+                    update_columns=["from_artifact", "to_artifact", "to_name"],
                 )
 
             result = pd.read_csv(output_dir / "demo.csv", keep_default_na=False, na_filter=False)
             prod = result[(result["from_url"] == "test://A") & (result["to_url"] == "prod://1")].iloc[0]
             self.assertEqual(1, stats.rows_refreshed)
             self.assertEqual(0, stats.rows_not_refreshed)
+            self.assertEqual("#test-code #test-unit #test-method", prod["from_artifact"])
             self.assertEqual("production", prod["to_artifact"])
             self.assertEqual("prod1", prod["to_name"])
             self.assertEqual("1", str(prod["label"]))
@@ -257,6 +260,7 @@ class TestGroundTruthSample(unittest.TestCase):
                         "to_name": "staleToString",
                         "from_url": "test://A",
                         "to_url": "prod://manual",
+                        "from_artifact": "stale-from-artifact",
                         "to_fqs": "Demo.staleToString()",
                         "to_tctracer_fqs": "Demo.staleToString()",
                         "to_testlinker_fqs": "Demo.staleToString()",
@@ -275,13 +279,21 @@ class TestGroundTruthSample(unittest.TestCase):
                     working_dir=working_dir,
                     output_dir=output_dir,
                     temp_dir=root / ".output",
-                    update_columns=["to_artifact", "to_name", "to_fqs", "to_tctracer_fqs", "to_testlinker_fqs"],
+                    update_columns=[
+                        "from_artifact",
+                        "to_artifact",
+                        "to_name",
+                        "to_fqs",
+                        "to_tctracer_fqs",
+                        "to_testlinker_fqs",
+                    ],
                 )
 
             result = pd.read_csv(output_dir / "demo.csv", keep_default_na=False, na_filter=False)
             manual = result[result["to_url"] == "prod://manual"].iloc[0]
             self.assertEqual(1, stats.rows_refreshed)
             self.assertEqual(0, stats.rows_not_refreshed)
+            self.assertEqual("#test-code #test-unit #test-method", manual["from_artifact"])
             self.assertEqual("freshToString", manual["to_name"])
             self.assertEqual("Demo.freshToString()", manual["to_fqs"])
             self.assertEqual("Demo.freshToString()", manual["to_tctracer_fqs"])

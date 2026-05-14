@@ -55,6 +55,7 @@ class TestHistoryViewer(unittest.TestCase):
             "from_url",
             "to_url",
             "to_fqs",
+            "from_artifact",
             "to_artifact",
             "to_call_depth",
             "label",
@@ -68,6 +69,7 @@ class TestHistoryViewer(unittest.TestCase):
                 "from_url": "https://github.com/acme/sample/blob/abc/src/test/AlphaTest.java#L10",
                 "to_url": "https://github.com/acme/sample/blob/abc/src/main/Alpha.java#L20",
                 "to_fqs": "acme.Alpha.makeAlpha()",
+                "from_artifact": "#test-code #test-unit #test-method",
                 "to_artifact": "#production-code",
                 "to_call_depth": "",
                 "label": "1",
@@ -80,6 +82,7 @@ class TestHistoryViewer(unittest.TestCase):
                 "from_url": "https://github.com/acme/sample/blob/abc/src/test/AlphaTest.java#L10",
                 "to_url": "https://github.com/acme/sample/blob/abc/src/main/Alpha.java#L30",
                 "to_fqs": "acme.Alpha.helperAlpha(java.lang.String)",
+                "from_artifact": "#test-code #test-unit #test-method",
                 "to_artifact": "#production-code",
                 "to_call_depth": "2",
                 "label": "",
@@ -92,6 +95,7 @@ class TestHistoryViewer(unittest.TestCase):
                 "from_url": "https://github.com/acme/sample/blob/abc/src/test/BetaTest.java#L11",
                 "to_url": "https://github.com/acme/sample/blob/abc/src/main/Beta.java#L22",
                 "to_fqs": "acme.Beta.makeBeta()",
+                "from_artifact": "#test-code #test-unit #test-method",
                 "to_artifact": "#production-code",
                 "to_call_depth": "1",
                 "label": "0",
@@ -112,6 +116,7 @@ class TestHistoryViewer(unittest.TestCase):
             "project",
             "name",
             "url",
+            "file",
             "artifact",
             "fqs",
             "tctracer_fqs",
@@ -122,6 +127,7 @@ class TestHistoryViewer(unittest.TestCase):
                 "project": project,
                 "name": "newUtility",
                 "url": "https://github.com/acme/sample/blob/abc/src/main/NewUtility.java#L40",
+                "file": "src/main/NewUtility.java",
                 "artifact": "#production-code",
                 "fqs": "acme.NewUtility.newUtility()",
                 "tctracer_fqs": "acme.NewUtility.newUtility()",
@@ -131,6 +137,7 @@ class TestHistoryViewer(unittest.TestCase):
                 "project": project,
                 "name": "testFixtureHelper",
                 "url": "https://github.com/acme/sample/blob/abc/src/test/TestFixture.java#L8",
+                "file": "src/test/TestFixture.java",
                 "artifact": "#test-code",
                 "fqs": "acme.TestFixture.testFixtureHelper()",
                 "tctracer_fqs": "acme.TestFixture.testFixtureHelper()",
@@ -518,6 +525,15 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertTrue(search_response["ok"])
         self.assertEqual("#test-code", search_response["options"][0]["artifact"])
 
+        file_search_body = self.call_app(
+            app,
+            path="/api/ground-truth-method-search",
+            query=urlencode({"ground_truth_csv": str(csv_path), "q": "NewUtility.java", "mode": "file"}),
+        )
+        file_search_response = json.loads(file_search_body)
+        self.assertTrue(file_search_response["ok"])
+        self.assertEqual("newUtility", file_search_response["options"][0]["name"])
+
         append_payload = urlencode(
             {
                 "ground_truth_csv": str(csv_path),
@@ -538,12 +554,13 @@ class TestHistoryViewer(unittest.TestCase):
             rows = list(csv.DictReader(handle))
         self.assertEqual("testFixtureHelper", rows[2]["to_name"])
         self.assertEqual("testBeta", rows[3]["from_name"])
+        self.assertEqual("#test-code #test-unit #test-method", rows[2]["from_artifact"])
         self.assertEqual("1", rows[2]["to_call_depth"])
         self.assertEqual("", rows[2]["label"])
         self.assertEqual("", rows[2]["tags"])
         self.assertEqual("", rows[2]["notes"])
 
-    def test_ground_truth_detail_script_renders_linked_search_result_with_artifact_only(self) -> None:
+    def test_ground_truth_detail_script_renders_linked_search_result_with_artifact_and_fqs(self) -> None:
         csv_path = self.write_ground_truth_fixture("ground-truth-search-result-render")
         detail_body = self.call_app(
             create_app(workspace_directory=str(WORKSPACE_DIRECTORY), data_directory=str(DATA_DIRECTORY)),
@@ -558,7 +575,9 @@ class TestHistoryViewer(unittest.TestCase):
 
         self.assertIn('const name = document.createElement("a");', detail_body)
         self.assertIn("name.href = option.url;", detail_body)
+        self.assertIn('<option value="file">File</option>', detail_body)
         self.assertIn('meta.textContent = option.artifact || "";', detail_body)
+        self.assertIn('fqs.textContent = option.fqs || "";', detail_body)
         self.assertNotIn('meta.textContent = `${option.artifact || "artifact"} ${option.fqs || option.url}`;', detail_body)
 
     def test_ground_truth_update_api_returns_progress(self) -> None:

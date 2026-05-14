@@ -305,6 +305,7 @@ def ensure_ground_truth_fieldnames(fieldnames: list[str]) -> list[str]:
         "to_fqs",
         "to_tctracer_fqs",
         "to_testlinker_fqs",
+        "from_artifact",
         "to_artifact",
         "to_call_depth",
         "label",
@@ -780,15 +781,24 @@ class HistoryRepository:
         normalized_query = query.strip().lower()
         if not normalized_query:
             return []
-        search_mode = "url" if mode == "url" else "name"
+        search_mode = mode if mode in {"url", "file"} else "name"
         options: list[GroundTruthMethodOption] = []
         with method_path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             for row_index, row in enumerate(reader):
                 values = {key: value or "" for key, value in row.items() if key is not None}
-                haystack = values.get("url", "") if search_mode == "url" else " ".join(
-                    [values.get("name", ""), values.get("fqs", ""), values.get("fqn", "")]
-                )
+                if search_mode == "url":
+                    haystack = values.get("url", "")
+                elif search_mode == "file":
+                    haystack = " ".join(
+                        [
+                            values.get("file", ""),
+                            values.get("file_path", ""),
+                            values.get("path", ""),
+                        ]
+                    )
+                else:
+                    haystack = " ".join([values.get("name", ""), values.get("fqs", ""), values.get("fqn", "")])
                 if normalized_query not in haystack.lower():
                     continue
                 options.append(GroundTruthMethodOption(row_index=row_index, values=values))
@@ -831,7 +841,15 @@ class HistoryRepository:
             raise ValueError("Selected method is already a candidate for this test method")
 
         new_row = {fieldname: "" for fieldname in fieldnames}
-        for fieldname in ("project", "from_name", "from_url", "from_fqs", "from_tctracer_fqs", "from_testlinker_fqs"):
+        for fieldname in (
+            "project",
+            "from_name",
+            "from_url",
+            "from_fqs",
+            "from_tctracer_fqs",
+            "from_testlinker_fqs",
+            "from_artifact",
+        ):
             new_row[fieldname] = source_row.get(fieldname, "")
         new_row["project"] = new_row.get("project", "") or self.ground_truth_project_name(path)
         new_row["to_name"] = method_row.get("name", "")
