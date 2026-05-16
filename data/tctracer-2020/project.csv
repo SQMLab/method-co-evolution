@@ -1,0 +1,5 @@
+project,ref,stars,forks,watchers,contributors,commits,created_at,updated_at,url,created_hash,updated_hash,branch
+ant,white,0,0,0,0,0,2000-01-13T10:15:43+00:00,,https://github.com/apache/ant,,ea7bf285888ae7ed015c9fdb345a7b8f9549691a,
+commons-io,sun#white,0,0,0,0,0,2002-01-25T19:06:14+00:00,,https://github.com/apache/commons-io,,4077158829de92987367d3149e4ba71356bb5390,
+commons-lang,sun#white,0,0,0,0,0,2002-07-19T03:35:56+00:00,,https://github.com/apache/commons-lang,,425d8085cfcaab5a78bf0632f9ae77b7e9127cf8,
+jfreechart,sun#white,0,0,0,0,0,,,https://github.com/jfree/jfreechart,,b3f5f21ba0fe32a8f7eccb6760a79df30628be3e,
