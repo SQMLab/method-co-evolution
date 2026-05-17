@@ -82,6 +82,7 @@ class TestGenerateT2PLink(unittest.TestCase):
         self.assertEqual(LinkStrategy.TARANTULA, strategies_from_keys(["tarantula"]))
         self.assertEqual(LinkStrategy.TFIDF, strategies_from_keys(["tfidf"]))
         self.assertEqual(LinkStrategy.COMBINED, strategies_from_keys(["combined"]))
+        self.assertEqual(LinkStrategy.TESTLINKERV2, strategies_from_keys(["testlinkerv2"]))
         self.assertEqual("tarantula--combined", strategy_output_key(LinkStrategy.TARANTULA | LinkStrategy.COMBINED))
 
     def test_llm_stage_uses_hyphenated_column_name(self):
@@ -136,6 +137,20 @@ class TestGenerateT2PLink(unittest.TestCase):
 
         self.assertEqual([1], list(indexes))
         self.assertEqual("testlinker", strategy_output_key(LinkStrategy.TESTLINKER))
+
+    def test_testlinkerv2_stage_selects_positive_predictions(self):
+        frame = pd.DataFrame(
+            [
+                {"from_url": "f1", "tech_testlinkerv2": ""},
+                {"from_url": "f2", "tech_testlinkerv2": "1"},
+                {"from_url": "f3", "tech_testlinkerv2": "0"},
+            ]
+        )
+
+        indexes = select_one_stage_indices(frame, LinkStrategy.TESTLINKERV2)
+
+        self.assertEqual([1], list(indexes))
+        self.assertEqual("testlinkerv2", strategy_output_key(LinkStrategy.TESTLINKERV2))
 
     def test_filters_test_case_methods_to_main_code(self):
         frame = pd.DataFrame(

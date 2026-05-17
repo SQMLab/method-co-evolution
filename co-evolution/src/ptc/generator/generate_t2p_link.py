@@ -25,6 +25,7 @@ LINK_STRATEGY_PRIORITY: list[LinkStrategy] = [
     LinkStrategy.LLM_GPT_OSS_120B,
     LinkStrategy.LLM_QWEN_2D5B,
     LinkStrategy.TESTLINKER,
+    LinkStrategy.TESTLINKERV2,
 ]
 METHOD_LINK_STRATEGIES: list[LinkStrategy] = [
     LinkStrategy.OMC,
@@ -51,6 +52,7 @@ METHOD_LINK_STRATEGIES: list[LinkStrategy] = [
     LinkStrategy.LLM_GPT_OSS_120B,
     LinkStrategy.LLM_QWEN_2D5B,
     LinkStrategy.TESTLINKER,
+    LinkStrategy.TESTLINKERV2,
 
 ]
 
@@ -142,6 +144,8 @@ def select_one_stage_indices(
             indexes = _select_llm_stage_indices(pt_link_df, stage)
         case LinkStrategy.TESTLINKER:
             indexes = _select_binary_stage_indices(pt_link_df, "tech_testlinker")
+        case LinkStrategy.TESTLINKERV2:
+            indexes = _select_binary_stage_indices(pt_link_df, "tech_testlinkerv2")
         case _:
             raise ValueError(f"Unsupported stage: {stage}")
     return indexes
