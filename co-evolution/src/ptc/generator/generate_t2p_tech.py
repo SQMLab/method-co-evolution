@@ -152,6 +152,10 @@ TECHNIQUE_COLUMNS = [
 ]
 
 
+def empty_scores_for_tests(test_names_tuple: list[tuple[str, str]]) -> dict[str, dict[str, float]]:
+    return {test_key: {} for test_key, _ in test_names_tuple}
+
+
 def _method_name(value: object) -> str:
     return str(value or "").lower()
 
@@ -214,6 +218,18 @@ def compute_technique_scores(t2p_candidate_df: pd.DataFrame) -> dict[str, dict[s
         functions_called_by_test_before_assert,
     ) = build_traceability_inputs(t2p_candidate_df)
 
+    tarantula_scores = (
+        tarantula.run(
+            function_names_tuple=function_names_tuple,
+            test_names_tuple=test_names_tuple,
+            functions_called_by_tests=functions_called_by_tests,
+            tests_that_call_functions=tests_that_call_functions,
+            functions_called_by_test_depth=functions_called_by_test_depth,
+        )
+        if len(test_names_tuple) > 1
+        else empty_scores_for_tests(test_names_tuple)
+    )
+
     scores = {
         "tech_nc": nc.run(
             function_names_tuple=function_names_tuple,
@@ -249,13 +265,7 @@ def compute_technique_scores(t2p_candidate_df: pd.DataFrame) -> dict[str, dict[s
             functions_called_by_tests=functions_called_by_tests,
             functions_called_by_test_before_assert=functions_called_by_test_before_assert,
         ),
-        "tech_tarantula": tarantula.run(
-            function_names_tuple=function_names_tuple,
-            test_names_tuple=test_names_tuple,
-            functions_called_by_tests=functions_called_by_tests,
-            tests_that_call_functions=tests_that_call_functions,
-            functions_called_by_test_depth=functions_called_by_test_depth,
-        ),
+        "tech_tarantula": tarantula_scores,
         "tech_tfidf": tfidf.run(
             function_names_tuple=function_names_tuple,
             test_names_tuple=test_names_tuple,

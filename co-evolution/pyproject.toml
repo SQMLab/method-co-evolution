@@ -14,7 +14,8 @@ dependencies = [
     "levenshtein",
     "scikit-learn",
     "pytctracer",
-    "cliffs-delta"
+    "cliffs-delta",
+    "PyYAML"
 ]
 
 [project.optional-dependencies]

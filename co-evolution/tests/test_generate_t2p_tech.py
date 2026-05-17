@@ -121,6 +121,33 @@ class TestApplyLlmTechniques(unittest.TestCase):
         self.assertLess(result_df.loc[1, "tech_lcs_u"], 1.0)
         self.assertLess(result_df.loc[1, "tech_leven"], 1.0)
 
+    def test_traceability_techniques_handle_single_test_tarantula(self):
+        candidate_df = pd.DataFrame(
+            [
+                {
+                    "from_url": "test://OnlyTest.testOne",
+                    "from_name": "testone",
+                    "to_url": "prod://Only.one",
+                    "to_name": "one",
+                    "to_call_depth": 1,
+                    "to_lcba": 1,
+                },
+                {
+                    "from_url": "test://OnlyTest.testOne",
+                    "from_name": "testone",
+                    "to_url": "prod://Only.two",
+                    "to_name": "two",
+                    "to_call_depth": 2,
+                    "to_lcba": 0,
+                },
+            ]
+        )
+
+        result_df = apply_traceability_techniques(candidate_df)
+
+        self.assertEqual([0, 0], result_df["tech_tarantula"].tolist())
+        self.assertIn("tech_combined", result_df.columns)
+
     def test_existing_prediction_file_maps_rows_to_zero_or_one(self):
         candidate_df = pd.DataFrame(
             [
