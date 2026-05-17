@@ -121,6 +121,33 @@ class TestApplyLlmTechniques(unittest.TestCase):
         self.assertLess(result_df.loc[1, "tech_lcs_u"], 1.0)
         self.assertLess(result_df.loc[1, "tech_leven"], 1.0)
 
+    def test_traceability_techniques_handle_single_test_tarantula(self):
+        candidate_df = pd.DataFrame(
+            [
+                {
+                    "from_url": "test://OnlyTest.testOne",
+                    "from_name": "testone",
+                    "to_url": "prod://Only.one",
+                    "to_name": "one",
+                    "to_call_depth": 1,
+                    "to_lcba": 1,
+                },
+                {
+                    "from_url": "test://OnlyTest.testOne",
+                    "from_name": "testone",
+                    "to_url": "prod://Only.two",
+                    "to_name": "two",
+                    "to_call_depth": 2,
+                    "to_lcba": 0,
+                },
+            ]
+        )
+
+        result_df = apply_traceability_techniques(candidate_df)
+
+        self.assertEqual([0, 0], result_df["tech_tarantula"].tolist())
+        self.assertIn("tech_combined", result_df.columns)
+
     def test_existing_prediction_file_maps_rows_to_zero_or_one(self):
         candidate_df = pd.DataFrame(
             [
@@ -260,7 +287,7 @@ class TestApplyLlmTechniques(unittest.TestCase):
             self.assertTrue(result_df["tech_testlinker"].isna().all())
 
     def test_run_project_subprocesses_runs_one_child_per_project(self):
-        args = SimpleNamespace(skip_existing=True, replace=False)
+        args = SimpleNamespace(experiment_name=None, skip_existing=True, replace=False)
 
         with patch("ptc.generator.generate_t2p_tech.subprocess.run") as run:
             run_project_subprocesses(args, ["ant", "dubbo"])
@@ -285,13 +312,15 @@ class TestApplyLlmTechniques(unittest.TestCase):
             (candidate_dir / "demo.csv").write_text("from_url,to_url\n", encoding="utf-8")
             (output_dir / "demo.csv").write_text("already,done\n", encoding="utf-8")
 
-            with patch("ptc.generator.generate_t2p_tech.T2P_CANDIDATE_DIR", str(candidate_dir)), patch(
-                "ptc.generator.generate_t2p_tech.OUTPUT_DIR", str(output_dir)
-            ), patch("ptc.generator.generate_t2p_tech.pd.read_csv") as read_csv:
+            with patch("ptc.generator.generate_t2p_tech.pd.read_csv") as read_csv:
                 process_project(
                     "demo",
                     "abc123",
                     [],
+                    t2p_candidate_dir=candidate_dir,
+                    output_dir=output_dir,
+                    llm_prediction_dir=Path(tmpdir) / "llm",
+                    testlinker_prediction_dir=Path(tmpdir) / "testlinker",
                     skip_existing=True,
                     replace=False,
                 )
