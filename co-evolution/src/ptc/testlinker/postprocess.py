@@ -20,7 +20,7 @@ from ptc.testlinker.paths import (
 from ptc.testlinker.signatures import invocation_name
 
 
-POSTPROCESS_MODES = ["testlinker-original", "testlinker-symbolsolver"]
+METHOD_RESOLVERS = ["testlinker", "t2plinker", "all"]
 
 POSTPROCESS_OUTPUT_COLUMNS = [
     "project",
@@ -46,33 +46,28 @@ SYMBOLSOLVER_OUTPUT_COLUMNS = [
 ]
 
 
-def postprocess_project(
-    *,
-    workspace_directory: str | Path,
-    project: str,
-    top_k: int = 1,
-    testlinker_directory: str | Path | None = None,
-    modes: list[str] | None = None,
-    model_name_or_path: str = "codet5-base",
-    replace: bool = False,
-) -> dict[str, pd.DataFrame]:
-    if modes is None:
-        modes = ["testlinker-original"]
+def postprocess_project(*, workspace_directory: str | Path, project: str, top_k: int = 1,
+                        testlinker_directory: str | Path | None = None, method_resolver: str | None = None,
+                        model_name_or_path: str = "codet5-base", replace: bool = False) -> dict[str, pd.DataFrame]:
+    if method_resolver is None or method_resolver == "all":
+        method_resolvers = ["testlinker", "t2plinker"]
+    else:
+        method_resolvers = [method_resolver]
 
     root = testlinker_root(workspace_directory, testlinker_directory)
 
     if not replace:
         results = {}
         pending_modes = []
-        for mode in modes:
-            output_file = postprocess_output_path(root, project, mode, model_name=model_name_from_name_or_path(model_name_or_path))
+        for resolver in method_resolvers:
+            output_file = postprocess_output_path(root, project, resolver, model_name=model_name_from_name_or_path(model_name_or_path))
             if output_file.exists():
-                results[mode] = pd.read_csv(output_file, keep_default_na=False, na_filter=False)
+                results[resolver] = pd.read_csv(output_file, keep_default_na=False, na_filter=False)
             else:
-                pending_modes.append(mode)
+                pending_modes.append(resolver)
         if not pending_modes:
             return results
-        modes = pending_modes
+        method_resolvers = pending_modes
     else:
         results = {}
 
@@ -97,8 +92,8 @@ def postprocess_project(
         )
     original_examples = read_examples(input_json_dir)
 
-    for mode in modes:
-        if mode == "testlinker-original":
+    for resolver in method_resolvers:
+        if resolver == "testlinker":
             _warn_if_mapping_files_missing(root=root, project=project)
             examples = apply_signature_mapping(
                 original_examples,
@@ -110,12 +105,12 @@ def postprocess_project(
         else:
             prediction_rows = _predict_with_url_match(original_examples, model_output, top_k)
 
-        columns = POSTPROCESS_OUTPUT_COLUMNS if mode == "testlinker-original" else SYMBOLSOLVER_OUTPUT_COLUMNS
+        columns = POSTPROCESS_OUTPUT_COLUMNS if resolver == "testlinker" else SYMBOLSOLVER_OUTPUT_COLUMNS
         output_df = pd.DataFrame(prediction_rows, columns=columns)
-        output_file = postprocess_output_path(root, project, mode, model_name=model_name_from_name_or_path(model_name_or_path))
+        output_file = postprocess_output_path(root, project, resolver, model_name=model_name_from_name_or_path(model_name_or_path))
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_df.to_csv(output_file, index=False)
-        results[mode] = output_df
+        results[resolver] = output_df
 
     return results
 

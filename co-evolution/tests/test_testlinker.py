@@ -133,19 +133,10 @@ class TestTestLinkerPipeline(unittest.TestCase):
                 FileNotFoundError,
                 re.escape(f"CodeT5 checkpoint file not found: {expected_checkpoint}"),
             ):
-                _build_ranker(
-                    workspace_directory=experiment_dir,
-                    checkpoint_workspace_directory=cache_dir,
-                    root=experiment_dir / "testlinker",
-                    model_name_or_path="Salesforce/codet5-base",
-                    checkpoint_directory=None,
-                    checkpoint="best-acc_and_f1",
-                    model_mode="codet5",
-                    eval_batch_size=16,
-                    max_source_length=512,
-                    tokenizer_mode="original",
-                    no_cuda=True,
-                )
+                _build_ranker(workspace_directory=experiment_dir, checkpoint_workspace_directory=cache_dir,
+                              root=experiment_dir / "testlinker", model_name_or_path="Salesforce/codet5-base",
+                              checkpoint_directory=None, checkpoint="best-acc_and_f1", eval_batch_size=16,
+                              max_source_length=512, tokenizer_mode="original", no_cuda=True)
 
     def test_tokenizer_fallback_uses_installed_constructor_parameter_names(self):
         class NewTokenizer:
@@ -459,23 +450,15 @@ class TestTestLinkerPipeline(unittest.TestCase):
             ).to_csv(data_dir / "method-code" / "demo.csv", index=False)
 
             preprocess_project(workspace_directory=cache_dir, project="demo")
-            execute_df = execute_project(
-                workspace_directory=cache_dir,
-                project="demo",
-                model_mode="heuristic",
-            )
+            execute_df = execute_project(workspace_directory=cache_dir, project="demo")
             with self.assertWarnsRegex(RuntimeWarning, "TestLinker mapping files are missing"):
-                postprocess_results = postprocess_project(
-                    workspace_directory=cache_dir,
-                    project="demo",
-                    top_k=1,
-                )
-            final_df = postprocess_results["testlinker-original"]
+                postprocess_results = postprocess_project(workspace_directory=cache_dir, project="demo", top_k=1)
+            final_df = postprocess_results["testlinker"]
 
             self.assertTrue(model_output_json_path(cache_dir / "testlinker", "demo").exists())
             self.assertTrue((raw_input_json_directory(cache_dir / "testlinker", "demo") / "000001.json").exists())
             self.assertTrue(model_output_csv_path(cache_dir / "testlinker", "demo").exists())
-            self.assertTrue(postprocess_output_path(cache_dir / "testlinker", "demo", "testlinker-original").exists())
+            self.assertTrue(postprocess_output_path(cache_dir / "testlinker", "demo", "testlinker").exists())
             self.assertEqual(["copy", "format"], execute_df["invocation"].tolist())
             self.assertEqual([2.0, 1.0], execute_df["score"].tolist())
             self.assertEqual([1, 0], final_df["label_pred"].tolist())

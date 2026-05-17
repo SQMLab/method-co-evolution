@@ -10,33 +10,22 @@ from ptc.testlinker.model import CodeT5InvocationRanker, ModelConfig
 from ptc.testlinker.paths import (
     default_checkpoint_directory,
     default_model_directory,
+    model_name_from_name_or_path,
     model_output_csv_path,
     model_output_json_path,
     raw_input_json_directory,
     testlinker_root,
-    model_name_from_name_or_path
 )
 
 
 MODEL_OUTPUT_COLUMNS = ["project", "from_url", "test_name", "invocation", "score", "rank"]
 
 
-def execute_project(
-    *,
-    workspace_directory: str | Path,
-    project: str,
-    testlinker_directory: str | Path | None = None,
-    model_name_or_path: str | Path | None = None,
-    checkpoint_directory: str | Path | None = None,
-    checkpoint_workspace_directory: str | Path | None = None,
-    checkpoint: str = "best-acc_and_f1",
-    model_mode: str = "codet5",
-    eval_batch_size: int = 16,
-    max_source_length: int = 512,
-    tokenizer_mode: str = "original",
-    no_cuda: bool = False,
-    replace: bool = False,
-) -> pd.DataFrame:
+def execute_project(*, workspace_directory: str | Path, project: str, testlinker_directory: str | Path | None = None,
+                    model_name_or_path: str | Path | None = None, checkpoint_directory: str | Path | None = None,
+                    checkpoint_workspace_directory: str | Path | None = None, checkpoint: str = "best-acc_and_f1",
+                    eval_batch_size: int = 16, max_source_length: int = 512, tokenizer_mode: str = "original",
+                    no_cuda: bool = False, replace: bool = False) -> pd.DataFrame:
     root = testlinker_root(workspace_directory, testlinker_directory)
 
     output_json = model_output_json_path(root, project)
@@ -52,19 +41,11 @@ def execute_project(
         )
     examples = read_examples(input_json_dir)
 
-    ranker = _build_ranker(
-        workspace_directory=workspace_directory,
-        checkpoint_workspace_directory=checkpoint_workspace_directory,
-        root=root,
-        model_name_or_path=model_name_or_path,
-        checkpoint_directory=checkpoint_directory,
-        checkpoint=checkpoint,
-        model_mode=model_mode,
-        eval_batch_size=eval_batch_size,
-        max_source_length=max_source_length,
-        tokenizer_mode=tokenizer_mode,
-        no_cuda=no_cuda,
-    )
+    ranker = _build_ranker(workspace_directory=workspace_directory,
+                           checkpoint_workspace_directory=checkpoint_workspace_directory, root=root,
+                           model_name_or_path=model_name_or_path, checkpoint_directory=checkpoint_directory,
+                           checkpoint=checkpoint, eval_batch_size=eval_batch_size, max_source_length=max_source_length,
+                           tokenizer_mode=tokenizer_mode, no_cuda=no_cuda)
 
     detail_rows: list[dict[str, object]] = []
     output_rows: list[dict[str, object]] = []
@@ -111,32 +92,9 @@ def execute_project(
     return output_csv_df
 
 
-class _HeuristicRanker:
-    def score_invocations(self, *, body: str, test_name: str, invocations: list[str]) -> dict[str, float]:
-        return {
-            invocation: float(len(invocations) - index)
-            for index, invocation in enumerate(invocations)
-        }
-
-
-def _build_ranker(
-    *,
-    workspace_directory: str | Path,
-    checkpoint_workspace_directory: str | Path | None = None,
-    root: Path,
-    model_name_or_path: str | Path | None,
-    checkpoint_directory: str | Path | None,
-    checkpoint: str,
-    model_mode: str,
-    eval_batch_size: int,
-    max_source_length: int,
-    tokenizer_mode: str,
-    no_cuda: bool,
-):
-    if model_mode == "heuristic":
-        return _HeuristicRanker()
-    if model_mode != "codet5":
-        raise ValueError(f"Unsupported model mode: {model_mode}")
+def _build_ranker(*, workspace_directory: str | Path, checkpoint_workspace_directory: str | Path | None = None,
+                  root: Path, model_name_or_path: str | Path | None, checkpoint_directory: str | Path | None,
+                  checkpoint: str, eval_batch_size: int, max_source_length: int, tokenizer_mode: str, no_cuda: bool):
 
     resolved_model = Path(model_name_or_path) if model_name_or_path else default_model_directory(root)
     resolved_checkpoint_directory = (

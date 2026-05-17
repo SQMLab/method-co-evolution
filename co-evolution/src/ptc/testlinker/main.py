@@ -8,7 +8,7 @@ from mhc.util import parse_project_index
 
 from ptc.experiment_util import build_experiment_parser, resolve_experiment_paths
 from ptc.testlinker.execute import execute_project
-from ptc.testlinker.postprocess import POSTPROCESS_MODES, postprocess_project
+from ptc.testlinker.postprocess import METHOD_RESOLVERS, postprocess_project
 from ptc.testlinker.preprocess import preprocess_project
 
 
@@ -58,10 +58,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--checkpoint-directory", default=None, help="Directory containing pytorch_model.bin.")
     parser.add_argument("--checkpoint", default="best-acc_and_f1", help="Checkpoint name used by the default layout.")
     parser.add_argument(
-        "--model-mode",
-        choices=["codet5", "heuristic"],
-        default="codet5",
-        help="Use codet5 for real inference or heuristic for local dry runs/tests.",
+        "--method-resolver",
+        choices=METHOD_RESOLVERS,
+        default="testlinker",
+        help=(
+            "Method resolving modes to run (default: testlinker). "
+            "testlinker applies the TestLinker signature mapping algorithm. "
+            "t2plinker uses direct URL matching from the symbol solver."
+            "all computes output for both."
+        ),
     )
     parser.add_argument("--eval-batch-size", type=int, default=16)
     parser.add_argument("--max-source-length", type=int, default=512)
@@ -95,18 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Re-run stages even when output files already exist.",
     )
-    parser.add_argument(
-        "--postprocess-modes",
-        dest="postprocess_modes",
-        nargs="+",
-        choices=POSTPROCESS_MODES,
-        default=["testlinker-original"],
-        help=(
-            "Postprocessing modes to run (default: testlinker-original). "
-            "testlinker-original applies the TestLinker signature mapping algorithm. "
-            "testlinker-symbolsolver uses direct URL matching from the symbol solver."
-        ),
-    )
+
     return parser
 
 
@@ -165,33 +159,21 @@ def _run_project(args: argparse.Namespace, project: str) -> None:
         print(f"Wrote TestLinker input rows: {len(preprocess_df)}")
 
     if args.stage in {"execute", "all"}:
-        execute_df = execute_project(
-            workspace_directory=args.workspace_directory,
-            project=project,
-            testlinker_directory=args.testlinker_directory,
-            model_name_or_path=args.model_name_or_path,
-            checkpoint_directory=args.checkpoint_directory,
-            checkpoint_workspace_directory=args.checkpoint_workspace_directory,
-            checkpoint=args.checkpoint,
-            model_mode=args.model_mode,
-            eval_batch_size=args.eval_batch_size,
-            max_source_length=args.max_source_length,
-            tokenizer_mode=args.tokenizer_mode,
-            no_cuda=args.no_cuda,
-            replace=args.replace,
-        )
+        execute_df = execute_project(workspace_directory=args.workspace_directory, project=project,
+                                     testlinker_directory=args.testlinker_directory,
+                                     model_name_or_path=args.model_name_or_path,
+                                     checkpoint_directory=args.checkpoint_directory,
+                                     checkpoint_workspace_directory=args.checkpoint_workspace_directory,
+                                     checkpoint=args.checkpoint, eval_batch_size=args.eval_batch_size,
+                                     max_source_length=args.max_source_length, tokenizer_mode=args.tokenizer_mode,
+                                     no_cuda=args.no_cuda, replace=args.replace)
         print(f"Wrote model output rows: {len(execute_df)}")
 
     if args.stage in {"postprocess", "all"}:
-        postprocess_results = postprocess_project(
-            workspace_directory=args.workspace_directory,
-            project=project,
-            top_k=args.top_k,
-            testlinker_directory=args.testlinker_directory,
-            modes=args.postprocess_modes,
-            model_name_or_path=args.model_name_or_path,
-            replace=args.replace,
-        )
+        postprocess_results = postprocess_project(workspace_directory=args.workspace_directory, project=project,
+                                                  top_k=args.top_k, testlinker_directory=args.testlinker_directory,
+                                                  method_resolver=args.method_resolver,
+                                                  model_name_or_path=args.model_name_or_path, replace=args.replace)
         for mode, mode_df in postprocess_results.items():
             print(f"Wrote TestLinker [{mode}] prediction rows: {len(mode_df)}")
 
