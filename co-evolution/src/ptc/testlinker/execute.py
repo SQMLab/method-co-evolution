@@ -28,8 +28,8 @@ def execute_project(*, workspace_directory: str | Path, project: str, testlinker
                     no_cuda: bool = False, replace: bool = False) -> pd.DataFrame:
     root = testlinker_root(workspace_directory, testlinker_directory)
 
-    output_json = model_output_json_path(root, project)
-    output_csv = model_output_csv_path(root, project)
+    output_json = model_output_json_path(root, project, model_name_from_name_or_path(model_name_or_path))
+    output_csv = model_output_csv_path(root, project, model_name_from_name_or_path(model_name_or_path))
 
     if not replace and output_json.exists() and output_csv.exists():
         return pd.read_csv(output_csv, keep_default_na=False, na_filter=False)

@@ -17,16 +17,17 @@ def raw_input_json_directory(root: Path, project: str) -> Path:
     return root / "input" / "model-input-json" / project
 
 
-def model_output_json_path(root: Path, project: str) -> Path:
-    return root / "output" / "model-output-json" / f"{project}.json"
+def model_output_json_path(root: Path, project: str, model_name: str) -> Path:
+    return root / "output" / model_name / "model-output-json" / f"{project}.json"
 
 
-def model_output_csv_path(root: Path, project: str) -> Path:
-    return root / "output" / "model-output-csv" / f"{project}.csv"
+def model_output_csv_path(root: Path, project: str, model_name: str) -> Path:
+    return root / "output" / model_name / "model-output-csv" / f"{project}.csv"
 
 
-def postprocess_output_path(root: Path, project: str, mode: str = "testlinker-original", model_name: str = "codet5") -> Path:
-    return root / "output" / model_name / mode / "t2p-link" / f"{project}.csv"
+def postprocess_output_path(root: Path, project: str, method_resolver: str = "testlinker",
+                            model_name: str = "codet5") -> Path:
+    return root / "output" / model_name / method_resolver / f"{project}.csv"
 
 
 def class_map_directory(root: Path) -> Path:
@@ -48,7 +49,8 @@ def default_model_directory(root: Path) -> Path:
 def default_checkpoint_directory(workspace_directory: Path, checkpoint: str, model_name: str = "codet5") -> Path:
     return workspace_directory / "testlinker-finetuned-checkpoints" / f"{model_name}-base" / f"checkpoint-{checkpoint}"
 
+
 def model_name_from_name_or_path(model_name_or_path: str) -> str:
-    if  "codet5" in model_name_or_path:
+    if "codet5" in model_name_or_path:
         return "codet5"
     return model_name_or_path

@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Method resolving modes to run (default: testlinker). "
             "testlinker applies the TestLinker signature mapping algorithm. "
-            "t2plinker uses direct URL matching from the symbol solver."
+            "testlinkerv2 uses direct URL matching from the symbol solver."
             "all computes output for both."
         ),
     )

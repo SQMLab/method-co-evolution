@@ -20,7 +20,7 @@ from ptc.testlinker.paths import (
 from ptc.testlinker.signatures import invocation_name
 
 
-METHOD_RESOLVERS = ["testlinker", "t2plinker", "all"]
+METHOD_RESOLVERS = ["testlinker", "testlinkerv2", "all"]
 
 POSTPROCESS_OUTPUT_COLUMNS = [
     "project",
@@ -30,27 +30,16 @@ POSTPROCESS_OUTPUT_COLUMNS = [
     "label_pred",
     "pred_score",
     "recom_by",
-    "testlinker_signature",
+    "to_testlinker_fqs",
     "from_url",
     "to_url",
 ]
-
-SYMBOLSOLVER_OUTPUT_COLUMNS = [
-    "project",
-    "from_name",
-    "to_name",
-    "label",
-    "testlinker_symbolsolver",
-    "from_url",
-    "to_url",
-]
-
 
 def postprocess_project(*, workspace_directory: str | Path, project: str, top_k: int = 1,
                         testlinker_directory: str | Path | None = None, method_resolver: str | None = None,
                         model_name_or_path: str = "codet5-base", replace: bool = False) -> dict[str, pd.DataFrame]:
     if method_resolver is None or method_resolver == "all":
-        method_resolvers = ["testlinker", "t2plinker"]
+        method_resolvers = ["testlinker", "testlinkerv2"]
     else:
         method_resolvers = [method_resolver]
 
@@ -71,7 +60,7 @@ def postprocess_project(*, workspace_directory: str | Path, project: str, top_k:
     else:
         results = {}
 
-    model_json = model_output_json_path(root, project)
+    model_json = model_output_json_path(root, project, "codet5")
     if not model_json.exists():
         raise FileNotFoundError(
             f"Model output not found: {model_json}. Run the execute stage first."
@@ -102,11 +91,12 @@ def postprocess_project(*, workspace_directory: str | Path, project: str, top_k:
                 project=project,
             )
             prediction_rows = _predict_with_mapping(examples, model_output, top_k)
-        else:
+        elif resolver == "testlinkerv2":
             prediction_rows = _predict_with_url_match(original_examples, model_output, top_k)
+        else:
+            raise NotImplementedError(f"Not implemented resolver: {resolver}")
 
-        columns = POSTPROCESS_OUTPUT_COLUMNS if resolver == "testlinker" else SYMBOLSOLVER_OUTPUT_COLUMNS
-        output_df = pd.DataFrame(prediction_rows, columns=columns)
+        output_df = pd.DataFrame(prediction_rows, columns=POSTPROCESS_OUTPUT_COLUMNS)
         output_file = postprocess_output_path(root, project, resolver, model_name=model_name_from_name_or_path(model_name_or_path))
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_df.to_csv(output_file, index=False)
@@ -120,7 +110,7 @@ def _predict_with_mapping(
     model_output: dict[str, dict[str, object]],
     top_k: int,
 ) -> list[dict[str, object]]:
-    """testlinker-original: resolve top-k invocations through signature mapping → to_urls."""
+    """testlinker: resolve top-k invocations through signature mapping → to_urls."""
     rows = []
     for example in examples:
         model_entry = model_output.get(str(example["id"]), {})
@@ -168,7 +158,7 @@ def _predict_with_url_match(
                     "from_url": example.get("from_url", ""),
                     "to_url": to_url,
                     "label": 1 if to_url in label_urls else 0,
-                    "testlinker_symbolsolver": 1 if to_url in predicted_urls else 0,
+                    "label_pred": 1 if to_url in predicted_urls else 0,
                 })
     return rows
 
@@ -215,7 +205,7 @@ def _build_prediction_rows(
                 "label_pred": 1 if to_url in recommended_url_to_sig else 0,
                 "pred_score": score,
                 "recom_by": recom_by if to_url in recommended_url_to_sig else "",
-                "testlinker_signature": recommended_url_to_sig.get(to_url, ""),
+                "to_testlinker_fqs": recommended_url_to_sig.get(to_url, ""),
             })
     return rows
 

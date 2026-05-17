@@ -455,9 +455,9 @@ class TestTestLinkerPipeline(unittest.TestCase):
                 postprocess_results = postprocess_project(workspace_directory=cache_dir, project="demo", top_k=1)
             final_df = postprocess_results["testlinker"]
 
-            self.assertTrue(model_output_json_path(cache_dir / "testlinker", "demo").exists())
+            self.assertTrue(model_output_json_path(cache_dir / "testlinker", "demo", "codet5").exists())
             self.assertTrue((raw_input_json_directory(cache_dir / "testlinker", "demo") / "000001.json").exists())
-            self.assertTrue(model_output_csv_path(cache_dir / "testlinker", "demo").exists())
+            self.assertTrue(model_output_csv_path(cache_dir / "testlinker", "demo", "codet5").exists())
             self.assertTrue(postprocess_output_path(cache_dir / "testlinker", "demo", "testlinker").exists())
             self.assertEqual(["copy", "format"], execute_df["invocation"].tolist())
             self.assertEqual([2.0, 1.0], execute_df["score"].tolist())
