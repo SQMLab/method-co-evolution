@@ -137,15 +137,12 @@ def _run_project(args: argparse.Namespace, project: str) -> None:
     print(f"Running TestLinker for project: {project}")
 
     if args.stage in {"preprocess", "all"}:
-        preprocess_df = preprocess_project(
-            experiment_directory=args.experiment_directory,
-            project=project,
-            include_labels=args.include_labels,
-            order_production_method=args.order_production_method,
-            order_production_directory=args.order_production_directory,
-            replace=args.replace,
-            project_directory=args.project_directory,
-        )
+        preprocess_df = preprocess_project(experiment_directory=args.experiment_directory,
+                                           experiment_name=args.experiment_name,
+                                           project=project, include_labels=args.include_labels,
+                                           order_production_method=args.order_production_method,
+                                           order_production_directory=args.order_production_directory,
+                                           replace=args.replace, project_directory=args.project_directory)
         print(f"Wrote TestLinker input rows: {len(preprocess_df)}")
 
     if args.stage in {"execute", "all"}:

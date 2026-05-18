@@ -28,8 +28,8 @@ def projects_all_functions_directory(root: Path) -> Path:
     return root / "input" / "method-mapping"
 
 
-def t2p_ground_truth_updated_file(project_directory: str | Path, project: str) -> Path:
-    return Path(project_directory) / "ground-truth" / f"{project}.csv"
+def t2p_ground_truth_updated_file(project_directory: str | Path, experiment_name:str, project: str) -> Path:
+    return Path(project_directory) / "data"/ experiment_name / "t2p-ground-truth" / f"{project}.csv"
 
 
 def default_model_directory(root: Path) -> Path:

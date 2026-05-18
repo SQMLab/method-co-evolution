@@ -206,7 +206,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                 ]
             ).to_csv(data_dir / "method-code" / "demo.csv", index=False)
 
-            result_df = preprocess_project(experiment_directory=cache_dir, project="demo")
+            result_df = preprocess_project(experiment_directory=cache_dir, experiment_name="t2plinker", project="demo")
 
             self.assertEqual(2, len(result_df))
             self.assertEqual(
@@ -349,12 +349,9 @@ class TestTestLinkerPipeline(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result_df = preprocess_project(
-                experiment_directory=cache_dir,
-                project="demo",
-                order_production_method="testlinker",
-                order_production_directory=author_result_dir,
-            )
+            result_df = preprocess_project(experiment_directory=cache_dir, experiment_name="t2plinker", project="demo",
+                                           order_production_method="testlinker",
+                                           order_production_directory=author_result_dir)
 
             self.assertEqual(["format", "copy"], result_df["to_name"].tolist())
 
@@ -417,7 +414,8 @@ class TestTestLinkerPipeline(unittest.TestCase):
                 ]
             ).to_csv(data_dir / "ground-truth" / "demo.csv", index=False)
 
-            result_df = preprocess_project(experiment_directory=cache_dir, project="demo", include_labels=True)
+            result_df = preprocess_project(experiment_directory=cache_dir, experiment_name="t2plinker", project="demo",
+                                           include_labels=True)
 
             self.assertEqual([1, 0], result_df["label"].tolist())
 
@@ -465,7 +463,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                 ]
             ).to_csv(data_dir / "method-code" / "demo.csv", index=False)
 
-            preprocess_project(experiment_directory=cache_dir, project="demo")
+            preprocess_project(experiment_directory=cache_dir, experiment_name="t2plinker", project="demo")
 
             class Ranker:
                 def score_invocations(self, *, body, test_name, invocations):

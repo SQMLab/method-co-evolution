@@ -151,16 +151,9 @@ def _write_json_single_line(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, ensure_ascii=True), encoding="utf-8")
 
 
-def preprocess_project(
-    *,
-    experiment_directory: str | Path,
-    project: str,
-    include_labels: bool = False,
-    order_production_method: str = "candidate",
-    order_production_directory: str | Path | None = None,
-    replace: bool = False,
-    project_directory: str | Path | None = None,
-) -> pd.DataFrame:
+def preprocess_project(*, experiment_directory: str | Path, experiment_name:str, project: str, include_labels: bool = False,
+                       order_production_method: str = "candidate", order_production_directory: str | Path | None = None,
+                       replace: bool = False, project_directory: str | Path | None = None) -> pd.DataFrame:
     experiment_root = Path(experiment_directory)
     root = testlinker_root(experiment_root)
     output_file = input_csv_path(root, project)
@@ -175,7 +168,8 @@ def preprocess_project(
 
         method_code_file = experiment_root / "method-code" / f"{project}.csv"
         method_code_lookup = _load_method_code_lookup(method_code_file)
-        label_lookup = _load_label_lookup(t2p_ground_truth_updated_file(project_directory or experiment_root, project)) if include_labels else {}
+        label_lookup = _load_label_lookup(
+            t2p_ground_truth_updated_file(project_directory or experiment_root, experiment_name, project)) if include_labels else {}
         invocation_order_lookup = _load_invocation_order_lookup(project, order_production_method, order_production_directory)
         candidate_df = pd.read_csv(candidate_file, keep_default_na=False, na_filter=False)
         required_columns = {"project", "from_url", "from_name", "from_file", "to_url", "to_name"}
@@ -249,6 +243,9 @@ def _load_label_lookup(ground_truth_path: Path) -> dict[str, dict[str, object]]:
         return {}
 
     ground_truth_df = pd.read_csv(ground_truth_path, keep_default_na=False, na_filter=False)
+    if "label" in ground_truth_df.columns:
+        labels = pd.to_numeric(ground_truth_df["label"], errors="coerce")
+        ground_truth_df = ground_truth_df[labels == 1]
     required_columns = {"from_url", "to_url"}
     if not required_columns.issubset(ground_truth_df.columns):
         return {}
