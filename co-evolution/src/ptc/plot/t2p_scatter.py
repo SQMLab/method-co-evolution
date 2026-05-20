@@ -8,6 +8,7 @@ import mhc.util as util
 from mhc.artifacts import artifact_group
 from mhc.config import WORKSPACE_DIRECTORY
 from ptc.constants import ALL_REPOSITORY, CODE_SHOVEL_UNSUPPORTED_CHANGES
+from ptc.generator.ground_truth_converter import experiment_directory
 from ptc.plot_util import (
     GRAPH_STYLES,
     GRAPH_WIDTHS,
@@ -28,10 +29,10 @@ def build_parser():
 
 
 def load_history_repository_dfs(
-    experiment_directory: Path,
-    tool: str,
-    link_strategy: str,
-    selected_projects: list[str] | None,
+        experiment_directory: Path,
+        tool: str,
+        link_strategy: str,
+        selected_projects: list[str] | None,
 ) -> list[pd.DataFrame]:
     csv_files = list_csv_files(
         experiment_directory / "t2p-change" / tool / link_strategy,
@@ -71,7 +72,8 @@ def main(argv: list[str] | None = None) -> None:
             item_label="strategy",
         )
         for link_strategy in strategies:
-            history_repository_dfs = load_history_repository_dfs(experiment_directory, tool, link_strategy, selected_projects)
+            history_repository_dfs = load_history_repository_dfs(experiment_directory, tool, link_strategy,
+                                                                 selected_projects)
             if not history_repository_dfs:
                 continue
 
@@ -154,7 +156,7 @@ def main(argv: list[str] | None = None) -> None:
                     ax.grid(True, alpha=0.25)
 
             fig.tight_layout()
-            fig_file = f"{WORKSPACE_DIRECTORY}/figure/t2p-scatter/t2p-scatter--{tool}--{link_strategy}.pdf"
+            fig_file = experiment_directory / "figure" / f"t2p-scatter--{tool}--{link_strategy}.pdf"
             os.makedirs(os.path.dirname(fig_file), exist_ok=True)
             fig.savefig(fig_file, bbox_inches="tight")
             plt.close(fig)

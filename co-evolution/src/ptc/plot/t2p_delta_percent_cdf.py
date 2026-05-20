@@ -1,6 +1,9 @@
 import os
 
 import matplotlib
+
+from ptc.generator.ground_truth_converter import experiment_directory
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -176,7 +179,7 @@ def main(argv: list[str] | None = None) -> None:
             fontsize=18,
         )
         fig.tight_layout(rect=(0.02, 0.02, 1, 0.96))
-        fig_file = f"{WORKSPACE_DIRECTORY}/figure/t2p-delta-percent-cdf/t2p-delta-percent-cdf--{tool}.pdf"
+        fig_file = experiment_directory / "figure" / f"t2p-delta-percent-cdf--{tool}.pdf"
         os.makedirs(os.path.dirname(fig_file), exist_ok=True)
         fig.savefig(fig_file, bbox_inches="tight")
         plt.close(fig)

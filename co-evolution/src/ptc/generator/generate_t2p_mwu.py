@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -86,20 +87,28 @@ def main(argv: list[str] | None = None) -> None:
         projects=args.projects,
         strategies=args.strategies,
     )
+    t2p_change_dir = experiment_directory / "t2p-change"
+    if not t2p_change_dir.exists():
+        warnings.warn(f"Directory not found, skipping: {t2p_change_dir}")
+        return
     tools = select_named_items(
-        util.sorted_directory_names(experiment_directory / "t2p-change"),
+        util.sorted_directory_names(t2p_change_dir),
         selected_tools,
         item_label="tool",
     )
     for tool in tools:
+        tool_dir = t2p_change_dir / tool
+        if not tool_dir.exists():
+            warnings.warn(f"Tool directory not found, skipping: {tool_dir}")
+            continue
         strategies = select_named_items(
-            util.sorted_directory_names(experiment_directory / "t2p-change" / tool),
+            util.sorted_directory_names(tool_dir),
             selected_strategies,
             item_label="strategy",
         )
         for strategy in strategies:
             csv_files = list_csv_files(
-                experiment_directory / "t2p-change" / tool / strategy,
+                t2p_change_dir / tool / strategy,
                 selected_projects,
                 strict=False,
             )

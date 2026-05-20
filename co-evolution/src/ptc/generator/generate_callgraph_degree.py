@@ -17,7 +17,7 @@ def build_parser():
 
 def read_fan_count_if_exists(fan_file: str, url_column: str, fan_column: str):
     if os.path.exists(fan_file):
-        raw_fan_df = pd.read_csv(fan_file, na_filter=False, keep_default_na=False)
+        raw_fan_df = pd.read_csv(fan_file, na_filter=False, keep_default_na=False, low_memory=False)
         fan_count_df = (
             raw_fan_df[url_column]
             .value_counts()
@@ -60,6 +60,7 @@ def main(argv: list[str] | None = None) -> None:
                 util.format_method_list_file(str(experiment_directory), repository_name),
                 keep_default_na=False,
                 na_filter=False,
+                low_memory=False,
             )
             fan_in_count_file = str(experiment_directory / "callgraph-degree" / f"{repository_name}.csv")
             os.makedirs(os.path.dirname(fan_in_count_file), exist_ok=True)

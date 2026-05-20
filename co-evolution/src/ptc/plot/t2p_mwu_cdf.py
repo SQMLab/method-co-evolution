@@ -194,7 +194,7 @@ def main(argv: list[str] | None = None) -> None:
             )
 
         fig.tight_layout(rect=(0, 0, 1, 0.97))
-        fig_file = f"{WORKSPACE_DIRECTORY}/figure/t2p-mwu-cdf/t2p-mwu-cdf--{tool}.pdf"
+        fig_file = experiment_directory / "figure" / f"t2p-mwu-cdf--{tool}.pdf"
         os.makedirs(os.path.dirname(fig_file), exist_ok=True)
         fig.savefig(fig_file, bbox_inches="tight")
         plt.close(fig)

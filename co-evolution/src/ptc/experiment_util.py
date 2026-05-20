@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mhc.config import (
+    ME_EXPERIMENT_NAME,
+    WORKSPACE_DIRECTORY,
     resolve_experiment_name,
     resolve_experiment_directory,
 )
@@ -176,8 +178,8 @@ def build_experiment_parser(
         parser.add_argument(
             "--workspace-directory",
             dest="workspace_directory",
-            default=None,
-            help="Shared workspace root. Defaults to ME_WORKSPACE_DIRECTORY.",
+            default=WORKSPACE_DIRECTORY,
+            help=f"Shared workspace root. Defaults to ME_WORKSPACE_DIRECTORY (currently: {WORKSPACE_DIRECTORY}).",
         )
     if include_filter_toggle:
         parser.add_argument(
@@ -213,7 +215,8 @@ def build_experiment_parser(
             "--experiment-name",
             dest="experiment_name",
             type=str,
-            help=experiment_help or "Experiment name. Defaults to ME_EXPERIMENT_NAME.",
+            default=ME_EXPERIMENT_NAME,
+            help=experiment_help or f"Experiment name. Defaults to ME_EXPERIMENT_NAME (currently: {ME_EXPERIMENT_NAME}).",
         )
     return parser
 
@@ -222,8 +225,6 @@ def resolve_experiment_paths(
     workspace_directory: str | Path | None = None,
     experiment_name: str | None = None,
 ) -> ExperimentPaths:
-    from mhc.config import WORKSPACE_DIRECTORY
-
     base_workspace = Path(workspace_directory or WORKSPACE_DIRECTORY)
     resolved_experiment_name = resolve_experiment_name(experiment_name)
     return ExperimentPaths(

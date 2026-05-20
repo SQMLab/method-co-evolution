@@ -36,8 +36,20 @@ def main() -> None:
             if repository_name in repository_name_map:
                 repository_url = repository_name_map[repository_name]["url"]
                 repository_hash = repository_name_map[repository_name]["updated_hash"]
-                with tarfile.open(zip_file, "r:gz") as tar:
-                    for member in tar.getmembers():
+                try:
+                    tar_cm = tarfile.open(zip_file, "r:gz")
+                except Exception:
+                    logging.warning("Skipping unreadable archive: %s", zip_file)
+                    skipped_count += 1
+                    continue
+                with tar_cm as tar:
+                    try:
+                        members = tar.getmembers()
+                    except EOFError:
+                        logging.warning("Truncated archive (EOFError), skipping: %s", zip_file)
+                        skipped_count += 1
+                        continue
+                    for member in members:
                         if member.isfile() and member.name.endswith(".json"):
                             _, base_file = member.name.split("/", maxsplit=1)
                             file_content = tar.extractfile(member)
