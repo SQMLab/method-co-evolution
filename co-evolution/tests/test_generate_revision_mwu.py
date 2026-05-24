@@ -16,7 +16,7 @@ except ImportError:  # pragma: no cover
     pd = None
 
 from ptc.constants import ALL_REPOSITORY
-from ptc.generator.revision_mww import main
+from ptc.generator.artifact_revision_mww import main
 
 
 @unittest.skipIf(pd is None, "pandas is required for generate_revision_mwu tests")
