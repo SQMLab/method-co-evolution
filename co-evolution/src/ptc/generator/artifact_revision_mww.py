@@ -42,7 +42,7 @@ STAT_COLUMNS = [
     "mww_p",
     "d_value",
     "d_sign",
-    "mww_size",
+    "effect_size",
     "N",
     "S",
     "M",
@@ -102,7 +102,7 @@ def build_stat_row(project: str, tool: str, change: str, project_df: pd.DataFram
         "mww_p": round(mww_p, 2),
         "d_value": round(d_value, 2),
         "d_sign": d_sign,
-        "mww_size": mww_size,
+        "effect_size": mww_size,
         **marker_values,
     }
 

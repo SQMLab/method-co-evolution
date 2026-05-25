@@ -72,8 +72,7 @@ _EFFECT_SIZE_NOTE = (
     r"\textbf{N}~negligible ($|\delta| < 0.147$), "
     r"\textbf{S}~small ($0.147 \le |\delta| < 0.33$), "
     r"\textbf{M}~medium ($0.33 \le |\delta| < 0.474$), "
-    r"\textbf{L}~large ($|\delta| \ge 0.474$). "
-    r"Exactly one band column is marked \texttt{x} per row."
+    r"\textbf{L}~large ($|\delta| \ge 0.474$)."
 )
 
 
@@ -95,6 +94,10 @@ def render_latex_table(tool: str, table_df: pd.DataFrame) -> str:
             )
             + r" \\"
         )
+
+    sign_counts = table_df["d_sign"].value_counts()
+    n_positive = int(sign_counts.get("+", 0))
+    n_negative = int(sign_counts.get("-", 0))
 
     body = "\n".join(rows)
     # +/- and N S M L use equal-width centred columns; @{} removes trailing padding so L sits at the far right.
@@ -125,9 +128,13 @@ def render_latex_table(tool: str, table_df: pd.DataFrame) -> str:
 
 \section*{{Mann–Whitney U test for production and test code revisions}}
 
-Two-sided Mann--Whitney U test comparing the number of revision of \textbf{{main-code}} methods versus \textbf{{test-code}} methods
+Two-sided Mann--Whitney U test comparing the number of revisions of \textbf{{production}} methods versus \textbf{{test}} methods
 per project.
-Each row reports the two-sided $p$-value and Cliff's~$\delta$ effect size ($d$).
+Each row reports the two-sided $p$-value, Cliff's~$\delta$ effect size ($d$), and its
+direction sign: \textbf{{$+$}}~({n_positive}~project(s)) indicates that production methods
+have a higher revision count than test methods ($\delta > 0$);
+\textbf{{$-$}}~({n_negative}~project(s)) indicates the opposite,
+i.e.\ test methods are revised more frequently ($\delta < 0$).
 {_EFFECT_SIZE_NOTE}
 
 \begin{{longtable}}{{{col_spec}}}
