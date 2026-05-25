@@ -291,6 +291,13 @@ def normalize_ground_truth_tags(value: str) -> str:
     return " ".join(parse_ground_truth_tags(value))
 
 
+def normalize_single_tag(value: str) -> str:
+    tags = parse_ground_truth_tags(value)
+    if len(tags) != 1:
+        raise ValueError("Tag must be a single non-empty token")
+    return tags[0]
+
+
 def ensure_ground_truth_fieldnames(fieldnames: list[str]) -> list[str]:
     normalized = normalize_ground_truth_fieldnames(fieldnames)
     for fieldname in (
@@ -627,6 +634,9 @@ class HistoryRepository:
                 for tag in parse_ground_truth_tags(row.values.get("tags", "")):
                     tags.add(tag)
         return sorted(tags, key=str.lower)
+
+    def collect_sample_tags(self, csv_path: str | Path) -> list[str]:
+        return self.collect_ground_truth_tags(csv_path)
 
     def update_ground_truth_label(
         self,
@@ -970,11 +980,18 @@ class HistoryRepository:
         to_url: str,
         notes: str,
         tags: str = "",
+        label: str | None = None,
     ) -> SampleRow:
+        normalized_label = label.strip() if label is not None else None
+        if normalized_label is not None and normalized_label not in {"0", "1"}:
+            raise ValueError("Sample label must be 1 or 0")
+
         path = Path(csv_path).expanduser()
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             fieldnames = list(reader.fieldnames or [])
+            if "label" not in fieldnames:
+                fieldnames.append("label")
             if "notes" not in fieldnames:
                 fieldnames.append("notes")
             if "tags" not in fieldnames:
@@ -985,7 +1002,9 @@ class HistoryRepository:
         for index, row in enumerate(rows):
             if row.get("from_url", "") == from_url and row.get("to_url", "") == to_url:
                 row["notes"] = notes
-                row["tags"] = tags
+                row["tags"] = normalize_ground_truth_tags(tags)
+                if normalized_label is not None:
+                    row["label"] = normalized_label
                 matched_row = SampleRow(csv_path=path, row_index=index, values=row)
                 break
 
@@ -998,6 +1017,47 @@ class HistoryRepository:
             writer.writerows(rows)
 
         return matched_row
+
+    def rename_sample_tag_in_folder(self, csv_path: str | Path, *, old_tag: str, new_tag: str) -> dict[str, str | int]:
+        path = Path(csv_path).expanduser()
+        old_normalized = normalize_single_tag(old_tag)
+        new_normalized = normalize_single_tag(new_tag)
+        files_updated = 0
+        rows_updated = 0
+
+        for candidate_path in sorted(path.parent.glob("*.csv")):
+            with candidate_path.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle)
+                fieldnames = list(reader.fieldnames or [])
+                rows = [{key: value or "" for key, value in row.items()} for row in reader]
+
+            if "tags" not in fieldnames:
+                continue
+
+            file_changed = False
+            for row in rows:
+                tags = parse_ground_truth_tags(row.get("tags", ""))
+                if old_normalized not in tags:
+                    continue
+                row["tags"] = " ".join(new_normalized if tag == old_normalized else tag for tag in tags)
+                rows_updated += 1
+                file_changed = True
+
+            if not file_changed:
+                continue
+
+            with candidate_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            files_updated += 1
+
+        return {
+            "files_updated": files_updated,
+            "rows_updated": rows_updated,
+            "old_tag": old_normalized,
+            "new_tag": new_normalized,
+        }
 
     def build_revision_url(
         self,

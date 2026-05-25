@@ -94,8 +94,8 @@ code, pre, .mono { font-family: var(--mono); }
 .panel { padding: 18px 20px; }
 .eyebrow {
   color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -601,8 +601,8 @@ th, td {
 th {
   color: var(--muted);
   font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .number-cell {
   text-align: center;
@@ -671,7 +671,8 @@ th {
 .ground-truth-tag-wrapper {
   position: relative;
 }
-.ground-truth-tag-menu {
+.ground-truth-tag-menu,
+.tag-suggestion-menu {
   position: absolute;
   z-index: 20;
   display: none;
@@ -684,7 +685,8 @@ th {
   background: #fffdfa;
   box-shadow: var(--shadow);
 }
-.ground-truth-tag-menu button {
+.ground-truth-tag-menu button,
+.tag-suggestion-menu button {
   display: block;
   width: 100%;
   padding: 8px 10px;
@@ -894,6 +896,8 @@ class HistoryViewerApp:
                 return self._handle_history_json(environ, start_response)
             if method == "POST" and path == "/api/notes":
                 return self._handle_update_note(environ, start_response)
+            if method == "POST" and path == "/api/sample-tags/rename":
+                return self._handle_rename_sample_tag(environ, start_response)
             if method == "POST" and path == "/api/ground-truth-label":
                 return self._handle_update_ground_truth_label(environ, start_response)
             if method == "POST" and path == "/api/ground-truth-labels":
@@ -1002,14 +1006,26 @@ class HistoryViewerApp:
             to_url=payload["to_url"],
             notes=payload.get("notes", ""),
             tags=payload.get("tags", ""),
+            label=payload.get("label") if "label" in payload else None,
         )
         response = {
             "ok": True,
             "row_index": updated.row_index,
             "row_token": build_row_token(updated.csv_path, updated.values.get("from_url", ""), updated.values.get("to_url", "")),
+            "label": updated.values.get("label", ""),
             "notes": updated.notes,
             "tags": updated.tags,
         }
+        return self._respond_json(start_response, response)
+
+    def _handle_rename_sample_tag(self, environ: dict[str, Any], start_response: Any) -> Iterable[bytes]:
+        payload = _read_payload(environ)
+        result = self.repository.rename_sample_tag_in_folder(
+            payload["sample_csv"],
+            old_tag=payload.get("old_tag", ""),
+            new_tag=payload.get("new_tag", ""),
+        )
+        response = {"ok": True, **result}
         return self._respond_json(start_response, response)
 
     def _handle_update_ground_truth_label(self, environ: dict[str, Any], start_response: Any) -> Iterable[bytes]:
@@ -1300,7 +1316,11 @@ class HistoryViewerApp:
                 calling_source_label = calling_methods[0].source_label
         note_panel = ""
         if sample_row is not None:
-            note_panel = self._render_note_panel(sample_row, sample_csv)
+            note_panel = self._render_note_panel(
+                sample_row,
+                sample_csv,
+                tag_values=self.repository.collect_sample_tags(sample_csv),
+            )
 
         return f"""
 <main>
@@ -1355,6 +1375,7 @@ class HistoryViewerApp:
   </section>
 
   {note_panel}
+  {self._render_revision_back_button(sample_csv)}
 </main>
 {NOTE_SCRIPT}
 """
@@ -1507,29 +1528,63 @@ class HistoryViewerApp:
 </div>
 """
 
-    def _render_note_panel(self, sample_row: SampleRow, sample_csv: str) -> str:
+    def _render_note_panel(self, sample_row: SampleRow, sample_csv: str, *, tag_values: list[str]) -> str:
         token = build_row_token(sample_row.csv_path, sample_row.values.get("from_url", ""), sample_row.values.get("to_url", ""))
+        label_value = sample_row.values.get("label", "").strip()
+        tag_options = "\n".join(f'<option value="{html.escape(tag)}"></option>' for tag in tag_values)
+        tag_json = json.dumps(tag_values).replace("</", "<\\/")
         return f"""
 <section class="panel">
-  <div class="eyebrow">Research Notes</div>
-  <h2 style="margin-top:10px;">Save manual review notes and tags back to the sampled CSV</h2>
-  <p class="muted" style="margin-top:8px;">This updates the <span class="mono">notes</span> and <span class="mono">tags</span> columns in place for the current row.</p>
+  <div class="eyebrow">Manual Review</div>
+  <h2 style="margin-top:10px;">Save label, notes, and tags back to the sampled CSV</h2>
+  <p class="muted" style="margin-top:8px;">This updates the <span class="mono">label</span>, <span class="mono">notes</span>, and <span class="mono">tags</span> columns in place for the current row.</p>
+  <datalist id="sample-tag-suggestions">
+    {tag_options}
+  </datalist>
+  <script type="application/json" id="sample-tag-options">{tag_json}</script>
   <form id="note-form" data-row-token="{html.escape(token)}">
     <input type="hidden" name="sample_csv" value="{html.escape(sample_csv)}" />
     <input type="hidden" name="from_url" value="{html.escape(sample_row.values.get('from_url', ''))}" />
     <input type="hidden" name="to_url" value="{html.escape(sample_row.values.get('to_url', ''))}" />
+    <label>Label</label>
+    <div class="label-control">
+      <label><input type="radio" name="label" value="0" {"checked" if label_value == "0" else ""} /><span>0</span></label>
+      <label><input type="radio" name="label" value="1" {"checked" if label_value == "1" else ""} /><span>1</span></label>
+    </div>
     <label>Tags
-      <input type="text" name="tags" value="{html.escape(sample_row.tags)}" placeholder="coupled, flaky, review-later" />
+      <input class="sample-tags-input" type="text" name="tags" list="sample-tag-suggestions" value="{html.escape(sample_row.tags)}" placeholder="#coupled #review-later" />
     </label>
     <label>Notes
       <textarea name="notes">{html.escape(sample_row.notes)}</textarea>
     </label>
     <div class="button-row">
-      <button type="submit">Save notes and tags</button>
+      <button type="submit">Save review</button>
       <span id="note-status" class="flash" style="display:none;"></span>
     </div>
   </form>
+  <form id="sample-tag-rename-form" data-sample-csv="{html.escape(sample_csv)}">
+    <h3>Rename Tag</h3>
+    <div class="ground-truth-add-search">
+      <label>Current tag
+        <input class="sample-tag-rename-old sample-single-tag-input" type="text" name="old_tag" list="sample-tag-suggestions" placeholder="#old-tag" />
+      </label>
+      <label>New tag
+        <input class="sample-tag-rename-new sample-single-tag-input" type="text" name="new_tag" placeholder="#new-tag" />
+      </label>
+      <button type="submit">Rename</button>
+    </div>
+    <span id="sample-tag-rename-status" class="flash" style="display:none;"></span>
+  </form>
 </section>
+"""
+
+    def _render_revision_back_button(self, sample_csv: str) -> str:
+        if not sample_csv:
+            return ""
+        return f"""
+<div class="button-row" style="margin-top:18px;">
+  <a class="chip" href="/sample?sample_csv={quote(sample_csv, safe='')}">Back</a>
+</div>
 """
 
     def _render_sample_table(
@@ -2871,6 +2926,87 @@ for (const button of document.querySelectorAll(".diff-scroll-button")) {
   });
 }
 const noteForm = document.getElementById("note-form");
+const sampleTagOptionsNode = document.getElementById("sample-tag-options");
+let sampleTagOptions = sampleTagOptionsNode ? JSON.parse(sampleTagOptionsNode.textContent || "[]") : [];
+const sampleTagMenu = document.createElement("div");
+sampleTagMenu.className = "tag-suggestion-menu";
+document.body.appendChild(sampleTagMenu);
+
+function normalizeTagToken(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+}
+
+function selectedTags(input) {
+  return input.value.split(/[\\s,]+/).map(normalizeTagToken).filter(Boolean);
+}
+
+function currentTagToken(input) {
+  const cursor = input.selectionStart || input.value.length;
+  const beforeCursor = input.value.slice(0, cursor);
+  const separator = Math.max(beforeCursor.lastIndexOf(" "), beforeCursor.lastIndexOf(","));
+  const start = separator + 1;
+  return { start, end: cursor, token: beforeCursor.slice(start).trim() };
+}
+
+function applySuggestedTag(input, tag) {
+  if (input.classList.contains("sample-single-tag-input")) {
+    input.value = tag;
+  } else {
+    const token = currentTagToken(input);
+    const prefix = input.value.slice(0, token.start);
+    const suffix = input.value.slice(token.end);
+    input.value = `${prefix}${tag} ${suffix}`.replace(/\\s+/g, " ").trimStart();
+  }
+  input.focus();
+  sampleTagMenu.style.display = "none";
+}
+
+function showSampleTagSuggestions(input) {
+  const token = input.classList.contains("sample-single-tag-input") ? { token: input.value } : currentTagToken(input);
+  const query = token.token.replace(/^#/, "").toLowerCase();
+  const selected = new Set(input.classList.contains("sample-single-tag-input") ? [] : selectedTags(input));
+  const matches = sampleTagOptions
+    .filter((tag) => !selected.has(tag) || tag.toLowerCase().includes(query))
+    .filter((tag) => !query || tag.toLowerCase().includes(query))
+    .slice(0, 8);
+  if (!matches.length) {
+    sampleTagMenu.style.display = "none";
+    return;
+  }
+  sampleTagMenu.innerHTML = "";
+  for (const tag of matches) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = tag;
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      applySuggestedTag(input, tag);
+    });
+    sampleTagMenu.appendChild(button);
+  }
+  const rect = input.getBoundingClientRect();
+  sampleTagMenu.style.left = `${window.scrollX + rect.left}px`;
+  sampleTagMenu.style.top = `${window.scrollY + rect.bottom + 4}px`;
+  sampleTagMenu.style.width = `${rect.width}px`;
+  sampleTagMenu.style.display = "block";
+}
+
+function replaceTagInValue(value, oldTag, newTag) {
+  return value.split(/[\\s,]+/)
+    .map(normalizeTagToken)
+    .filter(Boolean)
+    .map((tag) => tag === oldTag ? newTag : tag)
+    .join(" ");
+}
+
+for (const input of document.querySelectorAll(".sample-tags-input, .sample-single-tag-input")) {
+  input.addEventListener("input", () => showSampleTagSuggestions(input));
+  input.addEventListener("focus", () => showSampleTagSuggestions(input));
+  input.addEventListener("blur", () => setTimeout(() => { sampleTagMenu.style.display = "none"; }, 120));
+}
+
 if (noteForm) {
   noteForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2879,8 +3015,40 @@ if (noteForm) {
     const response = await fetch("/api/notes", { method: "POST", body: new URLSearchParams(formData) });
     const payload = await response.json();
     status.style.display = "inline-flex";
-    status.textContent = payload.ok ? "Notes and tags saved to CSV" : "Save failed";
+    status.textContent = payload.ok ? "Review saved to CSV" : "Save failed";
     status.classList.toggle("error", !payload.ok);
+  });
+}
+const sampleTagRenameForm = document.getElementById("sample-tag-rename-form");
+if (sampleTagRenameForm) {
+  sampleTagRenameForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = document.getElementById("sample-tag-rename-status");
+    const formData = new FormData(sampleTagRenameForm);
+    const oldTag = normalizeTagToken(formData.get("old_tag") || "");
+    const newTag = normalizeTagToken(formData.get("new_tag") || "");
+    formData.set("sample_csv", sampleTagRenameForm.dataset.sampleCsv);
+    formData.set("old_tag", oldTag);
+    formData.set("new_tag", newTag);
+    try {
+      const response = await fetch("/api/sample-tags/rename", { method: "POST", body: new URLSearchParams(formData) });
+      const payload = await response.json();
+      status.style.display = "inline-flex";
+      status.textContent = payload.ok ? `Renamed in ${payload.rows_updated} row(s)` : "Rename failed";
+      status.classList.toggle("error", !payload.ok);
+      if (payload.ok) {
+        const tagsInput = noteForm ? noteForm.querySelector('input[name="tags"]') : null;
+        if (tagsInput) tagsInput.value = replaceTagInValue(tagsInput.value, payload.old_tag, payload.new_tag);
+        sampleTagOptions = sampleTagOptions
+          .filter((tag) => tag !== payload.old_tag);
+        if (!sampleTagOptions.includes(payload.new_tag)) sampleTagOptions.push(payload.new_tag);
+        sampleTagOptions.sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+      }
+    } catch (error) {
+      status.style.display = "inline-flex";
+      status.textContent = "Rename failed";
+      status.classList.add("error");
+    }
   });
 }
 </script>

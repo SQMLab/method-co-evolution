@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import sys
 import unittest
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PTC_SRC_DIRECTORY = REPOSITORY_ROOT / "co-evolution" / "src"
@@ -148,6 +148,56 @@ class TestHistoryViewer(unittest.TestCase):
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+        return csv_path
+
+    def write_sample_review_fixture(self, directory_name: str = "sample-review") -> Path:
+        temp_dir = REPOSITORY_ROOT / "workspace" / "test" / "history-viewer" / directory_name
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        csv_path = temp_dir / "sample-project.csv"
+        fieldnames = ["project", "tool", "from_name", "to_name", "from_url", "to_url", "tags", "notes"]
+        rows = [
+            {
+                "project": "sample-project",
+                "tool": "historyFinder",
+                "from_name": "testAlpha",
+                "to_name": "makeAlpha",
+                "from_url": "https://github.com/acme/sample/blob/abc/src/test/AlphaTest.java#L10",
+                "to_url": "https://github.com/acme/sample/blob/abc/src/main/Alpha.java#L20",
+                "tags": "#old #keep",
+                "notes": "",
+            },
+            {
+                "project": "sample-project",
+                "tool": "historyFinder",
+                "from_name": "testBeta",
+                "to_name": "makeBeta",
+                "from_url": "https://github.com/acme/sample/blob/abc/src/test/BetaTest.java#L11",
+                "to_url": "https://github.com/acme/sample/blob/abc/src/main/Beta.java#L22",
+                "tags": "old,beta",
+                "notes": "existing",
+            },
+        ]
+        with csv_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+
+        sibling_path = temp_dir / "sibling.csv"
+        with sibling_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "project": "sample-project",
+                    "tool": "historyFinder",
+                    "from_name": "testGamma",
+                    "to_name": "makeGamma",
+                    "from_url": "https://github.com/acme/sample/blob/abc/src/test/GammaTest.java#L12",
+                    "to_url": "https://github.com/acme/sample/blob/abc/src/main/Gamma.java#L24",
+                    "tags": "#sibling #old",
+                    "notes": "",
+                }
+            )
         return csv_path
 
     def call_app(
@@ -350,14 +400,65 @@ class TestHistoryViewer(unittest.TestCase):
             to_url=first_row["to_url"],
             notes="Strong same-commit coupling",
             tags="same-commit,strong-signal",
+            label="1",
         )
         self.assertEqual("Strong same-commit coupling", updated.notes)
-        self.assertEqual("same-commit,strong-signal", updated.tags)
+        self.assertEqual("#same-commit #strong-signal", updated.tags)
+        self.assertEqual("1", updated.values["label"])
 
         with temp_csv.open("r", encoding="utf-8", newline="") as handle:
             rows = list(csv.DictReader(handle))
         self.assertEqual("Strong same-commit coupling", rows[0]["notes"])
-        self.assertEqual("same-commit,strong-signal", rows[0]["tags"])
+        self.assertEqual("#same-commit #strong-signal", rows[0]["tags"])
+        self.assertEqual("1", rows[0]["label"])
+
+    def test_sample_review_label_tags_and_folder_tag_rename(self) -> None:
+        csv_path = self.write_sample_review_fixture("sample-review-repository")
+        row = self.repository.read_sample_rows(csv_path)[0]
+
+        updated = self.repository.update_sample_note(
+            csv_path,
+            from_url=row.values["from_url"],
+            to_url=row.values["to_url"],
+            notes="accepted",
+            tags="old,reviewed",
+            label="0",
+        )
+
+        self.assertEqual("0", updated.values["label"])
+        self.assertEqual("#old #reviewed", updated.values["tags"])
+        with self.assertRaises(ValueError):
+            self.repository.update_sample_note(
+                csv_path,
+                from_url=row.values["from_url"],
+                to_url=row.values["to_url"],
+                notes="accepted",
+                tags="old",
+                label="2",
+            )
+
+        self.assertEqual(["#beta", "#old", "#reviewed", "#sibling"], self.repository.collect_sample_tags(csv_path))
+        result = self.repository.rename_sample_tag_in_folder(csv_path, old_tag="old", new_tag="renamed")
+
+        self.assertEqual(2, result["files_updated"])
+        self.assertEqual(3, result["rows_updated"])
+        self.assertEqual("#old", result["old_tag"])
+        self.assertEqual("#renamed", result["new_tag"])
+        with csv_path.open("r", encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        self.assertEqual("#renamed #reviewed", rows[0]["tags"])
+        self.assertEqual("#renamed #beta", rows[1]["tags"])
+        with (csv_path.parent / "sibling.csv").open("r", encoding="utf-8", newline="") as handle:
+            sibling_rows = list(csv.DictReader(handle))
+        self.assertEqual("#sibling #renamed", sibling_rows[0]["tags"])
+
+    def test_sample_tag_rename_rejects_blank_or_multi_token_tags(self) -> None:
+        csv_path = self.write_sample_review_fixture("sample-review-invalid-rename")
+
+        with self.assertRaises(ValueError):
+            self.repository.rename_sample_tag_in_folder(csv_path, old_tag="", new_tag="renamed")
+        with self.assertRaises(ValueError):
+            self.repository.rename_sample_tag_in_folder(csv_path, old_tag="old extra", new_tag="renamed")
 
     def test_ground_truth_summaries_group_by_test_method_and_completion(self) -> None:
         csv_path = self.write_ground_truth_fixture("ground-truth-summary")
@@ -607,6 +708,46 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertEqual(2, response["candidate_count"])
         self.assertTrue(response["complete"])
 
+    def test_sample_review_apis_persist_label_and_rename_folder_tags(self) -> None:
+        csv_path = self.write_sample_review_fixture("sample-review-api")
+        app = create_app(workspace_directory=str(WORKSPACE_DIRECTORY), data_directory=str(EXPERIMENT_DIRECTORY))
+        rows = self.repository.read_sample_rows(csv_path)
+        note_payload = urlencode(
+            {
+                "sample_csv": str(csv_path),
+                "from_url": rows[0].values["from_url"],
+                "to_url": rows[0].values["to_url"],
+                "label": "1",
+                "tags": "old,api",
+                "notes": "updated through api",
+            }
+        ).encode("utf-8")
+
+        note_body = self.call_app(app, path="/api/notes", method="POST", body=note_payload)
+        note_response = json.loads(note_body)
+
+        self.assertTrue(note_response["ok"])
+        self.assertEqual("1", note_response["label"])
+        self.assertEqual("#old #api", note_response["tags"])
+
+        rename_payload = urlencode(
+            {
+                "sample_csv": str(csv_path),
+                "old_tag": "old",
+                "new_tag": "api-renamed",
+            }
+        ).encode("utf-8")
+        rename_body = self.call_app(app, path="/api/sample-tags/rename", method="POST", body=rename_payload)
+        rename_response = json.loads(rename_body)
+
+        self.assertTrue(rename_response["ok"])
+        self.assertEqual(2, rename_response["files_updated"])
+        self.assertEqual(3, rename_response["rows_updated"])
+        with csv_path.open("r", encoding="utf-8", newline="") as handle:
+            updated_rows = list(csv.DictReader(handle))
+        self.assertEqual("#api-renamed #api", updated_rows[0]["tags"])
+        self.assertEqual("1", updated_rows[0]["label"])
+
     def test_ground_truth_batch_update_api_returns_progress(self) -> None:
         csv_path = self.write_ground_truth_fixture("ground-truth-batch-api")
         app = create_app(workspace_directory=str(WORKSPACE_DIRECTORY), data_directory=str(EXPERIMENT_DIRECTORY))
@@ -728,7 +869,14 @@ class TestHistoryViewer(unittest.TestCase):
 
         self.assertEqual("200 OK", status_holder[0])
         self.assertIn("Revision Viewer", body)
-        self.assertIn("Save manual review notes and tags back to the sampled CSV", body)
+        self.assertIn("Save label, notes, and tags back to the sampled CSV", body)
+        self.assertIn('name="label" value="0"', body)
+        self.assertIn('name="label" value="1"', body)
+        self.assertIn('id="sample-tag-options"', body)
+        self.assertIn('class="sample-tags-input"', body)
+        self.assertIn("Rename Tag", body)
+        self.assertIn('id="sample-tag-rename-form"', body)
+        self.assertIn(f'href="/sample?sample_csv={quote(str(SAMPLE_CSV), safe="")}"', body)
         self.assertIn("UTF8PrintWriterTest.java:17", body)
         self.assertIn("Tested Production Methods", body)
         self.assertIn("Calling Test Methods", body)
@@ -742,6 +890,8 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertIn("Open This Revision With Tool", body)
         self.assertIn("codeShovel", body)
         self.assertIn("historyFinder (current)", body)
+        self.assertIn(".eyebrow {\n  color: var(--accent);\n  letter-spacing: 0;\n  text-transform: none;", body)
+        self.assertIn("th {\n  color: var(--muted);\n  font-size: 0.82rem;\n  text-transform: none;", body)
         self.assertNotIn("<th>Method</th>", body)
         self.assertNotIn("<th>Link</th>", body)
         self.assertNotIn("<th>File</th>", body)
