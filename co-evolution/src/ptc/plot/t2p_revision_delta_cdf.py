@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import warnings
+from dataclasses import dataclass
 
 import matplotlib
 
@@ -38,6 +39,13 @@ CODE_SHOVEL_UNSUPPORTED_CHANGE_SET = {
 SERIES_COLOR = "tab:blue"
 SYMLIN_THRESHOLD = 10
 SYMLIN_TICKS = [-100, -50, -10, -5, -1, 1, 5, 10, 50, 100]
+
+
+@dataclass(frozen=True)
+class DeltaThreshold:
+    x: int
+    covered_pct: float
+    tail_pct: float
 
 
 def build_parser():
@@ -153,7 +161,7 @@ def format_change_name(change: str) -> str:
     return change.removeprefix("ch_").replace("_", " ").title()
 
 
-def delta_cdf(df: pd.DataFrame, change: str) -> pd.Series:
+def delta_series(df: pd.DataFrame, change: str) -> pd.Series:
     pair_df = (
         df[[f"to_{change}", f"from_{change}"]]
         .apply(pd.to_numeric, errors="coerce")
@@ -163,8 +171,11 @@ def delta_cdf(df: pd.DataFrame, change: str) -> pd.Series:
     if pair_df.empty:
         return pd.Series(dtype="int64")
 
-    delta = (pair_df[f"from_{change}"] - pair_df[f"to_{change}"]).astype("int64")
-    # delta = delta[delta >= 0]
+    return (pair_df[f"from_{change}"] - pair_df[f"to_{change}"]).astype("int64")
+
+
+def delta_cdf(df: pd.DataFrame, change: str) -> pd.Series:
+    delta = delta_series(df, change)
 
     if delta.empty:
         return pd.Series(dtype="float64")
@@ -175,6 +186,19 @@ def delta_cdf(df: pd.DataFrame, change: str) -> pd.Series:
         fill_value=0,
     )
     return frequencies.cumsum() / frequencies.sum()
+
+
+def delta_threshold(df: pd.DataFrame, change: str, coverage: float = 0.8) -> DeltaThreshold | None:
+    delta = delta_series(df, change)
+    if delta.empty:
+        return None
+
+    frequencies = delta.value_counts().sort_index()
+    cumulative = frequencies.cumsum() / frequencies.sum()
+    threshold_x = int(cumulative[cumulative >= coverage].index[0])
+    covered_pct = float((delta <= threshold_x).mean() * 100)
+    tail_pct = float((delta >= threshold_x).mean() * 100)
+    return DeltaThreshold(threshold_x, covered_pct, tail_pct)
 
 
 def style_delta_axis(ax, cdf: pd.Series) -> None:
@@ -192,6 +216,22 @@ def style_delta_axis(ax, cdf: pd.Series) -> None:
         ax.axvline(SYMLIN_THRESHOLD, color="gray", linewidth=1, linestyle="--", alpha=0.3)
 
     ax.axvline(0, color="black", linewidth=1.2, alpha=0.45)
+
+
+def draw_delta_threshold(ax, threshold: DeltaThreshold) -> None:
+    if threshold.x != 0:
+        ax.axvline(threshold.x, color="purple", linewidth=1.2, linestyle=":", alpha=0.55)
+    ax.text(
+        0.98,
+        0.08,
+        f"{threshold.covered_pct:.1f}% <= {threshold.x}\n{threshold.tail_pct:.1f}% >= {threshold.x}",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=8,
+        color="purple",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 1.5},
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -335,6 +375,9 @@ def main(argv: list[str] | None = None) -> None:
                                     ],
                                 )
                             style_delta_axis(ax, cdf)
+                            threshold = delta_threshold(project_df, change)
+                            if threshold is not None:
+                                draw_delta_threshold(ax, threshold)
 
                     ax.grid(True, alpha=0.25)
 

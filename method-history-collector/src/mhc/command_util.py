@@ -305,6 +305,7 @@ def build_experiment_parser(
     include_tools: bool = True,
     include_projects: bool = True,
     include_strategies: bool = True,
+    include_revision_types: bool = False,
     include_workspace: bool = True,
     include_experiment: bool = True,
     include_replace: bool = False,
@@ -312,6 +313,7 @@ def build_experiment_parser(
     tools_help: str | None = None,
     projects_help: str | None = None,
     strategies_help: str | None = None,
+    revision_types_help: str | None = None,
     experiment_help: str | None = None,
     replace_help: str | None = None,
 ) -> argparse.ArgumentParser:
@@ -343,6 +345,14 @@ def build_experiment_parser(
             dest="strategies",
             type=str,
             help=strategies_help or "Comma-separated strategy names to include. Defaults to ME_STRATEGIES.",
+        )
+    if include_revision_types:
+        parser.add_argument(
+            "--revision-types",
+            dest="revision_types",
+            type=str,
+            default=_default_env_value("ME_REVISION_TYPES", config.ME_REVISION_TYPES),
+            help=revision_types_help or "Comma-separated revision types to include. Defaults to ME_REVISION_TYPES.",
         )
     if include_experiment:
         parser.add_argument(

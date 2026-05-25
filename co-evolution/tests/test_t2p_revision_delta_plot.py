@@ -15,7 +15,7 @@ try:
 except ImportError:  # pragma: no cover
     pd = None
 
-from ptc.plot.t2p_revision_delta_cdf import delta_cdf, main
+from ptc.plot.t2p_revision_delta_cdf import delta_cdf, delta_threshold, main
 
 
 @unittest.skipIf(pd is None, "pandas is required for t2p revision delta plot tests")
@@ -36,6 +36,53 @@ class TestT2PRevisionDeltaPlot(unittest.TestCase):
             {-2: 0.5, -1: 0.5, 0: 0.75, 1: 0.75, 2: 0.75, 3: 0.75, 4: 0.75, 5: 1.0},
             cdf.to_dict(),
         )
+
+    def test_delta_threshold_uses_first_integer_at_80_percent(self):
+        df = pd.DataFrame(
+            [
+                {"from_ch_all": -2, "to_ch_all": 0},
+                {"from_ch_all": -1, "to_ch_all": 0},
+                {"from_ch_all": 0, "to_ch_all": 0},
+                {"from_ch_all": 1, "to_ch_all": 0},
+                {"from_ch_all": 2, "to_ch_all": 0},
+            ]
+        )
+
+        threshold = delta_threshold(df, "ch_all")
+
+        self.assertIsNotNone(threshold)
+        self.assertEqual(1, threshold.x)
+        self.assertAlmostEqual(80.0, threshold.covered_pct)
+        self.assertAlmostEqual(40.0, threshold.tail_pct)
+
+    def test_delta_threshold_ties_can_cover_more_than_80_percent(self):
+        df = pd.DataFrame(
+            [
+                {"from_ch_all": 0, "to_ch_all": 0},
+                {"from_ch_all": 0, "to_ch_all": 0},
+                {"from_ch_all": 0, "to_ch_all": 0},
+                {"from_ch_all": 0, "to_ch_all": 0},
+                {"from_ch_all": 0, "to_ch_all": 0},
+                {"from_ch_all": 1, "to_ch_all": 0},
+            ]
+        )
+
+        threshold = delta_threshold(df, "ch_all")
+
+        self.assertIsNotNone(threshold)
+        self.assertEqual(0, threshold.x)
+        self.assertAlmostEqual(83.33333333333334, threshold.covered_pct)
+        self.assertAlmostEqual(100.0, threshold.tail_pct)
+
+    def test_delta_threshold_returns_none_for_empty_numeric_pairs(self):
+        df = pd.DataFrame(
+            [
+                {"from_ch_all": "not-a-number", "to_ch_all": 0},
+                {"from_ch_all": 1, "to_ch_all": "not-a-number"},
+            ]
+        )
+
+        self.assertIsNone(delta_threshold(df, "ch_all"))
 
     def test_generates_cdf_plot_for_selected_filters(self):
         with tempfile.TemporaryDirectory() as tmpdir:
