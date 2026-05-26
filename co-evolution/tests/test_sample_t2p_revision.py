@@ -20,7 +20,9 @@ from mhc.command_util import build_experiment_parser
 from ptc.sample.sample_t2p_revision import (
     DEFAULT_MIN_T2P_REVISION,
     REVIEW_COLUMNS,
+    allocate_proportional_samples,
     build_parser,
+    confidence_sample_size,
     main,
     normalize_argv,
 )
@@ -47,6 +49,20 @@ class TestSampleT2PRevision(unittest.TestCase):
         self.assertEqual("ch_diff", args.revision_types)
         self.assertEqual(30, args.min_t2p_links)
         self.assertEqual(DEFAULT_MIN_T2P_REVISION, args.min_t2p_revision)
+
+    def test_confidence_sample_size_for_450_is_208(self):
+        self.assertEqual(208, confidence_sample_size(450))
+
+    def test_proportional_allocation_sums_to_target_and_keeps_nonempty_projects(self):
+        allocation = allocate_proportional_samples(
+            {"projectA": 45, "projectB": 5, "projectC": 400},
+            208,
+        )
+
+        self.assertEqual(208, sum(allocation.values()))
+        self.assertEqual(21, allocation["projectA"])
+        self.assertGreaterEqual(allocation["projectB"], 1)
+        self.assertEqual(185, allocation["projectC"])
 
     def test_notebook_key_value_arguments_are_normalized(self):
         self.assertEqual(
@@ -92,9 +108,13 @@ class TestSampleT2PRevision(unittest.TestCase):
 
             self.assertEqual(REVIEW_COLUMNS, output_df.columns.tolist())
             self.assertEqual(["test://A", "test://B"], output_df["from_url"].tolist())
+            self.assertEqual(["1", "1"], output_df["sampled"].astype(str).tolist())
             self.assertEqual(["", ""], output_df["label"].tolist())
             self.assertEqual(["", ""], output_df["tags"].tolist())
             self.assertEqual(["", ""], output_df["notes"].tolist())
+
+    def test_sampled_column_is_immediately_after_to_url(self):
+        self.assertEqual("sampled", REVIEW_COLUMNS[REVIEW_COLUMNS.index("to_url") + 1])
 
     def test_project_below_min_t2p_links_does_not_create_output(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -186,6 +206,7 @@ class TestSampleT2PRevision(unittest.TestCase):
                         "to_name": "manualProdA",
                         "from_url": "test://A",
                         "to_url": "prod://A",
+                        "sampled": "1",
                         "label": "1",
                         "tags": "reviewed",
                         "notes": "keep me",
@@ -215,12 +236,117 @@ class TestSampleT2PRevision(unittest.TestCase):
 
             self.assertEqual(["test://A", "test://B"], output_df["from_url"].tolist())
             preserved = output_df[output_df["from_url"] == "test://A"].iloc[0]
-            self.assertEqual("manualTestA", preserved["from_name"])
+            self.assertEqual("testA", preserved["from_name"])
+            self.assertEqual("1", str(preserved["sampled"]))
             self.assertEqual("1", str(preserved["label"]))
             self.assertEqual("reviewed", preserved["tags"])
             self.assertEqual("keep me", preserved["notes"])
             added = output_df[output_df["from_url"] == "test://B"].iloc[0]
             self.assertEqual("", added["label"])
+
+    def test_rerun_preserves_existing_sampled_and_tops_up_new_rows(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            initial_rows = [
+                self.row("demo", f"test{index}", f"prod{index}", f"test://{index}", f"prod://{index}", 20, 0)
+                for index in range(6)
+            ]
+            self.write_t2p_change_rows(experiment_dir, "historyFinder", "nc", "demo", initial_rows)
+
+            main([
+                "--workspace-directory",
+                tmpdir,
+                "--experiment-name",
+                "demo-exp",
+                "--tools",
+                "historyFinder",
+                "--strategies",
+                "nc",
+                "--projects",
+                "demo",
+                "--revision-types",
+                "ch_diff",
+                "--min-t2p-links",
+                "0",
+                "--sample-margin-error",
+                "0.45",
+                "--seed",
+                "7",
+            ])
+            first_df = self.read_review_csv(experiment_dir, "historyFinder", "nc", "demo")
+            first_sampled = set(first_df.loc[first_df["sampled"].astype(str) == "1", "from_url"])
+
+            expanded_rows = initial_rows + [
+                self.row("demo", f"test{index}", f"prod{index}", f"test://{index}", f"prod://{index}", 20, 0)
+                for index in range(6, 10)
+            ]
+            self.write_t2p_change_rows(experiment_dir, "historyFinder", "nc", "demo", expanded_rows)
+            main([
+                "--workspace-directory",
+                tmpdir,
+                "--experiment-name",
+                "demo-exp",
+                "--tools",
+                "historyFinder",
+                "--strategies",
+                "nc",
+                "--projects",
+                "demo",
+                "--revision-types",
+                "ch_diff",
+                "--min-t2p-links",
+                "0",
+                "--sample-margin-error",
+                "0.45",
+                "--seed",
+                "7",
+            ])
+
+            second_df = self.read_review_csv(experiment_dir, "historyFinder", "nc", "demo")
+            second_sampled = set(second_df.loc[second_df["sampled"].astype(str) == "1", "from_url"])
+
+            self.assertEqual(10, len(second_df))
+            self.assertTrue(first_sampled.issubset(second_sampled))
+            self.assertGreater(len(second_sampled), len(first_sampled))
+
+    def test_seed_makes_sampling_deterministic(self):
+        with tempfile.TemporaryDirectory() as left_tmpdir, tempfile.TemporaryDirectory() as right_tmpdir:
+            experiment_dirs = []
+            for tmpdir in [left_tmpdir, right_tmpdir]:
+                experiment_dir = self.create_experiment(tmpdir)
+                experiment_dirs.append(experiment_dir)
+                rows = [
+                    self.row("demo", f"test{index}", f"prod{index}", f"test://{index}", f"prod://{index}", 20, 0)
+                    for index in range(10)
+                ]
+                self.write_t2p_change_rows(experiment_dir, "historyFinder", "nc", "demo", rows)
+                main([
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--projects",
+                    "demo",
+                    "--revision-types",
+                    "ch_diff",
+                    "--min-t2p-links",
+                    "0",
+                    "--sample-margin-error",
+                    "0.5",
+                    "--seed",
+                    "13",
+                ])
+
+            left_df = self.read_review_csv(experiment_dirs[0], "historyFinder", "nc", "demo")
+            right_df = self.read_review_csv(experiment_dirs[1], "historyFinder", "nc", "demo")
+            left_sampled = left_df.loc[left_df["sampled"].astype(str) == "1", "from_url"].tolist()
+            right_sampled = right_df.loc[right_df["sampled"].astype(str) == "1", "from_url"].tolist()
+
+            self.assertEqual(left_sampled, right_sampled)
 
     def test_multiple_revision_types_add_row_once(self):
         with tempfile.TemporaryDirectory() as tmpdir:

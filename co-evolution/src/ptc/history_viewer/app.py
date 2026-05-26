@@ -835,6 +835,35 @@ th {
   color: #a16207;
   font-weight: 700;
 }
+.timeline-tag-picker {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  width: min(1180px, calc(100vw - 48px));
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(216, 207, 189, 0.95);
+  border-radius: 16px;
+  background: rgba(255, 253, 250, 0.97);
+  box-shadow: 0 -10px 28px rgba(31, 41, 51, 0.10);
+}
+.timeline-tag-picker label {
+  min-width: min(320px, 100%);
+  flex: 1 1 260px;
+}
+.timeline-tag-picker select {
+  width: 100%;
+}
+.timeline-tag-picker button {
+  width: auto;
+}
 .error {
   background: var(--danger-soft);
   color: var(--danger);
@@ -898,6 +927,8 @@ class HistoryViewerApp:
                 return self._handle_update_note(environ, start_response)
             if method == "POST" and path == "/api/sample-tags/rename":
                 return self._handle_rename_sample_tag(environ, start_response)
+            if method == "POST" and path == "/api/sample-tags/add":
+                return self._handle_add_sample_tag(environ, start_response)
             if method == "POST" and path == "/api/ground-truth-label":
                 return self._handle_update_ground_truth_label(environ, start_response)
             if method == "POST" and path == "/api/ground-truth-labels":
@@ -1024,6 +1055,17 @@ class HistoryViewerApp:
             payload["sample_csv"],
             old_tag=payload.get("old_tag", ""),
             new_tag=payload.get("new_tag", ""),
+        )
+        response = {"ok": True, **result}
+        return self._respond_json(start_response, response)
+
+    def _handle_add_sample_tag(self, environ: dict[str, Any], start_response: Any) -> Iterable[bytes]:
+        payload = _read_payload(environ)
+        result = self.repository.add_existing_sample_tag(
+            payload["sample_csv"],
+            from_url=payload["from_url"],
+            to_url=payload["to_url"],
+            tag=payload.get("tag", ""),
         )
         response = {"ok": True, **result}
         return self._respond_json(start_response, response)
@@ -1294,6 +1336,7 @@ class HistoryViewerApp:
         calling_source = query_params.get("calling_source", "")
         current_from_url = from_history.input_url or (sample_row.values.get("from_url", "") if sample_row is not None else "")
         current_to_url = to_history.input_url or (sample_row.values.get("to_url", "") if sample_row is not None else "")
+        tag_values: list[str] = []
         if current_from_url:
             related_methods, searched_related_labels = self.repository.find_related_production_methods(
                 project=from_history.project or to_history.project,
@@ -1316,10 +1359,11 @@ class HistoryViewerApp:
                 calling_source_label = calling_methods[0].source_label
         note_panel = ""
         if sample_row is not None:
+            tag_values = self.repository.collect_sample_tags(sample_csv)
             note_panel = self._render_note_panel(
                 sample_row,
                 sample_csv,
-                tag_values=self.repository.collect_sample_tags(sample_csv),
+                tag_values=tag_values,
             )
 
         return f"""
@@ -1369,6 +1413,7 @@ class HistoryViewerApp:
   <section class="panel">
     <div class="eyebrow">Timeline</div>
     <h2 style="margin-top:10px;">Change history, newest first</h2>
+    {self._render_timeline_tag_picker(sample_row=sample_row, sample_csv=sample_csv, tag_values=tag_values)}
     <div class="timeline" style="margin-top:18px;">
       {''.join(render_timeline_row(row) for row in rows)}
     </div>
@@ -1576,6 +1621,33 @@ class HistoryViewerApp:
     <span id="sample-tag-rename-status" class="flash" style="display:none;"></span>
   </form>
 </section>
+"""
+
+    def _render_timeline_tag_picker(self, *, sample_row: SampleRow | None, sample_csv: str, tag_values: list[str]) -> str:
+        if sample_row is None:
+            return ""
+        if not tag_values:
+            return """
+<div class="timeline-tag-picker">
+  <span class="muted">No existing tags are available for this sample folder.</span>
+</div>
+"""
+        option_html = "".join(f'<option value="{html.escape(tag)}">{html.escape(tag)}</option>' for tag in tag_values)
+        return f"""
+<div
+  class="timeline-tag-picker"
+  data-sample-csv="{html.escape(sample_csv)}"
+  data-from-url="{html.escape(sample_row.values.get('from_url', ''))}"
+  data-to-url="{html.escape(sample_row.values.get('to_url', ''))}"
+>
+  <label>Add Existing Tag
+    <select class="timeline-tag-select">
+      {option_html}
+    </select>
+  </label>
+  <button type="button" class="timeline-tag-add">Add Tag</button>
+  <span class="flash timeline-tag-status" style="display:none;"></span>
+</div>
 """
 
     def _render_revision_back_button(self, sample_csv: str) -> str:
@@ -3017,6 +3089,39 @@ if (noteForm) {
     status.style.display = "inline-flex";
     status.textContent = payload.ok ? "Review saved to CSV" : "Save failed";
     status.classList.toggle("error", !payload.ok);
+  });
+}
+const timelineTagPicker = document.querySelector(".timeline-tag-picker[data-sample-csv]");
+if (timelineTagPicker) {
+  const addButton = timelineTagPicker.querySelector(".timeline-tag-add");
+  const select = timelineTagPicker.querySelector(".timeline-tag-select");
+  const status = timelineTagPicker.querySelector(".timeline-tag-status");
+  addButton.addEventListener("click", async () => {
+    const tag = select.value;
+    if (!tag) return;
+    const payload = new URLSearchParams({
+      sample_csv: timelineTagPicker.dataset.sampleCsv,
+      from_url: timelineTagPicker.dataset.fromUrl,
+      to_url: timelineTagPicker.dataset.toUrl,
+      tag,
+    });
+    addButton.disabled = true;
+    try {
+      const response = await fetch("/api/sample-tags/add", { method: "POST", body: payload });
+      const data = await response.json();
+      if (!data.ok) throw new Error("tag add failed");
+      status.style.display = "inline-flex";
+      status.textContent = data.added ? "Tag saved" : "Already tagged";
+      status.classList.remove("error");
+      const tagsInput = noteForm ? noteForm.querySelector('input[name="tags"]') : null;
+      if (tagsInput) tagsInput.value = data.tags;
+    } catch (error) {
+      status.style.display = "inline-flex";
+      status.textContent = "Tag save failed";
+      status.classList.add("error");
+    } finally {
+      addButton.disabled = false;
+    }
   });
 }
 const sampleTagRenameForm = document.getElementById("sample-tag-rename-form");
