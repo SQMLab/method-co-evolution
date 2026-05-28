@@ -154,7 +154,7 @@ class TestHistoryViewer(unittest.TestCase):
         temp_dir = REPOSITORY_ROOT / "workspace" / "test" / "history-viewer" / directory_name
         temp_dir.mkdir(parents=True, exist_ok=True)
         csv_path = temp_dir / "sample-project.csv"
-        fieldnames = ["project", "tool", "from_name", "to_name", "from_url", "to_url", "tags", "notes"]
+        fieldnames = ["project", "tool", "from_name", "to_name", "from_url", "to_url", "sampled", "label", "tags", "notes"]
         rows = [
             {
                 "project": "sample-project",
@@ -163,6 +163,8 @@ class TestHistoryViewer(unittest.TestCase):
                 "to_name": "makeAlpha",
                 "from_url": "https://github.com/acme/sample/blob/abc/src/test/AlphaTest.java#L10",
                 "to_url": "https://github.com/acme/sample/blob/abc/src/main/Alpha.java#L20",
+                "sampled": "1",
+                "label": "",
                 "tags": "#old #keep",
                 "notes": "",
             },
@@ -173,6 +175,8 @@ class TestHistoryViewer(unittest.TestCase):
                 "to_name": "makeBeta",
                 "from_url": "https://github.com/acme/sample/blob/abc/src/test/BetaTest.java#L11",
                 "to_url": "https://github.com/acme/sample/blob/abc/src/main/Beta.java#L22",
+                "sampled": "0",
+                "label": "1",
                 "tags": "old,beta",
                 "notes": "existing",
             },
@@ -194,6 +198,8 @@ class TestHistoryViewer(unittest.TestCase):
                     "to_name": "makeGamma",
                     "from_url": "https://github.com/acme/sample/blob/abc/src/test/GammaTest.java#L12",
                     "to_url": "https://github.com/acme/sample/blob/abc/src/main/Gamma.java#L24",
+                    "sampled": "1",
+                    "label": "1",
                     "tags": "#sibling #old",
                     "notes": "",
                 }
@@ -1011,29 +1017,70 @@ class TestHistoryViewer(unittest.TestCase):
         self.assertIn("Loaded from <span class=\"mono\">t2p-link/ncc</span>", body)
 
     def test_sample_directory_route_lists_csv_files(self) -> None:
+        csv_path = self.write_sample_review_fixture("sample-directory-route")
         app = create_app(workspace_directory=str(WORKSPACE_DIRECTORY), data_directory=str(EXPERIMENT_DIRECTORY))
-        environ = {
-            "REQUEST_METHOD": "GET",
-            "PATH_INFO": "/sample",
-            "QUERY_STRING": f"sample_dir={SAMPLE_DIR}",
-            "wsgi.input": BytesIO(b""),
-            "CONTENT_LENGTH": "0",
-            "SERVER_NAME": "127.0.0.1",
-            "SERVER_PORT": "8765",
-            "wsgi.url_scheme": "http",
-        }
 
-        status_holder: list[str] = []
+        body = self.call_app(app, path="/sample", query=urlencode({"sample_dir": str(csv_path.parent)}))
 
-        def start_response(status: str, _headers: list[tuple[str, str]]) -> None:
-            status_holder.append(status)
+        self.assertIn("Projects with T2P Links", body)
+        self.assertIn("sample-project", body)
+        self.assertIn("Projects", body)
+        self.assertIn("<h1>Projects with T2P Links</h1>", body)
+        self.assertIn("Total Projects", body)
+        self.assertIn("<strong>2</strong>", body)
+        self.assertIn("<strong>2 (66.7%)/3</strong>", body)
+        self.assertIn("<strong>1 (50.0%)/2</strong>", body)
+        self.assertIn('onchange="this.form.submit()"', body)
+        self.assertNotIn("Apply Filter", body)
+        self.assertIn("<th>Project</th>", body)
+        self.assertIn("<th class=\"number-cell\">Sample</th>", body)
+        self.assertIn("<th class=\"number-cell\">Progress</th>", body)
+        self.assertIn("1 (50.0%)/2", body)
+        self.assertIn("0 (0.0%)/1", body)
+        self.assertNotIn("<th>Path</th>", body)
 
-        body = b"".join(app(environ, start_response)).decode("utf-8")
+        all_body = self.call_app(
+            app,
+            path="/sample",
+            query=urlencode({"sample_dir": str(csv_path.parent), "count_scope": "all"}),
+        )
+        self.assertIn("<strong>2 (66.7%)/3</strong>", all_body)
+        self.assertIn("<strong>2 (66.7%)/3</strong>", all_body)
+        self.assertIn("1 (50.0%)/2", all_body)
+        self.assertIn("1 (100.0%)/1", all_body)
 
-        self.assertEqual("200 OK", status_holder[0])
-        self.assertIn("Sample Directory", body)
-        self.assertIn("cucumber-jvm.csv", body)
-        self.assertIn("CSV Files", body)
+    def test_sample_browser_defaults_to_sampled_links_and_renders_t2p_columns(self) -> None:
+        csv_path = self.write_sample_review_fixture("sample-browser-route")
+        app = create_app(workspace_directory=str(WORKSPACE_DIRECTORY), data_directory=str(EXPERIMENT_DIRECTORY))
+
+        body = self.call_app(app, path="/sample", query=urlencode({"sample_csv": str(csv_path)}))
+
+        self.assertIn("T2P Links", body)
+        self.assertIn("<h1>sample-project</h1>", body)
+        self.assertIn("Total Links", body)
+        self.assertIn("<strong>2</strong>", body)
+        self.assertIn("<strong>1 (50.0%)/2</strong>", body)
+        self.assertIn("<strong>0 (0.0%)/1</strong>", body)
+        self.assertIn('onchange="this.form.submit()"', body)
+        self.assertIn("Showing 1-1 of 1 sampled links (2 total links in this CSV).", body)
+        self.assertIn("testAlpha", body)
+        self.assertNotIn("testBeta", body)
+        self.assertIn("<th class=\"number-cell\">Sample</th>", body)
+        self.assertIn("<td class=\"number-cell\">1</td>", body)
+        self.assertIn(">Open</a>", body)
+        self.assertNotIn("<th>Tool</th>", body)
+        self.assertNotIn("Write revision_url column", body)
+        self.assertNotIn("Open revision", body)
+        self.assertNotIn("Apply Filter", body)
+
+        all_body = self.call_app(
+            app,
+            path="/sample",
+            query=urlencode({"sample_csv": str(csv_path), "sample_filter": "all"}),
+        )
+        self.assertIn("Showing 1-2 of 2 all links (2 total links in this CSV).", all_body)
+        self.assertIn("testBeta", all_body)
+        self.assertIn("<strong>1 (50.0%)/2</strong>", all_body)
 
     def test_history_json_api_returns_raw_history(self) -> None:
         app = create_app(workspace_directory=str(WORKSPACE_DIRECTORY), data_directory=str(EXPERIMENT_DIRECTORY))

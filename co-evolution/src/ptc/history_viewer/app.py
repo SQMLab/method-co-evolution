@@ -977,29 +977,34 @@ class HistoryViewerApp:
         sample_csv = params.get("sample_csv", "")
         if sample_dir:
             csv_files = self.repository.list_sample_csv_files(sample_dir)
-            content = self._render_sample_directory(sample_dir=sample_dir, csv_files=csv_files)
-            return self._respond_html(start_response, render_page("Sample Directory", content))
+            count_scope = params.get("count_scope", "sampled")
+            content = self._render_sample_directory(sample_dir=sample_dir, csv_files=csv_files, count_scope=count_scope)
+            return self._respond_html(start_response, render_page("Projects with T2P Links", content))
         if not sample_csv:
             raise ValueError("Pass sample_dir=<sample directory> or sample_csv=<absolute path to a sampled CSV>")
         rows = self.repository.read_sample_rows(sample_csv)
+        sample_filter = params.get("sample_filter", "sampled")
+        filtered_rows = scoped_sample_rows(rows, sample_filter)
         page_size = 20
         page = max(1, int(params.get("page", "1")))
-        total_rows = len(rows)
+        total_rows = len(filtered_rows)
         total_pages = max(1, math.ceil(total_rows / page_size))
         page = min(page, total_pages)
         start_index = (page - 1) * page_size
         end_index = start_index + page_size
         content = self._render_sample_table(
             sample_csv=sample_csv,
-            rows=rows[start_index:end_index],
+            rows=filtered_rows[start_index:end_index],
             total_rows=total_rows,
+            all_row_count=len(rows),
             base_url=_request_base_url(environ),
             page=page,
             page_size=page_size,
             total_pages=total_pages,
             start_index=start_index,
+            sample_filter=sample_filter,
         )
-        return self._respond_html(start_response, render_page("Sample CSV", content))
+        return self._respond_html(start_response, render_page("T2P Links", content))
 
     def _handle_ground_truth(self, environ: dict[str, Any], start_response: Any) -> Iterable[bytes]:
         params = _query_params(environ)
@@ -1665,17 +1670,23 @@ class HistoryViewerApp:
         sample_csv: str,
         rows: list[SampleRow],
         total_rows: int,
+        all_row_count: int,
         base_url: str,
         page: int,
         page_size: int,
         total_pages: int,
         start_index: int,
+        sample_filter: str,
     ) -> str:
+        project_title = first_project_name(rows, Path(sample_csv).stem)
+        sampled_count, sample_total, sample_percent = sample_summary(self.repository.read_sample_rows(sample_csv))
+        progress_count, progress_total, progress_percent = progress_summary(self.repository.read_sample_rows(sample_csv), sample_filter)
         table_rows = []
         for row in rows:
             values = row.values
             from_name = values.get("from_name", "")
             to_name = values.get("to_name", "")
+            sample_value = sample_row_value(values)
             revision_url = values.get("revision_url") or self.repository.build_revision_url(
                 base_url=base_url,
                 csv_path=sample_csv,
@@ -1690,8 +1701,8 @@ class HistoryViewerApp:
   <td>{html.escape(values.get('project', ''))}</td>
   <td><strong title="{html.escape(from_name)}">{html.escape(truncate_display_text(from_name))}</strong></td>
   <td><strong title="{html.escape(to_name)}">{html.escape(truncate_display_text(to_name))}</strong></td>
-  <td>{html.escape(values.get('tool', ''))}</td>
-  <td><a href="{html.escape(revision_url)}" target="_blank" rel="noreferrer">Open revision</a></td>
+  <td class="number-cell">{html.escape(sample_value)}</td>
+  <td><a href="{html.escape(revision_url)}" target="_blank" rel="noreferrer">Open</a></td>
   <td>{html.escape(values.get('tags', '')) or '<span class="muted">No tags</span>'}</td>
   <td>{html.escape(values.get('notes', '')) or '<span class="muted">No notes</span>'}</td>
 </tr>
@@ -1703,30 +1714,56 @@ class HistoryViewerApp:
         next_link = ""
         if page > 1:
             previous_link = (
-                f'<a class="secondary" href="/sample?sample_csv={quote(sample_csv, safe="")}&page={page - 1}">'
+                f'<a class="secondary" href="/sample?sample_csv={quote(sample_csv, safe="")}&sample_filter={quote(sample_filter, safe="")}&page={page - 1}">'
                 "Previous"
                 "</a>"
             )
         if page < total_pages:
             next_link = (
-                f'<a class="secondary" href="/sample?sample_csv={quote(sample_csv, safe="")}&page={page + 1}">'
+                f'<a class="secondary" href="/sample?sample_csv={quote(sample_csv, safe="")}&sample_filter={quote(sample_filter, safe="")}&page={page + 1}">'
                 "Next"
                 "</a>"
             )
+        sampled_selected = " selected" if sample_filter != "all" else ""
+        all_selected = " selected" if sample_filter == "all" else ""
+        filter_label = "sampled links" if sample_filter != "all" else "all links"
+        visible_start = start_index + 1 if rows else 0
+        end_index = start_index + len(rows)
+        sample_summary_text = format_count_percent(sampled_count, sample_total, sample_percent)
+        progress_summary_text = format_count_percent(progress_count, progress_total, progress_percent)
 
         return f"""
 <main>
   <section class="hero">
-    <div class="eyebrow">Sample Browser</div>
-    <h1>{html.escape(sample_csv)}</h1>
-    <p>Showing rows {start_index + 1}-{end_index} of {total_rows}. Open a row directly from here, or persist a <span class="mono">revision_url</span> column for DBeaver.</p>
-    <div class="button-row" style="margin-top:12px;">
-      <button class="secondary" id="revision-link-button" data-sample-csv="{html.escape(sample_csv)}" data-base-url="{html.escape(base_url)}">Write revision_url column</button>
-      <span id="revision-link-status" class="flash" style="display:none;"></span>
-    </div>
+    <div class="eyebrow">T2P Links</div>
+    <h1>{html.escape(project_title)}</h1>
+    <p>Showing {visible_start}-{end_index} of {total_rows} {html.escape(filter_label)} ({all_row_count} total links in this CSV).</p>
+    <section class="stats" style="margin:0;">
+      <article class="summary-card">
+        <div class="eyebrow">Total Links</div>
+        <strong>{all_row_count}</strong>
+      </article>
+      <article class="summary-card">
+        <div class="eyebrow">Sample</div>
+        <strong>{html.escape(sample_summary_text)}</strong>
+      </article>
+      <article class="summary-card">
+        <div class="eyebrow">Progress</div>
+        <strong>{html.escape(progress_summary_text)}</strong>
+      </article>
+    </section>
+    <form method="get" action="/sample" class="button-row" style="margin-top:12px;">
+      <input type="hidden" name="sample_csv" value="{html.escape(sample_csv)}" />
+      <label>Rows
+        <select name="sample_filter" onchange="this.form.submit()">
+          <option value="sampled"{sampled_selected}>Sampled only</option>
+          <option value="all"{all_selected}>All links</option>
+        </select>
+      </label>
+    </form>
     <div class="button-row" style="margin-top:12px;">
       {previous_link}
-      <span class="muted">Page {page} of {total_pages} · 20 methods per page</span>
+      <span class="muted">Page {page} of {total_pages}</span>
       {next_link}
     </div>
   </section>
@@ -1739,7 +1776,7 @@ class HistoryViewerApp:
           <th>Project</th>
           <th>From</th>
           <th>To</th>
-          <th>Tool</th>
+          <th class="number-cell">Sample</th>
           <th>Revision</th>
           <th>Tags</th>
           <th>Notes</th>
@@ -1751,17 +1788,31 @@ class HistoryViewerApp:
     </table>
   </section>
 </main>
-{REVISION_LINK_SCRIPT}
 """
 
-    def _render_sample_directory(self, *, sample_dir: str, csv_files: list[Any]) -> str:
+    def _render_sample_directory(self, *, sample_dir: str, csv_files: list[Any], count_scope: str = "sampled") -> str:
         file_links = []
+        project_count = 0
+        aggregate_sampled = 0
+        aggregate_total = 0
+        aggregate_progress_count = 0
+        aggregate_progress_total = 0
         for csv_file in csv_files:
+            rows = self.repository.read_sample_rows(csv_file)
+            project_count += 1
+            sampled, total, sample_percent = sample_summary(rows)
+            labelled_positive, progress_denominator, progress_percent = progress_summary(rows, count_scope)
+            aggregate_sampled += sampled
+            aggregate_total += total
+            aggregate_progress_count += labelled_positive
+            aggregate_progress_total += progress_denominator
+            project_name = first_project_name(rows, csv_file.stem)
             file_links.append(
                 f"""
 <tr>
-  <td><a href="/sample?sample_csv={quote(str(csv_file), safe='')}">{html.escape(csv_file.name)}</a></td>
-  <td><span class="mono">{html.escape(str(csv_file))}</span></td>
+  <td><a href="/sample?sample_csv={quote(str(csv_file), safe='')}">{html.escape(project_name)}</a></td>
+  <td class="number-cell">{html.escape(format_count_percent(sampled, total, sample_percent))}</td>
+  <td class="number-cell">{html.escape(format_count_percent(labelled_positive, progress_denominator, progress_percent))}</td>
 </tr>
 """
             )
@@ -1769,27 +1820,57 @@ class HistoryViewerApp:
         if not file_links:
             file_links.append(
                 """
-<tr>
-  <td colspan="2"><span class="muted">No CSV files found in this directory.</span></td>
-</tr>
+<tr><td colspan="3"><span class="muted">No CSV files found in this directory.</span></td></tr>
 """
             )
+        sampled_selected = " selected" if count_scope != "all" else ""
+        all_selected = " selected" if count_scope == "all" else ""
+        counted_label = "sampled links" if count_scope != "all" else "all links"
+        aggregate_sample_percent = percent(aggregate_sampled, aggregate_total)
+        aggregate_progress_percent = percent(aggregate_progress_count, aggregate_progress_total)
+        aggregate_sample_text = format_count_percent(aggregate_sampled, aggregate_total, aggregate_sample_percent)
+        aggregate_progress_text = format_count_percent(aggregate_progress_count, aggregate_progress_total, aggregate_progress_percent)
 
         return f"""
 <main>
   <section class="hero">
-    <div class="eyebrow">Sample Directory</div>
-    <h1>{html.escape(sample_dir)}</h1>
-    <p>Select a CSV file to see the sampled method pairs.</p>
+    <div class="eyebrow">Projects with T2P Links</div>
+    <h1>Projects with T2P Links</h1>
+    <p>Select a project to see its test-to-production links.</p>
+    <section class="stats" style="margin:0;">
+      <article class="summary-card">
+        <div class="eyebrow">Total Projects</div>
+        <strong>{project_count}</strong>
+      </article>
+      <article class="summary-card">
+        <div class="eyebrow">Sample</div>
+        <strong>{html.escape(aggregate_sample_text)}</strong>
+      </article>
+      <article class="summary-card">
+        <div class="eyebrow">Progress</div>
+        <strong>{html.escape(aggregate_progress_text)}</strong>
+      </article>
+    </section>
+    <form method="get" action="/sample" class="button-row" style="margin-top:12px;">
+      <input type="hidden" name="sample_dir" value="{html.escape(sample_dir)}" />
+      <label>Count Scope
+        <select name="count_scope" onchange="this.form.submit()">
+          <option value="sampled"{sampled_selected}>Sampled links</option>
+          <option value="all"{all_selected}>All links</option>
+        </select>
+      </label>
+      <span class="muted">Currently indicating {html.escape(counted_label)}.</span>
+    </form>
   </section>
 
   <section class="panel" style="margin-top:24px;">
-    <div class="eyebrow">CSV Files</div>
+    <div class="eyebrow">Projects</div>
     <table>
       <thead>
         <tr>
-          <th>File</th>
-          <th>Path</th>
+          <th>Project</th>
+          <th class="number-cell">Sample</th>
+          <th class="number-cell">Progress</th>
         </tr>
       </thead>
       <tbody>
@@ -2281,6 +2362,55 @@ def truncate_display_text(value: str, max_chars: int = 36) -> str:
     if max_chars <= 3:
         return "." * max_chars
     return f"{text[:max_chars - 3]}..."
+
+
+def sample_row_value(values: dict[str, str]) -> str:
+    return values.get("sample", values.get("sampled", "")).strip()
+
+
+def is_sampled_row(values: dict[str, str]) -> bool:
+    return sample_row_value(values) == "1"
+
+
+def is_positive_label(values: dict[str, str]) -> bool:
+    label = values.get("label", "").strip()
+    return label not in {"", "0"}
+
+
+def percent(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return numerator * 100.0 / denominator
+
+
+def scoped_sample_rows(rows: list[SampleRow], scope: str) -> list[SampleRow]:
+    if scope == "all":
+        return rows
+    return [row for row in rows if is_sampled_row(row.values)]
+
+
+def first_project_name(rows: list[SampleRow], fallback: str) -> str:
+    for row in rows:
+        if row.values.get("project", "").strip():
+            return row.values["project"].strip()
+    return fallback
+
+
+def sample_summary(rows: list[SampleRow]) -> tuple[int, int, float]:
+    total = len(rows)
+    sampled = sum(1 for row in rows if is_sampled_row(row.values))
+    return sampled, total, percent(sampled, total)
+
+
+def progress_summary(rows: list[SampleRow], scope: str) -> tuple[int, int, float]:
+    scoped_rows = scoped_sample_rows(rows, scope)
+    denominator = len(scoped_rows)
+    labelled = sum(1 for row in scoped_rows if is_positive_label(row.values))
+    return labelled, denominator, percent(labelled, denominator)
+
+
+def format_count_percent(count: int, denominator: int, percentage: float) -> str:
+    return f"{count} ({percentage:.1f}%)/{denominator}"
 
 
 def build_change_count_summary(from_raw: dict[str, Any], to_raw: dict[str, Any]) -> list[tuple[str, int, int]]:
