@@ -390,17 +390,24 @@ def execute_callgraph_per_file(
 
         method_mapping_file = util.format_method_mapping_file(workspace_directory, data_directory, repository_name)
         if not method_mapping_file:
-            logging.warning(
+            raise FileNotFoundError(
                 f"No method mapping file found for {repository_name}. "
                 f"Expected one of: {util.format_method_list_file(data_directory, repository_name)} "
                 f"or {os.path.join(workspace_directory, 'method', repository_name + '.csv')}"
             )
+        class_mapping_file = util.format_class_mapping_file(workspace_directory, data_directory, repository_name)
+        if not class_mapping_file:
+            raise FileNotFoundError(
+                f"No class mapping file found for {repository_name}. "
+                f"Expected one of: {util.format_class_list_file(data_directory, repository_name)} "
+                f"or {os.path.join(workspace_directory, 'class', repository_name + '.csv')}"
+            )
 
         scanner = CallGraphServiceImpl.getInstance()
         if artifact_config_path:
-            scanner.init(url, repository_path, commit_hash, method_mapping_file, artifact_config_path)
+            scanner.init(url, repository_path, commit_hash, method_mapping_file, class_mapping_file, artifact_config_path)
         else:
-            scanner.init(url, repository_path, commit_hash, method_mapping_file)
+            scanner.init(url, repository_path, commit_hash, method_mapping_file, class_mapping_file)
 
         cached_files = _load_cached_callgraph_files(cache_file, retry_errors)
 

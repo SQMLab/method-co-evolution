@@ -88,3 +88,17 @@ One row per directed call edge. `callgraph` files record what a method calls (fo
 | `from_resolver` / `to_resolver` | string | Symbol resolver strategy |
 
 Callgraph files are stored under `data/callgraph/{project}.csv` after link generation. Fanin files are stored under `data/fanin/{project}.csv`.
+
+#### JavaParser fallback resolution
+
+When JavaParser cannot resolve a call, the callgraph generator uses a CSV-bounded fallback. The fallback requires both `data/method/{project}.csv` and `data/class/{project}.csv`: the class CSV is the complete type boundary, and the method CSV is the complete callable boundary. A fallback edge is emitted only when the target method row exists in the method CSV and its declaring class exists in the class CSV; external or unindexed methods such as `java.lang.Object` methods are not emitted unless they are present in those CSVs.
+
+Fallback matching uses only the generic method identity fields (`fqn`, `fqs`, `name`, `expression`, `pkg`, `file`, `start_line`, `end_line`, and `url`). TCTracer and TestLinker signatures are output metadata only and are not used to choose a fallback target.
+
+The resolver infers the owner from the call site (`obj.m()`, `this.m()`, unscoped `m()`, `Type.m()`, or `new Type(...)`) and searches class CSV owners in this order:
+
+1. exact inferred class;
+2. nearest subclasses or implementors, closest first;
+3. nearest superclasses or interfaces, closest first.
+
+Within the same class-distance level, known arity mismatches are rejected, then the best `fqn`/`fqs` match is selected; any remaining tie is resolved by CSV order so generation remains deterministic. Generic type arguments are erased before owner/signature comparison. Inner and anonymous class names are normalized against the class CSV naming, which is treated as authoritative when JavaParser and the scanner use different inner-class spellings.
