@@ -422,9 +422,6 @@ def execute_callgraph_per_file(
                 continue
             if file_without_base in cached_files:
                 continue
-            if _is_callgraph_file_completed(cache_file, lock_path, file_without_base, retry_errors):
-                cached_files.add(file_without_base)
-                continue
 
             try:
                 method_calls = scanner.findCallgraph(file_without_base)

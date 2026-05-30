@@ -189,6 +189,65 @@ public class CallGraphTest extends TestConfigurationBase {
         Assertions.assertEquals(List.of("missing.Impl.build", "missing.Impl.build"), targets.stream().map(Method::getFqn).toList());
     }
 
+    @org.junit.jupiter.api.Test
+    void classHierarchyCacheCanBeDisabledAfterInitWithoutChangingFallback(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        FallbackFixture fixture = createFallbackFixture(tempDir, "import missing.Service; class Caller { Service target; void test(){ target.build(); } }",
+                List.of(row("Service", "missing.Service", ""), row("Impl", "missing.Impl", "missing.Service")),
+                List.of(methodRow("build", "method", "missing.Impl.build", "missing.Impl.build()", "src/main/java/missing/Impl.java", 20)));
+
+        Assertions.assertEquals(List.of("missing.Impl.build"), fallbackTargets(fixture, 256).stream().map(Method::getFqn).toList());
+
+        CallGraphServiceImpl scanner = CallGraphServiceImpl.getInstance();
+        assertDoesNotThrow(scanner::logCacheStats);
+        scanner.configureCache(256);
+        scanner.init(
+                "https://example.test/demo",
+                fixture.repo().toString(),
+                fixture.commitHash(),
+                fixture.methodCsv().toString(),
+                fixture.classCsv().toString()
+        );
+        assertDoesNotThrow(scanner::logCacheStats);
+        scanner.configureCache(0);
+        assertDoesNotThrow(scanner::logCacheStats);
+
+        List<String> targetsAfterDisable = scanner.findCallgraph("src/test/java/demo/Caller.java").stream()
+                .flatMap(methodCall -> methodCall.getFanMethods().stream())
+                .filter(method -> "heuristics".equals(method.getResolver()))
+                .map(Method::getFqn)
+                .toList();
+        Assertions.assertEquals(List.of("missing.Impl.build"), targetsAfterDisable);
+    }
+
+    @org.junit.jupiter.api.Test
+    void localClassMethodCallsDoNotLeakIntoEnclosingMethod(@org.junit.jupiter.api.io.TempDir Path tempDir) throws Exception {
+        FallbackFixture fixture = createFallbackFixture(tempDir,
+                "class Caller { void outer(){ class Inner { void inner(){ helper(); } } } void helper(){} }",
+                List.of(row("Caller", "demo.Caller", "")),
+                List.of(methodRow("helper", "method", "demo.Caller.helper", "demo.Caller.helper()", "src/test/java/demo/Caller.java", 1)));
+        CallGraphServiceImpl scanner = CallGraphServiceImpl.getInstance();
+        scanner.init(
+                "https://example.test/demo",
+                fixture.repo().toString(),
+                fixture.commitHash(),
+                fixture.methodCsv().toString(),
+                fixture.classCsv().toString()
+        );
+
+        List<MethodCall> calls = scanner.findCallgraph("src/test/java/demo/Caller.java");
+        MethodCall outer = calls.stream()
+                .filter(methodCall -> "outer".equals(methodCall.getMethod().getName()))
+                .findFirst()
+                .orElseThrow();
+        MethodCall inner = calls.stream()
+                .filter(methodCall -> "inner".equals(methodCall.getMethod().getName()))
+                .findFirst()
+                .orElseThrow();
+
+        Assertions.assertTrue(outer.getFanMethods().isEmpty());
+        Assertions.assertEquals(List.of("helper"), inner.getFanMethods().stream().map(Method::getName).toList());
+    }
+
 
     @TestFactory
     public java.util.stream.Stream<DynamicNode> testCallGraph() throws java.io.IOException {
