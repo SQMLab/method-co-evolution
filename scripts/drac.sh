@@ -8,4 +8,21 @@ module load java/21.0.1
 
 source .venv/bin/activate
 
-python co-evolution/src/ptc/drac/main.py "$@"
+# Strip --dry-run from args before passing to python
+DRY_RUN=0
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--dry-run" ]]; then
+        DRY_RUN=1
+    else
+        ARGS+=("$arg")
+    fi
+done
+
+if [[ "$DRY_RUN" == "1" ]]; then
+    python co-evolution/src/ptc/drac/main.py "${ARGS[@]}"
+else
+    CMD=$(python co-evolution/src/ptc/drac/main.py "${ARGS[@]}")
+    echo "Executing: $CMD" >&2
+    eval "$CMD"
+fi
