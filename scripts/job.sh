@@ -41,7 +41,7 @@ Options:
   --project               Single project name
   --projects              Comma-separated project list for the array job
   --project-index         Python-style project index or slice from project.csv, for example 10, -1, 10:20, :10, 10:, or :
-  --shards                Total method-history, method-scan, class-scan, method-code, or method-callgraph shards per project (default: 1)
+  --shards                Total per-project shards for method-history, method-scan, class-scan, method-code, or method-callgraph (default: 1)
   --job-index-shift       Offset added to SLURM_ARRAY_TASK_ID before deriving project/shard indexes (default: 0)
   --input-kind            LLM input kind: t2p or p2t (default: t2p)
   --top-k                 TestLinker top-k invocation count (default: 1)
@@ -93,6 +93,17 @@ WORKSPACE_DIRECTORY="$PROJECT_DIRECTORY/workspace"
 EXPERIMENT_NAME="${ME_EXPERIMENT_NAME:-main}"
 HISTORY_DIRECTORY="${ME_HISTORY_DIRECTORY:-}"
 ARTIFACT_CONFIG_PATH=""
+
+is_sharded_command() {
+    case "$1" in
+        method-history|method-callgraph|method-scan|class-scan|method-code)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -310,8 +321,13 @@ if ! [[ "$JOB_INDEX_SHIFT" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
+SHARD_MODE="false"
+if [[ "$SHARDS" -gt 1 ]] && is_sharded_command "$COMMAND_NAME"; then
+    SHARD_MODE="true"
+fi
+
 if [[ "$SELECTION_COUNT" -eq 0 && "$COMMAND_NAME" != "index" \
-    && ! ( "$COMMAND_NAME" == "method-history" && "$SHARDS" -gt 1 ) \
+    && "$SHARD_MODE" != "true" \
     && -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
     echo "Error: one of --project, --projects, or --project-index is required."
     usage
@@ -324,8 +340,8 @@ if [[ -n "$PROJECT_NAME" && -n "$PROJECTS_CSV" ]]; then
     exit 1
 fi
 
-if [[ "$SHARDS" -eq 1 && -n "$PROJECT_INDEX" && ( -n "$PROJECT_NAME" || -n "$PROJECTS_CSV" ) ]]; then
-    echo "Error: use --project-index by itself unless --shards is greater than 1."
+if [[ "$SHARD_MODE" != "true" && -n "$PROJECT_INDEX" && ( -n "$PROJECT_NAME" || -n "$PROJECTS_CSV" ) ]]; then
+    echo "Error: use --project-index by itself unless using per-project shard mode."
     usage
     exit 1
 fi
@@ -342,6 +358,12 @@ if ! [[ "$MERGE_INTERVAL_SECONDS" =~ ^-?[0-9]+$ ]]; then
     exit 1
 fi
 
+if ! [[ "$MAX_WORKERS" =~ ^[0-9]+$ ]] || [[ "$MAX_WORKERS" -le 0 ]]; then
+    echo "Error: --max-workers must be a positive integer."
+    usage
+    exit 1
+fi
+
 RETRY_ERRORS_NORMALIZED="$(printf '%s' "$RETRY_ERRORS" | tr '[:upper:]' '[:lower:]')"
 case "$RETRY_ERRORS_NORMALIZED" in
     true|false)
@@ -354,13 +376,7 @@ case "$RETRY_ERRORS_NORMALIZED" in
         ;;
 esac
 
-if [[ "$SHARDS" -gt 1 && "$COMMAND_NAME" != "method-history" && "$COMMAND_NAME" != "method-callgraph" && "$COMMAND_NAME" != "method-scan" && "$COMMAND_NAME" != "class-scan" && "$COMMAND_NAME" != "method-code" ]]; then
-    echo "Error: --shards greater than 1 is supported only for method-history, method-scan, class-scan, method-code, and method-callgraph."
-    usage
-    exit 1
-fi
-
-if [[ "$SHARDS" -gt 1 && -n "$PROJECT_INDEX" ]]; then
+if [[ "$SHARD_MODE" == "true" && -n "$PROJECT_INDEX" ]]; then
     echo "Error: --project-index is derived from SLURM_ARRAY_TASK_ID in shard mode."
     usage
     exit 1
@@ -410,7 +426,7 @@ if [[ "$COMMAND_NAME" != "index" ]]; then
         fi
         ARRAY_TASK_ID=$((SLURM_ARRAY_TASK_ID + JOB_INDEX_SHIFT))
     fi
-    if [[ "$SHARDS" -gt 1 ]]; then
+    if [[ "$SHARD_MODE" == "true" ]]; then
         if [[ -z "$ARRAY_TASK_ID" ]]; then
             echo "Invalid SLURM_ARRAY_TASK_ID for shard mode: ${SLURM_ARRAY_TASK_ID:-unset}"
             exit 1
