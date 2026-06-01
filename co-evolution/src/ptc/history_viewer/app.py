@@ -33,7 +33,6 @@ DEFAULT_GROUND_TRUTH_DIRECTORY = (
     / "experiment"
     / "t2plinker"
     / "t2p-ground-truth"
-    / "t2plinker-ground-truth"
 )
 
 STYLE = """
