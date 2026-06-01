@@ -29,6 +29,11 @@ import java.util.*;
  */
 @Slf4j
 public class MethodScannerImpl implements MethodScanner {
+    private static final boolean ENABLE_METHOD_SCAN_SYMBOL_RESOLUTION =
+            Boolean.getBoolean("mhc.methodScan.resolve");
+    private static final double SLOW_SCAN_SECONDS = 60.0;
+    private static final double SLOW_RESOLVE_SECONDS = 5.0;
+
     private String repoRoot;
     private String repoUrl;
     private String commitHash;
@@ -58,17 +63,36 @@ public class MethodScannerImpl implements MethodScanner {
             MethodParserUtil.prepareRepositoryForCommit(repoUrl, repoRoot, commitHash);
         }
 
-        JavaParserContext parserContext = JavaParserContext.create(Path.of(repoRoot), commitHash);
+        Path repoRootPath = Path.of(repoRoot);
+        long contextStartedAt = System.nanoTime();
+        JavaParserContext parserContext = ENABLE_METHOD_SCAN_SYMBOL_RESOLUTION
+                ? JavaParserContext.create(repoRootPath, commitHash)
+                : JavaParserContext.createParserOnly(repoRootPath);
+        log.info(
+                "MethodScannerImpl init parser-context repoRoot={} commit={} symbol_resolution_enabled={} elapsed_seconds={}",
+                repoRoot,
+                commitHash,
+                ENABLE_METHOD_SCAN_SYMBOL_RESOLUTION,
+                secondsSince(contextStartedAt)
+        );
         this.repoRoot = repoRoot;
         this.repoUrl = repoUrl;
         this.commitHash = commitHash;
         this.repositoryName = MethodParserUtil.extractRepositoryName(repoUrl);
         this.parserWithSymbolResolver = parserContext.parser();
+
+        long artifactStartedAt = System.nanoTime();
         this.artifactDetector = TestArtifactDetector.load(
-                Path.of(repoRoot),
+                repoRootPath,
                 this.repositoryName,
                 artifactConfigPath == null || artifactConfigPath.isBlank() ? null : Path.of(artifactConfigPath),
                 parserContext.parser()
+        );
+        log.info(
+                "MethodScannerImpl init artifact-detector repoRoot={} repository={} elapsed_seconds={}",
+                repoRoot,
+                this.repositoryName,
+                secondsSince(artifactStartedAt)
         );
     }
 
@@ -76,13 +100,25 @@ public class MethodScannerImpl implements MethodScanner {
     public List<Method> scanMethod(String file) {
         ensureInitialized();
 
+        long scanStartedAt = System.nanoTime();
         File javaFile = Path.of(repoRoot, file).toFile();
 
         CompilationUnit cu;
         try {
+            long parseStartedAt = System.nanoTime();
             cu = parserWithSymbolResolver.parse(javaFile).getResult().get();
+            log.debug(
+                    "method-scan java-parse finish file={} elapsed_seconds={}",
+                    file,
+                    secondsSince(parseStartedAt)
+            );
         } catch (ParseProblemException | FileNotFoundException e) {
-//            log.error("Failed to parse file {}", javaFile);
+            log.warn(
+                    "method-scan java-parse failed file={} elapsed_seconds={} error={}",
+                    file,
+                    secondsSince(scanStartedAt),
+                    e.toString()
+            );
             return Collections.emptyList();
         }
 
@@ -90,10 +126,32 @@ public class MethodScannerImpl implements MethodScanner {
                 .map(pd -> pd.getNameAsString())
                 .orElse(null);
 
+        long classifyStartedAt = System.nanoTime();
         ArtifactClassification fileClassification = artifactDetector.classify(javaFile.toPath(), packageName);
+        log.debug(
+                "method-scan artifact-classification finish file={} artifact={} elapsed_seconds={}",
+                file,
+                fileClassification.encodedArtifact(),
+                secondsSince(classifyStartedAt)
+        );
         if (fileClassification.isResource()) {
+            log.info(
+                    "method-scan file skipped resource file={} elapsed_seconds={}",
+                    file,
+                    secondsSince(scanStartedAt)
+            );
             return Collections.emptyList();
         }
+
+        int methodCount = cu.findAll(MethodDeclaration.class).size();
+        int constructorCount = cu.findAll(ConstructorDeclaration.class).size();
+        log.info(
+                "method-scan file walk start file={} methods={} constructors={} symbol_resolution_enabled={}",
+                file,
+                methodCount,
+                constructorCount,
+                ENABLE_METHOD_SCAN_SYMBOL_RESOLUTION
+        );
 
         List<Method> result = new ArrayList<>();
 
@@ -101,39 +159,8 @@ public class MethodScannerImpl implements MethodScanner {
             if (node instanceof MethodDeclaration md) {
                 String methodType = artifactDetector.classifyNodeArtifact(fileClassification, md);
 
-                String fqn = null;
-                String fqs = null;
-                String resolver = "javaparser";
-                try {
-                    ResolvedMethodDeclaration resolvedDec = md.resolve();
-                    fqn = resolvedDec.getQualifiedName();
-                    fqs = resolvedDec.getQualifiedSignature();
-                } catch (Exception ignored) {
-//                    log.error("Failed to resolve method {}", md.getNameAsString());
-                }
                 String tcTracerFqs = AltMethodDeclarationFqn.buildSimpleParamSignature(md);
-                // Fix anonymous class naming: resolver uses UUIDs (Anonymous-XXXX) or silently
-                // drops the $N level. tcTracerFqs (AST-based) is authoritative in both cases.
-                if (AltMethodDeclarationFqn.isInAnonymousClass(tcTracerFqs)) {
-                    String astQualified = AltMethodDeclarationFqn.buildQualifiedParamSignature(md);
-                    fqn = stripParameters(astQualified);
-                    fqs = astQualified;
-                } else {
-                    if (fqn != null && fqn.contains("Anonymous-")) {
-                        fqn = stripParameters(AltMethodDeclarationFqn.buildQualifiedParamSignature(md));
-                    }
-                    if (fqs != null && fqs.contains("Anonymous-")) {
-                        fqs = AltMethodDeclarationFqn.buildQualifiedParamSignature(md);
-                    }
-                }
-                if (fqn == null) {
-                    fqn = stripParameters(AltMethodDeclarationFqn.buildQualifiedParamSignature(md));
-                    resolver = "heuristics";
-                }
-                if (fqs == null) {
-                    fqs = AltMethodDeclarationFqn.buildQualifiedParamSignature(md);
-                    resolver = "heuristics";
-                }
+                ResolvedSignature signature = methodSignature(md, tcTracerFqs, file);
 
                 int start = md.getName().getBegin().map(p -> p.line).orElse(-1);
                 Integer end = md.getEnd().map(p -> p.line).orElse(null);
@@ -144,12 +171,12 @@ public class MethodScannerImpl implements MethodScanner {
                         .name(md.getNameAsString())
                         .expression("method")
                         .pkg(cu.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration).map(pd -> pd.getNameAsString()).orElse(null))
-                        .fqn(fqn)
-                        .fqs(fqs)
+                        .fqn(signature.fqn())
+                        .fqs(signature.fqs())
                         .tcTracerFqs(tcTracerFqs)
                         .testlinkerFqs(tcTracerFqs)
-                        .testlinkerFqp(TestLinkerSignatureUtil.toParamTypeJson(fqs))
-                        .resolver(resolver)
+                        .testlinkerFqp(TestLinkerSignatureUtil.toParamTypeJson(signature.fqs()))
+                        .resolver(signature.resolver())
                         .file(file)
                         .startLine(start)
                         .endLine(end)
@@ -164,38 +191,8 @@ public class MethodScannerImpl implements MethodScanner {
             } else if (node instanceof ConstructorDeclaration cd) {
                 String methodType = artifactDetector.classifyNodeArtifact(fileClassification, cd);
 
-                String fqn = null;
-                String fqs = null;
-                String resolver = "javaparser";
-
-                try {
-                    ResolvedConstructorDeclaration resolvedDec = cd.resolve();
-                    fqn = resolvedDec.getQualifiedName();
-                    fqs = resolvedDec.getQualifiedSignature();
-                } catch (Exception ignored) {
-                }
                 String tcTracerFqs = AltConstructorDeclarationFqn.buildSimpleParamSignature(cd);
-                // Fix anonymous class naming (same logic as for method declarations above)
-                if (AltMethodDeclarationFqn.isInAnonymousClass(tcTracerFqs)) {
-                    String astQualified = AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd);
-                    fqn = stripParameters(astQualified);
-                    fqs = astQualified;
-                } else {
-                    if (fqn != null && fqn.contains("Anonymous-")) {
-                        fqn = stripParameters(AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd));
-                    }
-                    if (fqs != null && fqs.contains("Anonymous-")) {
-                        fqs = AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd);
-                    }
-                }
-                if (fqn == null) {
-                    fqn = stripParameters(AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd));
-                    resolver = "heuristics";
-                }
-                if (fqs == null) {
-                    fqs = AltConstructorDeclarationFqn.buildQualifiedParamSignature(cd);
-                    resolver = "heuristics";
-                }
+                ResolvedSignature signature = constructorSignature(cd, tcTracerFqs, file);
 
                 int start = cd.getName().getBegin().map(p -> p.line).orElse(-1);
                 Integer end = cd.getEnd().map(p -> p.line).orElse(null);
@@ -206,12 +203,12 @@ public class MethodScannerImpl implements MethodScanner {
                         .name(cd.getNameAsString())
                         .expression("constructor")
                         .pkg(cu.findCompilationUnit().flatMap(CompilationUnit::getPackageDeclaration).map(pd -> pd.getNameAsString()).orElse(null))
-                        .fqn(fqn)
-                        .fqs(fqs)
+                        .fqn(signature.fqn())
+                        .fqs(signature.fqs())
                         .tcTracerFqs(tcTracerFqs)
                         .testlinkerFqs(tcTracerFqs)
-                        .testlinkerFqp(TestLinkerSignatureUtil.toParamTypeJson(fqs))
-                        .resolver(resolver)
+                        .testlinkerFqp(TestLinkerSignatureUtil.toParamTypeJson(signature.fqs()))
+                        .resolver(signature.resolver())
                         .file(file)
                         .startLine(start)
                         .endLine(end)
@@ -225,13 +222,144 @@ public class MethodScannerImpl implements MethodScanner {
                 );
             }
         });
+        double elapsed = secondsSince(scanStartedAt);
+        if (elapsed >= SLOW_SCAN_SECONDS) {
+            log.warn(
+                    "method-scan file finish slow file={} rows={} methods={} constructors={} elapsed_seconds={}",
+                    file,
+                    result.size(),
+                    methodCount,
+                    constructorCount,
+                    elapsed
+            );
+        } else {
+            log.info(
+                    "method-scan file finish file={} rows={} methods={} constructors={} elapsed_seconds={}",
+                    file,
+                    result.size(),
+                    methodCount,
+                    constructorCount,
+                    elapsed
+            );
+        }
         return result;
+    }
+
+    private static ResolvedSignature methodSignature(MethodDeclaration method, String tcTracerFqs, String file) {
+        String astQualified = AltMethodDeclarationFqn.buildQualifiedParamSignature(method);
+        String fqn = stripParameters(astQualified);
+        String fqs = astQualified;
+        String resolver = "heuristics";
+
+        if (!ENABLE_METHOD_SCAN_SYMBOL_RESOLUTION) {
+            return new ResolvedSignature(fqn, fqs, resolver);
+        }
+
+        long resolveStartedAt = System.nanoTime();
+        try {
+            ResolvedMethodDeclaration resolvedDec = method.resolve();
+            fqn = resolvedDec.getQualifiedName();
+            fqs = resolvedDec.getQualifiedSignature();
+            resolver = "javaparser";
+        } catch (Exception ignored) {
+            fqn = stripParameters(astQualified);
+            fqs = astQualified;
+            resolver = "heuristics";
+        } finally {
+            logResolveDuration("method", file, method.getNameAsString(), resolveStartedAt);
+        }
+
+        // Fix anonymous class naming: resolver uses UUIDs (Anonymous-XXXX) or silently
+        // drops the $N level. The AST-based signature is authoritative in both cases.
+        if (AltMethodDeclarationFqn.isInAnonymousClass(tcTracerFqs)) {
+            fqn = stripParameters(astQualified);
+            fqs = astQualified;
+            resolver = "heuristics";
+        } else {
+            if (fqn != null && fqn.contains("Anonymous-")) {
+                fqn = stripParameters(astQualified);
+                resolver = "heuristics";
+            }
+            if (fqs != null && fqs.contains("Anonymous-")) {
+                fqs = astQualified;
+                resolver = "heuristics";
+            }
+        }
+
+        return new ResolvedSignature(fqn, fqs, resolver);
+    }
+
+    private static ResolvedSignature constructorSignature(ConstructorDeclaration constructor, String tcTracerFqs, String file) {
+        String astQualified = AltConstructorDeclarationFqn.buildQualifiedParamSignature(constructor);
+        String fqn = stripParameters(astQualified);
+        String fqs = astQualified;
+        String resolver = "heuristics";
+
+        if (!ENABLE_METHOD_SCAN_SYMBOL_RESOLUTION) {
+            return new ResolvedSignature(fqn, fqs, resolver);
+        }
+
+        long resolveStartedAt = System.nanoTime();
+        try {
+            ResolvedConstructorDeclaration resolvedDec = constructor.resolve();
+            fqn = resolvedDec.getQualifiedName();
+            fqs = resolvedDec.getQualifiedSignature();
+            resolver = "javaparser";
+        } catch (Exception ignored) {
+            fqn = stripParameters(astQualified);
+            fqs = astQualified;
+            resolver = "heuristics";
+        } finally {
+            logResolveDuration("constructor", file, constructor.getNameAsString(), resolveStartedAt);
+        }
+
+        // Fix anonymous class naming (same logic as for method declarations above).
+        if (AltMethodDeclarationFqn.isInAnonymousClass(tcTracerFqs)) {
+            fqn = stripParameters(astQualified);
+            fqs = astQualified;
+            resolver = "heuristics";
+        } else {
+            if (fqn != null && fqn.contains("Anonymous-")) {
+                fqn = stripParameters(astQualified);
+                resolver = "heuristics";
+            }
+            if (fqs != null && fqs.contains("Anonymous-")) {
+                fqs = astQualified;
+                resolver = "heuristics";
+            }
+        }
+
+        return new ResolvedSignature(fqn, fqs, resolver);
+    }
+
+    private static void logResolveDuration(String kind, String file, String name, long startedAt) {
+        double elapsed = secondsSince(startedAt);
+        if (elapsed >= SLOW_RESOLVE_SECONDS) {
+            log.warn(
+                    "method-scan slow-resolve kind={} file={} name={} elapsed_seconds={}",
+                    kind,
+                    file,
+                    name,
+                    elapsed
+            );
+        } else {
+            log.debug(
+                    "method-scan resolve finish kind={} file={} name={} elapsed_seconds={}",
+                    kind,
+                    file,
+                    name,
+                    elapsed
+            );
+        }
     }
 
     private void ensureInitialized() {
         if (parserWithSymbolResolver == null) {
             throw new IllegalStateException("MethodScannerImpl.init must be called before scanMethod");
         }
+    }
+
+    private record ResolvedSignature(String fqn, String fqs, String resolver) {
     }
 
     private static String stripParameters(String signature) {
@@ -250,6 +378,10 @@ public class MethodScannerImpl implements MethodScanner {
                 .map(ClassOrInterfaceDeclaration::isInterface)
                 .orElse(false)
                 && method.getBody().isEmpty();
+    }
+
+    private static double secondsSince(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000_000.0;
     }
 
 }

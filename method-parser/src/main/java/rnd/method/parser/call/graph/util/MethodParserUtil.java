@@ -12,7 +12,6 @@ import rnd.method.parser.call.graph.model.Method;
 import rnd.method.parser.call.graph.model.MethodCall;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -59,79 +58,19 @@ public class MethodParserUtil {
         return files;
     }
 
-    private static final String SOURCE_ROOTS_CACHE_FILE_PREFIX = "mp-source-roots-";
-    private static final String SOURCE_ROOTS_CACHE_FILE_SUFFIX = ".txt";
-
     /**
-     * Find all Java source roots for the given repository root, using a commit-keyed cache
-     * stored in {@code repoRoot/.git/} to avoid the expensive full-tree walk on repeat calls.
+     * Find all Java source roots for the given repository root.
      */
     public static List<Path> findAllJavaSourceRoots(Path repoRoot) {
         return findAllJavaSourceRootsFromPackageDeclarations(repoRoot);
     }
 
     /**
-     * Like {@link #findAllJavaSourceRoots(Path)} but caches the result to
-     * {@code repoRoot/.git/mp-source-roots-{commitHash}.txt}.  Subsequent calls with the
-     * same {@code commitHash} return instantly without re-walking the file tree.
+     * Find all Java source roots for the given repository root. The commit hash is accepted
+     * by callers that already have it, but source-root discovery is intentionally uncached.
      */
     public static List<Path> findAllJavaSourceRoots(Path repoRoot, String commitHash) {
-        if (commitHash == null || commitHash.isBlank()) {
-            return findAllJavaSourceRootsFromPackageDeclarations(repoRoot);
-        }
-
-        Path cacheFile = repoRoot.resolve(".git")
-                .resolve(SOURCE_ROOTS_CACHE_FILE_PREFIX + commitHash + SOURCE_ROOTS_CACHE_FILE_SUFFIX);
-
-        // Try reading from cache first
-        List<Path> cached = readSourceRootsCache(cacheFile);
-        if (cached != null) {
-            log.debug("Loaded {} source roots from cache for commit {}", cached.size(), commitHash);
-            return cached;
-        }
-
-        // Cache miss — do the full walk
-        List<Path> sourceRoots = findAllJavaSourceRootsFromPackageDeclarations(repoRoot);
-
-        // Persist to cache (best-effort; ignore write errors)
-        writeSourceRootsCache(cacheFile, sourceRoots);
-
-        return sourceRoots;
-    }
-
-    private static List<Path> readSourceRootsCache(Path cacheFile) {
-        if (!Files.exists(cacheFile)) {
-            return null;
-        }
-        try {
-            List<String> lines = Files.readAllLines(cacheFile, StandardCharsets.UTF_8);
-            List<Path> roots = new ArrayList<>(lines.size());
-            for (String line : lines) {
-                String trimmed = line.trim();
-                if (!trimmed.isEmpty()) {
-                    roots.add(Path.of(trimmed));
-                }
-            }
-            return roots;
-        } catch (IOException e) {
-            log.warn("Failed to read source roots cache {}: {}", cacheFile, e.getMessage());
-            return null;
-        }
-    }
-
-    private static void writeSourceRootsCache(Path cacheFile, List<Path> sourceRoots) {
-        try {
-            Files.createDirectories(cacheFile.getParent());
-            try (BufferedWriter writer = Files.newBufferedWriter(cacheFile, StandardCharsets.UTF_8)) {
-                for (Path root : sourceRoots) {
-                    writer.write(root.toAbsolutePath().toString());
-                    writer.newLine();
-                }
-            }
-            log.debug("Wrote {} source roots to cache {}", sourceRoots.size(), cacheFile);
-        } catch (IOException e) {
-            log.warn("Failed to write source roots cache {}: {}", cacheFile, e.getMessage());
-        }
+        return findAllJavaSourceRootsFromPackageDeclarations(repoRoot);
     }
 
     public static List<Path> findAllJavaSourceRootsFromPackageDeclarations(Path repoRoot) {
