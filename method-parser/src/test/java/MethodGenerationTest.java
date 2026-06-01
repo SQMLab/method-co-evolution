@@ -92,5 +92,46 @@ public class MethodGenerationTest extends TestConfigurationBase {
 
     }
 
+    @Test
+    public void testMethodScanUsesHeuristicsWhenResolverDisabled() throws Exception {
+        System.setProperty("mhc.methodScan.resolve", "false");
+        Path repoRoot = Files.createTempDirectory("method-scan-heuristics");
+        Path javaFile = repoRoot.resolve("src/main/java/demo/Foo.java");
+        Files.createDirectories(javaFile.getParent());
+        Files.writeString(
+                javaFile,
+                """
+                        package demo;
+
+                        public class Foo {
+                            public Foo() {
+                            }
+
+                            public void run(String value) {
+                            }
+                        }
+                        """
+        );
+
+        try {
+            MethodScannerImpl methodScanner = MethodScannerImpl.getInstance();
+            methodScanner.init(
+                    repoRoot.toString(),
+                    "https://github.com/example/demo",
+                    "abc123",
+                    null,
+                    false
+            );
+
+            List<Method> methods = methodScanner.scanMethod("src/main/java/demo/Foo.java");
+
+            Assertions.assertFalse(methods.isEmpty());
+            Assertions.assertTrue(methods.stream().allMatch(method -> "heuristics".equals(method.getResolver())));
+            Assertions.assertTrue(methods.stream().anyMatch(method -> "run".equals(method.getName())));
+        } finally {
+            System.clearProperty("mhc.methodScan.resolve");
+        }
+    }
+
 
 }
