@@ -45,7 +45,9 @@ public class MethodGenerationTest extends TestConfigurationBase {
                             methodScanner.init(
                                     repoRoot,
                                     projectConfig.repositoryUrl,
-                                    projectConfig.commitHash
+                                    projectConfig.commitHash,
+                                    null,
+                                    true
                             );
 
                             List<Method> methods;
@@ -82,7 +84,9 @@ public class MethodGenerationTest extends TestConfigurationBase {
         methodScanner.init(
                 Path.of(REPOSITORY_DIRECTORY, "checkstyle").toFile().getAbsolutePath(),
                 "https://github.com/checkstyle/checkstyle",
-                "164a755af951cf0fd459d70873e1c199210d9d8b"
+                "164a755af951cf0fd459d70873e1c199210d9d8b",
+                null,
+                true
         );
         List<Method> methods = methodScanner.scanMethod("src");
 

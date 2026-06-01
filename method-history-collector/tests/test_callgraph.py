@@ -2,7 +2,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -277,25 +277,17 @@ class CallGraphRunnerTest(unittest.TestCase):
                     merge_interval_seconds=0,
                 )
 
-            scanner.configureCache.assert_called_once_with(512)
-            scanner.init.assert_called_once_with(
-                "https://example.test/demo",
-                str(repository_path),
-                "abc123",
-                str(root / "method.csv"),
-                str(root / "class.csv"),
-            )
-            self.assertLess(
-                scanner.mock_calls.index(call.configureCache(512)),
-                scanner.mock_calls.index(call.init(
+                scanner.init.assert_called_once_with(
                     "https://example.test/demo",
                     str(repository_path),
                     "abc123",
                     str(root / "method.csv"),
                     str(root / "class.csv"),
-                )),
-            )
-            scanner.logCacheStats.assert_called_once_with()
+                    None,
+                    False,
+                    512,
+                )
+                scanner.logCacheStats.assert_called_once_with()
 
     def test_execute_merge_only_does_not_load_jpype_scanner(self):
         with tempfile.TemporaryDirectory() as temp_directory:

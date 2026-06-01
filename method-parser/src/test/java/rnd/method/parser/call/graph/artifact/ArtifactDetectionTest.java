@@ -399,7 +399,7 @@ public class ArtifactDetectionTest {
                 .readAllBytes()).trim();
 
         MethodScannerImpl scanner = MethodScannerImpl.getInstance();
-        scanner.init(repo.toString(), "https://github.com/example/demo", commit);
+        scanner.init(repo.toString(), "https://github.com/example/demo", commit, null, true);
         List<Method> methods = scanner.scanMethod("src/test/java/demo/TokenTest.java");
         Map<String, String> artifacts = methods.stream()
                 .collect(Collectors.toMap(Method::getName, Method::getArtifact));

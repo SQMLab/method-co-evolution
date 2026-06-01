@@ -332,11 +332,16 @@ def _build_callgraph_scanner(
 ):
     with _CALLGRAPH_SCANNER_INIT_LOCK:
         scanner = CallGraphServiceImpl.getInstance()
-        scanner.configureCache(max_cache_size)
-        if artifact_config_path:
-            scanner.init(repository_url, repository_path, commit_hash, method_mapping_file, class_mapping_file, artifact_config_path)
-        else:
-            scanner.init(repository_url, repository_path, commit_hash, method_mapping_file, class_mapping_file)
+        scanner.init(
+            repository_url,
+            repository_path,
+            commit_hash,
+            method_mapping_file,
+            class_mapping_file,
+            artifact_config_path,
+            False,
+            max_cache_size,
+        )
         return scanner
 
 

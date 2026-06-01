@@ -23,14 +23,22 @@ public final class JavaParserContext {
     }
 
     public static JavaParserContext create(Path repoRoot) {
-        return create(repoRoot, false);
+        return create(repoRoot, null, false);
+    }
+
+    public static JavaParserContext create(Path repoRoot, String commitHash) {
+        return create(repoRoot, commitHash, false);
     }
 
     public static JavaParserContext create(Path repoRoot, boolean reflectionTypeSolverJreOnly) {
+        return create(repoRoot, null, reflectionTypeSolverJreOnly);
+    }
+
+    public static JavaParserContext create(Path repoRoot, String commitHash, boolean reflectionTypeSolverJreOnly) {
         CombinedTypeSolver typeSolver = new CombinedTypeSolver();
         typeSolver.add(new ReflectionTypeSolver(reflectionTypeSolverJreOnly));
 
-        List<Path> javaSourceRoots = MethodParserUtil.findAllJavaSourceRoots(repoRoot);
+        List<Path> javaSourceRoots = MethodParserUtil.findAllJavaSourceRoots(repoRoot, commitHash);
         if (javaSourceRoots.isEmpty()) {
             typeSolver.add(new JavaParserTypeSolver(repoRoot.toFile()));
         } else {

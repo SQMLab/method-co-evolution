@@ -199,16 +199,16 @@ public class CallGraphTest extends TestConfigurationBase {
 
         CallGraphServiceImpl scanner = CallGraphServiceImpl.getInstance();
         assertDoesNotThrow(scanner::logCacheStats);
-        scanner.configureCache(256);
         scanner.init(
                 "https://example.test/demo",
                 fixture.repo().toString(),
                 fixture.commitHash(),
                 fixture.methodCsv().toString(),
-                fixture.classCsv().toString()
+                fixture.classCsv().toString(),
+                null,
+                true,
+                256
         );
-        assertDoesNotThrow(scanner::logCacheStats);
-        scanner.configureCache(0);
         assertDoesNotThrow(scanner::logCacheStats);
 
         List<String> targetsAfterDisable = scanner.findCallgraph("src/test/java/demo/Caller.java").stream()
@@ -231,7 +231,10 @@ public class CallGraphTest extends TestConfigurationBase {
                 fixture.repo().toString(),
                 fixture.commitHash(),
                 fixture.methodCsv().toString(),
-                fixture.classCsv().toString()
+                fixture.classCsv().toString(),
+                null,
+                true,
+                256
         );
 
         List<MethodCall> calls = scanner.findCallgraph("src/test/java/demo/Caller.java");
@@ -315,7 +318,10 @@ public class CallGraphTest extends TestConfigurationBase {
                                         repositoryPath.toString(),
                                         projectConfig.commitHash,
                                         methodMappingFile,
-                                        classMappingFile
+                                        classMappingFile,
+                                        null,
+                                        true,
+                                        256
                                 );
                                 List<String> files = MethodParserUtil.scanJavaFiles(
                                         repositoryPath.toString(),
@@ -456,13 +462,15 @@ public class CallGraphTest extends TestConfigurationBase {
 
     private static List<Method> fallbackTargets(FallbackFixture fixture, long maxCacheSizeMb) {
         CallGraphServiceImpl scanner = CallGraphServiceImpl.getInstance();
-        scanner.configureCache(maxCacheSizeMb);
         scanner.init(
                 "https://example.test/demo",
                 fixture.repo().toString(),
                 fixture.commitHash(),
                 fixture.methodCsv().toString(),
-                fixture.classCsv().toString()
+                fixture.classCsv().toString(),
+                null,
+                true,
+                maxCacheSizeMb
         );
         return scanner.findCallgraph("src/test/java/demo/Caller.java").stream()
                 .flatMap(methodCall -> methodCall.getFanMethods().stream())

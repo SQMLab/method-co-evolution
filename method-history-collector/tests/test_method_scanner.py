@@ -92,14 +92,14 @@ class FakeMethodScannerImpl:
     def getInstance():
         return FakeMethodScannerImpl()
 
-    def init(self, repository_directory, repository_url, commit_hash):
+    def init(self, repository_directory, repository_url, commit_hash, artifact_config_path, checkout_repository):
         FakeMethodScannerImpl.init_calls.append(
-            (repository_directory, repository_url, commit_hash)
+            (repository_directory, repository_url, commit_hash, artifact_config_path, checkout_repository)
         )
 
     def scanMethod(self, file_without_base):
         FakeMethodScannerImpl.scanned_files.append(file_without_base)
-        _, repository_url, commit_hash = FakeMethodScannerImpl.init_calls[-1]
+        _, repository_url, commit_hash, _, _ = FakeMethodScannerImpl.init_calls[-1]
         return [FakeJavaMethod(repository_url, commit_hash, file_without_base)]
 
 
@@ -325,6 +325,8 @@ class MethodScannerCacheTestCase(unittest.TestCase):
                         str(project_directory),
                         "https://github.com/example/demo-project",
                         "abc123",
+                        None,
+                        False,
                     )
                 ],
             )
@@ -372,6 +374,8 @@ class MethodScannerCacheTestCase(unittest.TestCase):
                         str(project_directory),
                         "https://github.com/example/demo-project",
                         "abc123",
+                        None,
+                        False,
                     )
                 ],
             )

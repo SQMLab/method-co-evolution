@@ -67,13 +67,6 @@ public class CallGraphServiceImpl implements CallGraphService {
         return new CallGraphServiceImpl();
     }
 
-    public synchronized void configureCache(long maxCacheSizeMb) {
-        this.maxCacheSizeMb = Math.max(0, maxCacheSizeMb);
-        if (classMappingIndex != null) {
-            classMappingIndex.configureCache(this.maxCacheSizeMb);
-        }
-    }
-
     public void logCacheStats() {
         if (classMappingIndex == null) {
             return;
@@ -82,28 +75,31 @@ public class CallGraphServiceImpl implements CallGraphService {
     }
 
     @Override
-    public synchronized void init(String repositoryUrl, String repositoryPath, String commitHash, String methodMappingFile) {
-        init(repositoryUrl, repositoryPath, commitHash, methodMappingFile, null, null);
-    }
-
-    public synchronized void init(String repositoryUrl, String repositoryPath, String commitHash, String methodMappingFile, String classMappingFile) {
-        init(repositoryUrl, repositoryPath, commitHash, methodMappingFile, classMappingFile, null);
-    }
-
-    public synchronized void init(String repositoryUrl, String repositoryPath, String commitHash, String methodMappingFile, String classMappingFile, String artifactConfigPath) {
+    public synchronized void init(
+            String repositoryUrl,
+            String repositoryPath,
+            String commitHash,
+            String methodMappingFile,
+            String classMappingFile,
+            String artifactConfigPath,
+            boolean checkoutRepository,
+            long maxCacheSizeMb) {
         if (parserWithSymbolResolver != null) {
             throw new IllegalStateException("CallGraphServiceImpl.init must be called exactly once");
         }
-        MethodParserUtil.prepareRepositoryForCommit(repositoryUrl, repositoryPath, commitHash);
+        if (checkoutRepository) {
+            MethodParserUtil.prepareRepositoryForCommit(repositoryUrl, repositoryPath, commitHash);
+        }
+        this.maxCacheSizeMb = Math.max(0, maxCacheSizeMb);
         this.repositoryUrl = repositoryUrl;
         this.repositoryLocation = repositoryPath;
         this.commitHash = commitHash;
         this.repositoryName = MethodParserUtil.extractRepositoryName(repositoryUrl);
-        this.classMappingIndex = ClassMappingIndex.load(classMappingFile, maxCacheSizeMb);
+        this.classMappingIndex = ClassMappingIndex.load(classMappingFile, this.maxCacheSizeMb);
         this.methodMappingIndex = MethodMappingIndex.load(methodMappingFile, classMappingIndex);
         Path repoPath = Paths.get(repositoryPath);
         this.absoluteRepositoryPath = repoPath.toFile().getAbsolutePath();
-        JavaParserContext parserContext = JavaParserContext.create(repoPath, true);
+        JavaParserContext parserContext = JavaParserContext.create(repoPath, commitHash, true);
         this.typeSolver = parserContext.typeSolver();
         this.parserWithSymbolResolver = parserContext.parser();
         this.artifactDetector = TestArtifactDetector.load(

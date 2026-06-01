@@ -212,10 +212,7 @@ def _scan_classes_in_file(
 def _build_class_scanner(ClassScannerImpl, repository_root: str, url: str, commit_hash: str, artifact_config_path: str | None):
     with _CLASS_SCANNER_INIT_LOCK:
         scanner = ClassScannerImpl.getInstance()
-        if artifact_config_path:
-            scanner.init(repository_root, url, commit_hash, artifact_config_path)
-        else:
-            scanner.init(repository_root, url, commit_hash)
+        scanner.init(repository_root, url, commit_hash, artifact_config_path, False)
         return scanner
 
 

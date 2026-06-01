@@ -44,18 +44,21 @@ public class ClassScannerImpl implements ClassScanner {
     }
 
     @Override
-    public synchronized void init(String repoRoot, String repoUrl, String commitHash) {
-        init(repoRoot, repoUrl, commitHash, null);
-    }
-
-    public synchronized void init(String repoRoot, String repoUrl, String commitHash, String artifactConfigPath) {
+    public synchronized void init(
+            String repoRoot,
+            String repoUrl,
+            String commitHash,
+            String artifactConfigPath,
+            boolean checkoutRepository) {
         if (parserWithSymbolResolver != null) {
             throw new IllegalStateException("ClassScannerImpl.init must be called exactly once");
         }
 
-        MethodParserUtil.prepareRepositoryForCommit(repoUrl, repoRoot, commitHash);
+        if (checkoutRepository) {
+            MethodParserUtil.prepareRepositoryForCommit(repoUrl, repoRoot, commitHash);
+        }
 
-        JavaParserContext parserContext = JavaParserContext.create(Path.of(repoRoot));
+        JavaParserContext parserContext = JavaParserContext.create(Path.of(repoRoot), commitHash);
         this.repoRoot = repoRoot;
         this.repoUrl = repoUrl;
         this.commitHash = commitHash;

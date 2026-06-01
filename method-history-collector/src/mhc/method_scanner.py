@@ -842,10 +842,7 @@ def _scan_methods_in_file(
 def _build_method_scanner(MethodScannerImpl, repository_root: str, url: str, commit_hash: str, artifact_config_path: str | None):
     with _METHOD_SCANNER_INIT_LOCK:
         scanner = MethodScannerImpl.getInstance()
-        if artifact_config_path:
-            scanner.init(repository_root, url, commit_hash, artifact_config_path)
-        else:
-            scanner.init(repository_root, url, commit_hash)
+        scanner.init(repository_root, url, commit_hash, artifact_config_path, False)
         return scanner
 
 

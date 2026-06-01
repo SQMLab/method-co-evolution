@@ -11,7 +11,9 @@ import java.util.List;
 public interface MethodScanner {
     void init(String repoRoot,
               String repoUrl,
-              String commitHash);
+              String commitHash,
+              String artifactConfigPath,
+              boolean checkoutRepository);
 
     List<Method> scanMethod(String file);
 }
