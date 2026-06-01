@@ -361,7 +361,7 @@ def run_project_subprocesses(args, projects: list[str]) -> None:
         command = [
             sys.executable,
             "-m",
-            "ptc.generator.generate_t2p_tech",
+            "ptc.generator.t2p_technique",
             "--projects",
             project,
             "--no-isolate-projects",
