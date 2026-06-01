@@ -28,6 +28,7 @@ Options:
   --max-workers           Maximum worker threads for supported MHC commands (default: 1)
   --merge-only            Merge existing loose history JSON files without generating new history
   --retry-errors          Whether method-scan, class-scan, method-code, and method-callgraph retry previous __error_marker__ rows (default: true)
+  --enable-symbol-solver  Whether supported commands use JavaParser symbol resolution for FQN/FQS (default: true)
   --artifact-config-path  Artifact detection YAML file or directory
   --command-options       Optional extra arguments forwarded to the selected command
   --stage                 LLM stage execute/parse, or test-smell stage preprocess/execute/postprocess/all
@@ -71,6 +72,7 @@ MAX_CACHE_SIZE="256"
 MAX_WORKERS="1"
 MERGE_ONLY="false"
 RETRY_ERRORS="true"
+ENABLE_SYMBOL_SOLVER="true"
 COMMAND_OPTIONS=""
 STAGE="execute"
 STAGE_PROVIDED="false"
@@ -166,6 +168,19 @@ while [[ $# -gt 0 ]]; do
             ;;
         --retry-errors=*)
             RETRY_ERRORS="${1#*=}"
+            shift
+            ;;
+        --enable-symbol-solver)
+            if [[ $# -lt 2 || "$2" == --* ]]; then
+                ENABLE_SYMBOL_SOLVER="true"
+                shift
+            else
+                ENABLE_SYMBOL_SOLVER="$2"
+                shift 2
+            fi
+            ;;
+        --enable-symbol-solver=*)
+            ENABLE_SYMBOL_SOLVER="${1#*=}"
             shift
             ;;
         --artifact-config-path)
@@ -531,6 +546,9 @@ else
     fi
     if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-callgraph" ]]; then
         MHC_ARGS+=(--retry-errors "$RETRY_ERRORS")
+    fi
+    if [[ "$COMMAND_NAME" == "method-scan" ]]; then
+        MHC_ARGS+=(--enable-symbol-solver "$ENABLE_SYMBOL_SOLVER")
     fi
     if [[ -n "$ARTIFACT_CONFIG_PATH" ]]; then
         MHC_ARGS+=(--artifact-config-path "$ARTIFACT_CONFIG_PATH")

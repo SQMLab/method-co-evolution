@@ -93,7 +93,8 @@ public class MethodGenerationTest extends TestConfigurationBase {
     }
 
     @Test
-    public void testMethodScanUsesHeuristicsByDefault() throws Exception {
+    public void testMethodScanUsesHeuristicsWhenResolverDisabled() throws Exception {
+        System.setProperty("mhc.methodScan.resolve", "false");
         Path repoRoot = Files.createTempDirectory("method-scan-heuristics");
         Path javaFile = repoRoot.resolve("src/main/java/demo/Foo.java");
         Files.createDirectories(javaFile.getParent());
@@ -112,20 +113,24 @@ public class MethodGenerationTest extends TestConfigurationBase {
                         """
         );
 
-        MethodScannerImpl methodScanner = MethodScannerImpl.getInstance();
-        methodScanner.init(
-                repoRoot.toString(),
-                "https://github.com/example/demo",
-                "abc123",
-                null,
-                false
-        );
+        try {
+            MethodScannerImpl methodScanner = MethodScannerImpl.getInstance();
+            methodScanner.init(
+                    repoRoot.toString(),
+                    "https://github.com/example/demo",
+                    "abc123",
+                    null,
+                    false
+            );
 
-        List<Method> methods = methodScanner.scanMethod("src/main/java/demo/Foo.java");
+            List<Method> methods = methodScanner.scanMethod("src/main/java/demo/Foo.java");
 
-        Assertions.assertFalse(methods.isEmpty());
-        Assertions.assertTrue(methods.stream().allMatch(method -> "heuristics".equals(method.getResolver())));
-        Assertions.assertTrue(methods.stream().anyMatch(method -> "run".equals(method.getName())));
+            Assertions.assertFalse(methods.isEmpty());
+            Assertions.assertTrue(methods.stream().allMatch(method -> "heuristics".equals(method.getResolver())));
+            Assertions.assertTrue(methods.stream().anyMatch(method -> "run".equals(method.getName())));
+        } finally {
+            System.clearProperty("mhc.methodScan.resolve");
+        }
     }
 
 

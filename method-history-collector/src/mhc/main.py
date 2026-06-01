@@ -265,6 +265,18 @@ def main(argv: list[str] | None = None):
         help="Retry rows/files previously marked with __error_marker__ (default: true). Use '--retry-errors false' to skip them.",
     )
     parser.add_argument(
+        "--enable-symbol-solver",
+        dest="enable_symbol_solver",
+        nargs="?",
+        const=True,
+        default=True,
+        type=_parse_bool,
+        help=(
+            "Whether supported commands use JavaParser symbol resolution for FQN/FQS "
+            "(default: true). For method-scan, use '--enable-symbol-solver false' for faster heuristic signatures."
+        ),
+    )
+    parser.add_argument(
         "--artifact-config-path",
         dest="artifact_config_path",
         type=str,
@@ -446,6 +458,9 @@ def main(argv: list[str] | None = None):
         ]
         if args.artifact_config_path:
             call_args.append(args.artifact_config_path)
+        else:
+            call_args.append(None)
+        call_args.append(args.enable_symbol_solver)
         mhc.scan_method(*call_args)
     elif command in ("artifact-update", "update-artifacts"):
         mhc.update_artifacts(

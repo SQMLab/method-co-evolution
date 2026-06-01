@@ -73,6 +73,8 @@ class TestCliArgs(unittest.TestCase):
             10000,
             900,
             1,
+            None,
+            True,
         )
 
     @patch("mhc.main._build_method_history_collector")
@@ -136,7 +138,7 @@ class TestCliArgs(unittest.TestCase):
 
         mhc_main.main(["method-scan", *common_args])
         mock_mhc_instance.scan_method.assert_called_once_with(
-            ["checkstyle"], None, False, 1, 1, False, False, False, False, True, 10000, 900, 3
+            ["checkstyle"], None, False, 1, 1, False, False, False, False, True, 10000, 900, 3, None, True
         )
         mock_mhc_instance.scan_method.reset_mock()
 
@@ -257,6 +259,8 @@ class TestCliArgs(unittest.TestCase):
             10000,
             900,
             1,
+            None,
+            True,
         )
 
     @patch("mhc.main._build_method_history_collector")
@@ -367,6 +371,8 @@ class TestCliArgs(unittest.TestCase):
             10000,
             900,
             1,
+            None,
+            True,
         )
 
     @patch("mhc.main._build_method_history_collector")
@@ -406,6 +412,47 @@ class TestCliArgs(unittest.TestCase):
             -1,
             60,
             1,
+            None,
+            True,
+        )
+
+    @patch("mhc.main._build_method_history_collector")
+    def test_scan_method_accepts_enable_symbol_solver_false(self, mock_build_collector):
+        mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame([{"project": "checkstyle"}])
+
+        mhc_main.main(
+            [
+                "method-scan",
+                "--workspace-directory",
+                "workspace",
+                "--repository-directory",
+                "workspace/repository",
+                "--jar-directory",
+                "workspace/jar",
+                "--project",
+                "checkstyle",
+                "--enable-symbol-solver",
+                "false",
+            ]
+        )
+
+        mock_mhc_instance.scan_method.assert_called_once_with(
+            ["checkstyle"],
+            None,
+            False,
+            1,
+            1,
+            False,
+            False,
+            False,
+            False,
+            True,
+            10000,
+            900,
+            1,
+            None,
+            False,
         )
 
     @patch("mhc.main._build_method_history_collector")

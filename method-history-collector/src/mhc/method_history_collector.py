@@ -7,6 +7,7 @@ from mhc.test_smell import run_test_smell as _run_test_smell
 from pathlib import Path
 import os
 import pandas as pd
+import shlex
 import mhc.util as util
 from mhc.method_history_jar_runner import DEFAULT_MERGE_THRESHOLD
 
@@ -111,12 +112,17 @@ class MethodHistoryCollector:
         merge_interval_seconds: int | None = None,
         max_workers: int = 1,
         artifact_config_path: str | None = None,
+        enable_symbol_solver: bool = True,
     ):
         try:
             if not merge_only:
+                method_scan_java_options = _with_symbol_solver_option(
+                    java_options,
+                    enable_symbol_solver,
+                )
                 ms.start_java_jar(
                     [self.jar_file_map["methodParser"]],
-                    util.java_options_with_logback_config(java_options, self.workspace_directory),
+                    util.java_options_with_logback_config(method_scan_java_options, self.workspace_directory),
                 )
             ms.scan_method(
                 self.repository_df[self.repository_df["project"].isin(repositories)],
@@ -375,3 +381,13 @@ def _jar_preference_key(file: str) -> tuple[int, str]:
         or "standalone" in normalized
     )
     return (1 if is_fat_or_executable else 0, normalized)
+
+
+def _with_symbol_solver_option(java_options: str | None, enabled: bool) -> str:
+    options = shlex.split(java_options) if java_options else []
+    options = [
+        option for option in options
+        if not option.startswith("-Dmhc.methodScan.resolve=")
+    ]
+    options.append(f"-Dmhc.methodScan.resolve={str(enabled).lower()}")
+    return " ".join(shlex.quote(option) for option in options)

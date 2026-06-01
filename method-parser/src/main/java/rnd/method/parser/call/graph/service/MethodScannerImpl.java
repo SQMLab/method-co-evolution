@@ -30,7 +30,7 @@ import java.util.*;
 @Slf4j
 public class MethodScannerImpl implements MethodScanner {
     private static final boolean ENABLE_METHOD_SCAN_SYMBOL_RESOLUTION =
-            Boolean.getBoolean("mhc.methodScan.resolve");
+            Boolean.parseBoolean(System.getProperty("mhc.methodScan.resolve", "true"));
     private static final double SLOW_SCAN_SECONDS = 60.0;
     private static final double SLOW_RESOLVE_SECONDS = 5.0;
 
