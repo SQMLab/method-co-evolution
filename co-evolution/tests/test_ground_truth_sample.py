@@ -244,6 +244,123 @@ class TestGroundTruthSample(unittest.TestCase):
             self.assertEqual("1", candidate_values["prod://1"])
             self.assertEqual("0", candidate_values["prod://manual"])
 
+    def test_zero_sample_count_without_option_does_not_add_missing_candidates(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            candidate_dir, method_dir, working_dir, output_dir = self._make_dirs(root)
+            self._write_project_inputs(candidate_dir, method_dir, project="demo", test_count=1)
+            pd.DataFrame(
+                [{"project": "demo", "from_url": "test://A", "to_url": "prod://1", "label": "1"}]
+            ).to_csv(working_dir / "demo.csv", index=False)
+
+            stats = self._regenerate_project(
+                candidate_dir,
+                method_dir,
+                project="demo",
+                sample_count_per_project=0,
+                working_dir=working_dir,
+                output_dir=output_dir,
+                temp_dir=root / ".output",
+            )
+
+            result = pd.read_csv(output_dir / "demo.csv", keep_default_na=False, na_filter=False)
+            self.assertEqual(1, len(result))
+            self.assertEqual(0, stats.missing_candidate_rows_added)
+            self.assertEqual({"prod://1"}, set(result["to_url"]))
+
+    def test_add_missing_candidates_for_existing_working_from_url(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            candidate_dir, method_dir, working_dir, output_dir = self._make_dirs(root)
+            self._write_project_inputs(candidate_dir, method_dir, project="demo", test_count=2)
+            pd.DataFrame(
+                [{"project": "demo", "from_url": "test://A", "to_url": "prod://1", "label": "1"}]
+            ).to_csv(working_dir / "demo.csv", index=False)
+
+            stats = self._regenerate_project(
+                candidate_dir,
+                method_dir,
+                project="demo",
+                sample_count_per_project=0,
+                working_dir=working_dir,
+                output_dir=output_dir,
+                temp_dir=root / ".output",
+                add_missing_candidates=True,
+            )
+
+            result = pd.read_csv(output_dir / "demo.csv", keep_default_na=False, na_filter=False)
+            self.assertEqual(1, stats.missing_candidate_rows_added)
+            self.assertEqual({"prod://1", "test-helper://1"}, set(result["to_url"]))
+            added = result[result["to_url"] == "test-helper://1"].iloc[0]
+            self.assertEqual("#test-code #test-case-method", added["from_artifact"])
+            self.assertEqual("#test-code #test-helper-method", added["to_artifact"])
+            self.assertEqual("1", str(added["candidate"]))
+            self.assertEqual("", added["label"])
+            self.assertNotIn("test://B", set(result["from_url"]))
+
+    def test_add_missing_candidates_are_inserted_at_bottom_of_each_from_url_group(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            candidate_dir, method_dir, working_dir, output_dir = self._make_dirs(root)
+            self._write_project_inputs(candidate_dir, method_dir, project="demo", test_count=2)
+            pd.DataFrame(
+                [
+                    {"project": "demo", "from_url": "test://A", "to_url": "prod://1", "label": "1"},
+                    {"project": "demo", "from_url": "test://B", "to_url": "prod://1", "label": "1"},
+                ]
+            ).to_csv(working_dir / "demo.csv", index=False)
+
+            stats = self._regenerate_project(
+                candidate_dir,
+                method_dir,
+                project="demo",
+                sample_count_per_project=0,
+                working_dir=working_dir,
+                output_dir=output_dir,
+                temp_dir=root / ".output",
+                add_missing_candidates=True,
+            )
+
+            result = pd.read_csv(output_dir / "demo.csv", keep_default_na=False, na_filter=False)
+            self.assertEqual(2, stats.missing_candidate_rows_added)
+            self.assertEqual(
+                [
+                    ("test://A", "prod://1"),
+                    ("test://A", "test-helper://1"),
+                    ("test://B", "prod://1"),
+                    ("test://B", "test-helper://1"),
+                ],
+                list(zip(result["from_url"], result["to_url"])),
+            )
+
+    def test_add_missing_candidates_does_not_duplicate_existing_pair(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            candidate_dir, method_dir, working_dir, output_dir = self._make_dirs(root)
+            self._write_project_inputs(candidate_dir, method_dir, project="demo", test_count=1)
+            pd.DataFrame(
+                [
+                    {"project": "demo", "from_url": "test://A", "to_url": "prod://1", "label": "1"},
+                    {"project": "demo", "from_url": "test://A", "to_url": "test-helper://1", "label": "0"},
+                ]
+            ).to_csv(working_dir / "demo.csv", index=False)
+
+            stats = self._regenerate_project(
+                candidate_dir,
+                method_dir,
+                project="demo",
+                sample_count_per_project=0,
+                working_dir=working_dir,
+                output_dir=output_dir,
+                temp_dir=root / ".output",
+                add_missing_candidates=True,
+            )
+
+            result = pd.read_csv(output_dir / "demo.csv", keep_default_na=False, na_filter=False)
+            self.assertEqual(0, stats.missing_candidate_rows_added)
+            self.assertEqual(2, len(result))
+            self.assertEqual(2, result[["from_url", "to_url"]].drop_duplicates().shape[0])
+
     def test_zero_sample_count_preserves_working_row_with_blank_to_url(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -640,6 +757,7 @@ class TestGroundTruthSample(unittest.TestCase):
                 manual_rows_preserved=0,
                 rows_refreshed=0,
                 rows_not_refreshed=0,
+                missing_candidate_rows_added=0,
                 carried_label_rows=0,
                 new_or_unlabelled_rows=0,
                 output_file=experiment_dir / "t2p-ground-truth" / "beta.csv",
