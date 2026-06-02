@@ -244,6 +244,38 @@ class TestGroundTruthSample(unittest.TestCase):
             self.assertEqual("1", candidate_values["prod://1"])
             self.assertEqual("0", candidate_values["prod://manual"])
 
+    def test_update_columns_refreshes_to_call_depth_from_candidate_csv(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            candidate_dir, method_dir, working_dir, output_dir = self._make_dirs(root)
+            self._write_project_inputs(candidate_dir, method_dir, project="demo", test_count=1)
+            pd.DataFrame(
+                [
+                    {
+                        "project": "demo",
+                        "from_url": "test://A",
+                        "to_url": "prod://1",
+                        "to_call_depth": "",
+                        "label": "1",
+                    }
+                ]
+            ).to_csv(working_dir / "demo.csv", index=False)
+
+            stats = self._regenerate_project(
+                candidate_dir,
+                method_dir,
+                project="demo",
+                sample_count_per_project=0,
+                working_dir=working_dir,
+                output_dir=output_dir,
+                temp_dir=root / ".output",
+                update_columns=["to_call_depth"],
+            )
+
+            result = pd.read_csv(output_dir / "demo.csv", keep_default_na=False, na_filter=False)
+            self.assertEqual(1, stats.rows_refreshed)
+            self.assertEqual("1", str(result.iloc[0]["to_call_depth"]))
+
     def test_zero_sample_count_without_option_does_not_add_missing_candidates(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

@@ -20,6 +20,7 @@ mhc method-scan \
     --jar-directory "$ME_WORKSPACE_DIRECTORY/jar" \
     --artifact-config-path "$ME_WORKSPACE_DIRECTORY/config/artifact-detection" \
     --java-options "-Xmx4g -Xss16m -Dlogback.configurationFile=$ME_WORKSPACE_DIRECTORY/config/logback.xml" \
+    --max-workers "4" \
     --project-index ":" \
     --retry-errors true \
     --merge-threshold 1000 \

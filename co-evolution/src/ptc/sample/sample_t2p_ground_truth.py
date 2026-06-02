@@ -183,6 +183,25 @@ def _load_candidate_pairs(project: str, candidate_dir: Path) -> set[tuple[str, s
     }
 
 
+def _load_candidate_call_depths(project: str, candidate_dir: Path) -> dict[tuple[str, str, str], str]:
+    candidate_file = candidate_dir / f"{project}.csv"
+    if not candidate_file.exists():
+        return {}
+
+    candidate_df = pd.read_csv(
+        candidate_file,
+        keep_default_na=False,
+        na_filter=False,
+        usecols=["project", "from_url", "to_url", "to_call_depth"],
+    )
+    depths: dict[tuple[str, str, str], str] = {}
+    for row in candidate_df.to_dict(orient="records"):
+        key = (str(row["project"]), str(row["from_url"]), str(row["to_url"]))
+        if key not in depths:
+            depths[key] = str(row.get("to_call_depth", ""))
+    return depths
+
+
 def _apply_candidate_column(output_df: pd.DataFrame, *, project: str, candidate_dir: Path) -> pd.DataFrame:
     output_df = output_df.copy()
     candidate_pairs = _load_candidate_pairs(project, candidate_dir)
@@ -202,6 +221,32 @@ def _apply_candidate_column(output_df: pd.DataFrame, *, project: str, candidate_
         axis=1,
     )
     return output_df[GROUND_TRUTH_COLUMNS]
+
+
+def _refresh_candidate_columns(
+    output_df: pd.DataFrame,
+    *,
+    project: str,
+    candidate_dir: Path,
+    update_columns: list[str] | None,
+) -> tuple[pd.DataFrame, int]:
+    if output_df.empty or "to_call_depth" not in (update_columns or []):
+        return output_df, 0
+
+    output_df = output_df.copy()
+    candidate_depths = _load_candidate_call_depths(project, candidate_dir)
+    refreshed_rows = 0
+    for index, row in output_df.iterrows():
+        key = (
+            str(row.get("project", project)),
+            str(row.get("from_url", "")),
+            str(row.get("to_url", "")),
+        )
+        if key not in candidate_depths:
+            continue
+        output_df.at[index, "to_call_depth"] = candidate_depths[key]
+        refreshed_rows += 1
+    return output_df[GROUND_TRUTH_COLUMNS], refreshed_rows
 
 
 def parse_update_columns(value: str | None) -> list[str]:
@@ -530,6 +575,13 @@ def regenerate_project(
         )
     carried_label_rows += manual_labelled_rows
     rows_refreshed = fresh_rows_refreshed + manual_rows_refreshed
+    output_df, candidate_rows_refreshed = _refresh_candidate_columns(
+        output_df,
+        project=project,
+        candidate_dir=candidate_dir,
+        update_columns=update_columns,
+    )
+    rows_refreshed += candidate_rows_refreshed
     output_df = _apply_candidate_column(output_df, project=project, candidate_dir=candidate_dir)
 
     output_file = _write_output_atomic(output_df, project=project, output_dir=output_dir, temp_dir=temp_dir)

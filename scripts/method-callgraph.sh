@@ -21,5 +21,5 @@ mhc method-callgraph \
     --artifact-config-path "$ME_WORKSPACE_DIRECTORY/config/artifact-detection" \
     --java-options "-Xmx4g -Dlogback.configurationFile=$ME_WORKSPACE_DIRECTORY/config/logback.xml" \
     --tool-name methodParser \
-    --project-index ":" \
-    --replace
+    --max-workers "4" \
+    --project-index ":"
