@@ -207,7 +207,7 @@ class TestCliArgs(unittest.TestCase):
 
         mhc_main.main(["test-smell", *common_args, "--tool-name", "jnose"])
         mock_mhc_instance.run_test_smell.assert_called_once_with(
-            ["checkstyle"], "jnose", "all", "callgraph", 3
+            ["checkstyle"], "jnose", "all", "callgraph", False, 3
         )
 
     @patch("mhc.main._build_method_history_collector")
@@ -454,6 +454,38 @@ class TestCliArgs(unittest.TestCase):
             "jnose",
             "preprocess",
             "t2p-candidate-filtered",
+            False,
+            1,
+        )
+
+    @patch("mhc.main._build_method_history_collector")
+    def test_test_smell_accepts_replace(self, mock_build_collector):
+        mock_mhc_instance = mock_build_collector.return_value
+        mock_mhc_instance.repository_df = pd.DataFrame([{"project": "commons-lang"}])
+
+        mhc_main.main(
+            [
+                "test-smell",
+                "--workspace-directory",
+                "workspace",
+                "--repository-directory",
+                "workspace/repository",
+                "--jar-directory",
+                "workspace/jar",
+                "--tool-name",
+                "jnose",
+                "--replace",
+                "--project",
+                "commons-lang",
+            ]
+        )
+
+        mock_mhc_instance.run_test_smell.assert_called_once_with(
+            ["commons-lang"],
+            "jnose",
+            "all",
+            "callgraph",
+            True,
             1,
         )
 

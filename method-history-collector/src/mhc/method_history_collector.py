@@ -367,6 +367,7 @@ class MethodHistoryCollector:
         tool_name: str,
         stage: str = "all",
         callgraph_dir: str = "callgraph",
+        replace: bool = False,
         max_workers: int = 1,
     ):
         _run_test_smell(
@@ -378,6 +379,7 @@ class MethodHistoryCollector:
             tool_name,
             stage,
             callgraph_dir,
+            replace,
             max_workers,
         )
 

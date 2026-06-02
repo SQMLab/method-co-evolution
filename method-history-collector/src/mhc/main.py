@@ -546,6 +546,7 @@ def main(argv: list[str] | None = None):
             args.tool_name,
             args.stage,
             args.callgraph_dir,
+            args.replace,
             args.max_workers,
         )
     else:
