@@ -1,8 +1,10 @@
 import fcntl
 import gzip
+import errno
 import logging
 import os
 import tarfile
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Set
@@ -31,11 +33,44 @@ def zip_folder(folder: str) -> None:
 def file_lock(lock_path: str):
     Path(lock_path).parent.mkdir(parents=True, exist_ok=True)
     with open(lock_path, "a+", encoding="utf-8") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        fallback_lock_dir = f"{lock_path}.d"
+        fallback_acquired = False
+        flock_acquired = False
         try:
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                flock_acquired = True
+            except OSError as exc:
+                if exc.errno != errno.ENOLCK:
+                    raise
+                logging.warning(
+                    "fcntl lock unavailable for %s; using atomic directory lock fallback",
+                    lock_path,
+                )
+                _acquire_directory_lock(fallback_lock_dir)
+                fallback_acquired = True
             yield
         finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            if fallback_acquired:
+                _release_directory_lock(fallback_lock_dir)
+            elif flock_acquired:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def _acquire_directory_lock(lock_dir: str, poll_seconds: float = 0.2) -> None:
+    while True:
+        try:
+            os.mkdir(lock_dir)
+            return
+        except FileExistsError:
+            time.sleep(poll_seconds)
+
+
+def _release_directory_lock(lock_dir: str) -> None:
+    try:
+        os.rmdir(lock_dir)
+    except FileNotFoundError:
+        pass
 
 
 def merge_folder_into_tar_gz(folder_path: str, include_suffixes: tuple[str, ...] = (".json",)) -> None:

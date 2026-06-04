@@ -1,3 +1,4 @@
+import errno
 import io
 import sys
 import tarfile
@@ -17,7 +18,7 @@ from mhc.method_history_jar_runner import (
     update_repository_index,
 )
 from mhc.repair_duplicate_history_archives import repair_folder_into_tar_gz
-from mhc.zip import merge_folder_into_tar_gz
+from mhc.zip import file_lock, merge_folder_into_tar_gz
 
 
 def _write_tar_gz(tar_path: Path, members: dict[str, str] | list[tuple[str, str]]) -> None:
@@ -32,6 +33,21 @@ def _write_tar_gz(tar_path: Path, members: dict[str, str] | list[tuple[str, str]
 
 
 class TestIndexOutput(unittest.TestCase):
+    def test_file_lock_falls_back_when_fcntl_locks_are_unavailable(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lock_path = Path(temp_dir) / "cache.lock"
+            entered = False
+
+            with patch("mhc.zip.fcntl.flock", side_effect=OSError(errno.ENOLCK, "No locks available")):
+                with self.assertLogs(level="WARNING") as logs:
+                    with file_lock(str(lock_path)):
+                        entered = True
+                        self.assertTrue(Path(f"{lock_path}.d").exists())
+
+            self.assertTrue(entered)
+            self.assertFalse(Path(f"{lock_path}.d").exists())
+            self.assertIn("using atomic directory lock fallback", "\n".join(logs.output))
+
     def test_merge_only_skips_history_generation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
