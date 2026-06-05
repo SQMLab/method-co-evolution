@@ -20,6 +20,7 @@ from mhc.test_smell import (
     _execute_command,
     _adapter_input_file_path,
     _download_adapter_input_file,
+    _materialize_adapter_input_file,
     _input_file,
     _postprocess_file,
     _postprocess_error_file,
@@ -521,7 +522,7 @@ class TestSmellWorkflowTest(unittest.TestCase):
             response = MagicMock()
             response.read.return_value = b"class Source {}"
             mock_urlopen.return_value.__enter__.return_value = response
-            result = preprocess_strategy_project(self._repository(), str(self.data), strategy)
+            result = preprocess_strategy_project(self._repository(), str(self.repo), str(self.data), strategy)
 
         self.assertEqual(1, len(result))
         row = result.iloc[0]
@@ -590,7 +591,7 @@ class TestSmellWorkflowTest(unittest.TestCase):
             response = MagicMock()
             response.read.return_value = b"class Source {}"
             mock_urlopen.return_value.__enter__.return_value = response
-            result = preprocess_strategy_project(self._repository(), str(self.data), strategy)
+            result = preprocess_strategy_project(self._repository(), str(self.repo), str(self.data), strategy)
 
         self.assertEqual(1, len(result))
         self.assertEqual("", result.iloc[0]["pathToProductionFile"])
@@ -887,6 +888,95 @@ class TestSmellHelpersTest(unittest.TestCase):
                 Path("/output.csv"),
             ),
         )
+
+    def test_materialize_adapter_input_file_reads_local_git_blob_before_urlopen(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repository_dir = root / "repository"
+            data_dir = root / "experiment"
+            project = "sample"
+            (repository_dir / project).mkdir(parents=True)
+            tree = MagicMock()
+            blob = tree.__truediv__.return_value
+            blob.data_stream.read.return_value = b"class FromGit {}"
+            repo = MagicMock()
+            repo.commit.return_value.tree = tree
+            file_url = "https://github.com/acme/sample/blob/abc123/src/test/java/acme/FooTest.java#L10"
+
+            with (
+                patch("mhc.test_smell.git.Repo", return_value=repo) as mock_repo,
+                patch("mhc.test_smell.urlopen") as mock_urlopen,
+            ):
+                output_file = _materialize_adapter_input_file(
+                    str(repository_dir),
+                    str(data_dir),
+                    "nc",
+                    project,
+                    file_url,
+                )
+
+            self.assertEqual(b"class FromGit {}", output_file.read_bytes())
+            mock_repo.assert_called_once_with(repository_dir / project)
+            repo.commit.assert_called_once_with("abc123")
+            tree.__truediv__.assert_called_once_with("src/test/java/acme/FooTest.java")
+            mock_urlopen.assert_not_called()
+
+    def test_materialize_adapter_input_file_falls_back_to_urlopen_when_git_blob_unavailable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repository_dir = root / "repository"
+            data_dir = root / "experiment"
+            project = "sample"
+            (repository_dir / project).mkdir(parents=True)
+            file_url = "https://github.com/acme/sample/blob/abc123/src/test/java/acme/FooTest.java#L10"
+
+            with (
+                patch("mhc.test_smell.git.Repo", side_effect=Exception("missing blob")),
+                patch("mhc.test_smell.urlopen") as mock_urlopen,
+                self.assertLogs(level="WARNING") as logs,
+            ):
+                response = MagicMock()
+                response.read.return_value = b"class FromUrl {}"
+                mock_urlopen.return_value.__enter__.return_value = response
+                output_file = _materialize_adapter_input_file(
+                    str(repository_dir),
+                    str(data_dir),
+                    "nc",
+                    project,
+                    file_url,
+                )
+
+            self.assertEqual(b"class FromUrl {}", output_file.read_bytes())
+            self.assertIn("Falling back to raw URL download", "\n".join(logs.output))
+            mock_urlopen.assert_called_once()
+
+    def test_materialize_adapter_input_file_reuses_existing_file_without_git_or_urlopen(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repository_dir = root / "repository"
+            data_dir = root / "experiment"
+            project = "sample"
+            file_url = "https://github.com/acme/sample/blob/abc123/src/test/java/acme/FooTest.java#L10"
+            output_file = _adapter_input_file_path(str(data_dir), "nc", project, file_url)
+            output_file.parent.mkdir(parents=True)
+            output_file.write_bytes(b"already here")
+
+            with (
+                patch("mhc.test_smell.git.Repo") as mock_repo,
+                patch("mhc.test_smell.urlopen") as mock_urlopen,
+            ):
+                result = _materialize_adapter_input_file(
+                    str(repository_dir),
+                    str(data_dir),
+                    "nc",
+                    project,
+                    file_url,
+                )
+
+            self.assertEqual(output_file, result)
+            self.assertEqual(b"already here", result.read_bytes())
+            mock_repo.assert_not_called()
+            mock_urlopen.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
+import git
 import pandas as pd
 
 from mhc.artifacts import has_tag
@@ -94,6 +95,7 @@ def run_test_smell(
             for repository, strategy in tasks:
                 _run_strategy_test_smell_project(
                     repository,
+                    repository_directory,
                     data_directory,
                     jar_file_map,
                     strategy,
@@ -107,6 +109,7 @@ def run_test_smell(
                 executor.submit(
                     _run_strategy_test_smell_project,
                     repository,
+                    repository_directory,
                     data_directory,
                     jar_file_map,
                     strategy,
@@ -173,6 +176,7 @@ def _run_test_smell_project(
 
 def _run_strategy_test_smell_project(
     repository: pd.Series,
+    repository_directory: str,
     data_directory: str,
     jar_file_map: dict[str, str],
     strategy: str,
@@ -185,7 +189,7 @@ def _run_strategy_test_smell_project(
         return
 
     if stage in {"preprocess", "all"}:
-        if preprocess_strategy_project(repository, data_directory, strategy) is None:
+        if preprocess_strategy_project(repository, repository_directory, data_directory, strategy) is None:
             return
     if stage in {"execute", "all"}:
         execute_project(project, data_directory, jar_file_map, strategy)
@@ -377,6 +381,7 @@ def postprocess_project(repository: pd.Series, data_directory: str) -> pd.DataFr
 
 def preprocess_strategy_project(
     repository: pd.Series,
+    repository_directory: str,
     data_directory: str,
     strategy: str,
 ) -> pd.DataFrame | None:
@@ -451,10 +456,12 @@ def preprocess_strategy_project(
     for from_old_url, group in full_bridge_df.groupby("from_old_url", sort=False):
         if not from_old_url:
             continue
-        test_file = _download_adapter_input_file(data_directory, strategy, project, from_old_url)
+        test_file = _materialize_adapter_input_file(repository_directory, data_directory, strategy, project, from_old_url)
         production_files = []
         for to_old_url in sorted({str(value) for value in group["to_old_url"].dropna() if str(value)}):
-            production_files.append(_download_adapter_input_file(data_directory, strategy, project, to_old_url))
+            production_files.append(
+                _materialize_adapter_input_file(repository_directory, data_directory, strategy, project, to_old_url)
+            )
         production_file = production_files[0] if len(set(production_files)) == 1 else ""
         input_rows.append(
             {
@@ -957,14 +964,48 @@ def _new_side_diff_line_count(diff: str) -> int:
     return count
 
 
-def _download_adapter_input_file(data_directory: str, strategy: str, project: str, file_url: str) -> Path:
+def _materialize_adapter_input_file(
+    repository_directory: str,
+    data_directory: str,
+    strategy: str,
+    project: str,
+    file_url: str,
+) -> Path:
     output_file = _adapter_input_file_path(data_directory, strategy, project, file_url)
     output_file.parent.mkdir(parents=True, exist_ok=True)
     if output_file.exists():
         return output_file
+    try:
+        output_file.write_bytes(_read_git_blob(repository_directory, project, file_url))
+        return output_file
+    except Exception as error:
+        logging.warning(
+            "Falling back to raw URL download for %s/%s input file %s: %s",
+            strategy,
+            project,
+            file_url,
+            error,
+        )
     with urlopen(_raw_url(file_url), timeout=60) as response:
         output_file.write_bytes(response.read())
     return output_file
+
+
+def _download_adapter_input_file(data_directory: str, strategy: str, project: str, file_url: str) -> Path:
+    return _materialize_adapter_input_file("", data_directory, strategy, project, file_url)
+
+
+def _read_git_blob(repository_directory: str, project: str, file_url: str) -> bytes:
+    repository_path = Path(repository_directory) / project
+    if not repository_path.exists():
+        raise FileNotFoundError(f"repository not found: {repository_path}")
+    commit_hash = _commit_from_git_url(file_url)
+    relative_file = _file_path_from_git_url(file_url)
+    if not commit_hash or not relative_file:
+        raise ValueError(f"cannot parse commit or file path from URL: {file_url}")
+    repository = git.Repo(repository_path)
+    blob = repository.commit(commit_hash).tree / relative_file
+    return blob.data_stream.read()
 
 
 def _adapter_input_file_path(data_directory: str, strategy: str, project: str, file_url: str) -> Path:
