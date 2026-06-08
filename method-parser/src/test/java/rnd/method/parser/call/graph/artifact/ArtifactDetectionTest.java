@@ -757,6 +757,60 @@ public class ArtifactDetectionTest {
     }
 
     @Test
+    public void luceneTestFrameworkSrcJavaIsTestCodeOnlyInConfiguredModule() throws Exception {
+        Path repo = Files.createTempDirectory("artifact-detection-lucene-test-framework");
+        Path configDir = Files.createDirectories(repo.resolve("config"));
+        Files.writeString(configDir.resolve("lucene.yml"), """
+                projects:
+                  lucene:
+                    legacyTestCaseSuperclasses:
+                      - org.apache.lucene.tests.util.LuceneTestCase
+                    modules:
+                      lucene/test-framework:
+                        unitTestSourceRoots:
+                          - src/java
+                """);
+
+        Path testFramework = Files.createDirectories(repo.resolve("lucene/test-framework"));
+        Files.writeString(testFramework.resolve("build.gradle"), "");
+        Path frameworkRoot = Files.createDirectories(testFramework.resolve("src/java"));
+        Path frameworkSource = Files.createDirectories(frameworkRoot.resolve("org/apache/lucene/tests/index"));
+        Path frameworkUtil = Files.createDirectories(frameworkRoot.resolve("org/apache/lucene/tests/util"));
+        Files.writeString(frameworkUtil.resolve("LuceneTestCase.java"), """
+                package org.apache.lucene.tests.util;
+                public class LuceneTestCase {}
+                """);
+        Path frameworkTest = frameworkSource.resolve("LegacyBaseDocValuesFormatTestCase.java");
+        Files.writeString(frameworkTest, """
+                package org.apache.lucene.tests.index;
+                import org.apache.lucene.tests.util.LuceneTestCase;
+                public class LegacyBaseDocValuesFormatTestCase extends LuceneTestCase {
+                    public void testSortedSetTermsEnum() {}
+                    protected void helper() {}
+                }
+                """);
+
+        Path sibling = Files.createDirectories(repo.resolve("lucene/core"));
+        Files.writeString(sibling.resolve("build.gradle"), "");
+        Path siblingFile = Files.createDirectories(sibling.resolve("src/java/org/apache/lucene/index"))
+                .resolve("IndexWriter.java");
+        Files.writeString(siblingFile, """
+                package org.apache.lucene.index;
+                public class IndexWriter {
+                    public void testNamedProductionHelper() {}
+                }
+                """);
+
+        TestArtifactDetector detector = TestArtifactDetector.load(repo, "lucene", configDir);
+        Map<String, ArtifactClassification> frameworkMethods = methodsByName(detector, frameworkTest);
+
+        assertHas(frameworkMethods, "testSortedSetTermsEnum", "test-code");
+        assertHas(frameworkMethods, "testSortedSetTermsEnum", "test-case-method");
+        assertHas(frameworkMethods, "helper", "test-helper-method");
+        Assert.assertEquals("#main-code", detector.classify(siblingFile, "org.apache.lucene.index").encodedArtifact());
+    }
+
+    @Test
     public void unannotatedTestPrefixedHelpersStayHelpersWithoutJUnit3Shape() throws Exception {
         Map<String, ArtifactClassification> methods = classifyTestSource("""
                 package demo;
