@@ -1,7 +1,7 @@
 \documentclass{article}
 \usepackage{graphicx} % Required for inserting images
 
-\title{research-abstract}
+\title{Improving Our Understanding of Test Code: Self-Admitted Technical Debt and Evolution}
 \author{Shahidul Islam}
 \date{May 2026}
 
@@ -9,6 +9,14 @@
 
 \maketitle
 
-\section{Introduction}
+\begin{abstract}
+Test code is essential for maintaining software quality, yet software maintenance research has traditionally treated it as a second-class artifact and focused primarily on production code. Consequently, important aspects of test-code quality and evolution remain underexplored. This thesis advances the understanding of test code by investigating two complementary dimensions of its maintenance: self-admitted technical debt (SATD) and method-level evolution.
+
+To understand explicit maintenance concerns in test code, 50,000 comments sampled from 1.6 million test-code comments across 1,000 open-source Java projects were manually analyzed. The analysis identified 615 SATD comments and classified them into 12 categories, including four categories specific to test code. Existing SATD detection tools and both open-source and proprietary large language models were also found to be unreliable at detecting test-code SATD. These findings demonstrate that knowledge and techniques developed for production code do not necessarily transfer to test code.
+
+Understanding test-code evolution requires accurate histories of individual test and production methods. However, existing method-history tools were evaluated using inaccurate oracles and primarily on production methods, leaving their suitability for test methods uncertain. To establish reliable foundations for method-level evolution studies, the CodeShovel oracle was systematically updated, the HistoryFinder oracle was systematically constructed, and HistoryFinder was developed. When evaluated using these oracles, HistoryFinder achieved the highest overall accuracy while maintaining competitive runtime performance. A dedicated test-method history oracle was subsequently constructed, and HistoryFinder also outperformed the other evaluated tools when generating test-method histories.
+
+To study the relationship between test and production methods, a test-to-production method-linking ground truth was constructed, and existing linking approaches were evaluated using prior-study ground truths and the newly constructed ground truth. Their performance was found to vary across ground truths. The identified links and HistoryFinder-generated histories were then used to compare corresponding methods. The analysis found that certain test methods change more frequently than their corresponding production methods and that several test-smell types are more prevalent among these recurrently revision-prone test methods. Together, this thesis provides updated and new ground truths, tools, and empirical insights that advance the understanding of test-code quality and evolution.
+\end{abstract}
 
 \end{document}
