@@ -76,6 +76,38 @@ def smell_type_order(frame: pd.DataFrame) -> list[str]:
     return sorted(counts, key=lambda smell: (-counts[smell], smell))
 
 
+def unique_method_frame(
+    frame: pd.DataFrame,
+    revision_type: str,
+    revision_groups: list[str],
+) -> pd.DataFrame:
+    group_column = f"rg_{revision_type}"
+    required_columns = {"from_url", "smells", group_column}
+    if not required_columns.issubset(frame.columns):
+        return pd.DataFrame(columns=[*frame.columns])
+
+    selected = frame[frame[group_column].isin(revision_groups)].copy()
+    if selected.empty:
+        return selected
+
+    group_counts = selected.groupby("from_url")[group_column].nunique()
+    conflicting_urls = set(group_counts[group_counts > 1].index)
+    selected = selected[~selected["from_url"].isin(conflicting_urls)].copy()
+    if selected.empty:
+        return selected
+
+    def combined_smells(values: pd.Series) -> str:
+        return " ".join(sorted({smell for value in values for smell in split_smells(value)}))
+
+    aggregations = {
+        column: "first"
+        for column in selected.columns
+        if column not in {"from_url", "smells"}
+    }
+    aggregations["smells"] = combined_smells
+    return selected.groupby("from_url", as_index=False, sort=False).agg(aggregations)
+
+
 def selected_revision_groups(value: str | list[str] | None = None) -> list[str]:
     selected = parse_name_list(value) or list(REVISION_GROUP_ORDER)
     known_groups = set(REVISION_GROUP_ORDER)
@@ -136,11 +168,12 @@ def prevalence_rows(
         warnings.warn(f"Skipping revision type {revision_type}: missing generated column from_url.")
         return []
 
+    frame = unique_method_frame(frame, revision_type, revision_groups)
     smell_types = smell_type_order(frame)
     rows = []
     for revision_group in revision_groups:
         group_df = frame[frame[group_column] == revision_group].copy()
-        methods = group_df["from_url"].nunique()
+        methods = len(group_df)
         smell_total = len(group_df)
         smelly_mask = group_df.get("smells", pd.Series(dtype=str)).astype(bool)
         smelly_count = int(smelly_mask.sum())

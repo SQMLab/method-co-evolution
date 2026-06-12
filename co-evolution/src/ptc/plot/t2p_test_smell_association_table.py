@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import pandas as pd
+
+from mhc.command_util import (
+    load_test_smell_names,
+    resolve_experiment_filters,
+    resolve_experiment_paths,
+    resolve_smell_detector,
+)
+from ptc.generator.t2p_test_smell_association import DEFAULT_CHANGE, OUTPUT_FILE_NAME
+from ptc.generator.t2p_test_smell_prevalence import ALL_SMELLS
+from ptc.plot.method_history_runtime_table import resolve_path
+from ptc.plot_util import build_experiment_plot_parser
+
+
+def build_parser():
+    parser = build_experiment_plot_parser(
+        "Render the RQ4 test-smell association table.",
+        include_projects=False,
+        include_revision_types=False,
+        include_smell_detector=True,
+        include_project_directory=True,
+        include_output_directory=True,
+    )
+    parser.add_argument("--change", default=DEFAULT_CHANGE)
+    return parser
+
+
+def escape_latex(value: object) -> str:
+    text = "" if pd.isna(value) else str(value)
+    return text.replace("\\", r"\textbackslash{}").replace("&", r"\&").replace("%", r"\%").replace("_", r"\_")
+
+
+def format_p(value: object) -> str:
+    number = float(value)
+    return r"$<.001$" if number < 0.001 else f"{number:.3f}"
+
+
+def render_latex_table(frame: pd.DataFrame, smell_names: dict[str, str]) -> str:
+    individual = frame[frame["smell"] != ALL_SMELLS].sort_values("difference_pp", ascending=False)
+    rows = []
+    for _, row in individual.iterrows():
+        smell = escape_latex(smell_names.get(row["smell"], row["smell"]))
+        if str(row["significant"]) == "x":
+            smell = rf"\textbf{{{smell}}}"
+        rows.append(
+            f"{smell} & {row['baseline_percent']:.1f} & {row['focal_percent']:.1f} & "
+            f"{row['difference_pp']:+.1f} & {row['odds_ratio']:.2f} "
+            f"[{row['odds_ratio_ci_low']:.2f}, {row['odds_ratio_ci_high']:.2f}] & "
+            f"{format_p(row['fisher_p_adjusted'])} & {row['mh_odds_ratio']:.2f} & "
+            f"{format_p(row['mh_p_adjusted'])} \\\\"
+        )
+    summary = frame[frame["smell"] == ALL_SMELLS]
+    summary_text = ""
+    if not summary.empty:
+        row = summary.iloc[0]
+        summary_text = (
+            f"Any test smell was present in {row['baseline_percent']:.1f}\\% of RP methods and "
+            f"{row['focal_percent']:.1f}\\% of RRT methods ({row['difference_pp']:+.1f} percentage points)."
+        )
+    body = "\n".join(rows)
+    return rf"""\begin{{table*}}[t]
+\centering
+\caption{{Initial test smells associated with recurrent revision-proneness. Positive differences and odds ratios above one indicate greater prevalence among RRT methods. Bold smells are significant after Benjamini--Hochberg correction. MH reports the project-stratified Mantel--Haenszel sensitivity analysis.}}
+\label{{tab:rq4-test-smell-association}}
+\small
+\begin{{tabular}}{{lrrrrrrr}}
+\toprule
+\textbf{{Test smell}} & \textbf{{RP \%}} & \textbf{{RRT \%}} & \textbf{{$\Delta$ pp}} &
+\textbf{{OR [95\% CI]}} & \textbf{{$p_{{BH}}$}} & \textbf{{MH OR}} & \textbf{{MH $p_{{BH}}$}} \\
+\midrule
+{body}
+\bottomrule
+\end{{tabular}}
+\vspace{{2pt}}
+
+\footnotesize RP methods changed fewer times than their linked production methods; RRT methods exceeded
+their linked production methods by at least ten revisions. Each unique test method appears in one group;
+methods classified into both groups are excluded. {summary_text}
+\end{{table*}}
+"""
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = build_parser().parse_args(argv)
+    project_directory = Path(args.project_directory)
+    experiment_directory = resolve_experiment_paths(
+        getattr(args, "workspace_directory", None),
+        args.experiment_name,
+    ).experiment_directory
+    output_directory = (
+        resolve_path(project_directory, args.output_directory, Path())
+        if args.output_directory is not None
+        else experiment_directory / "figure"
+    )
+    input_file = experiment_directory / "aggregate" / OUTPUT_FILE_NAME
+    if not input_file.exists():
+        print(f"Association file not found: {input_file}")
+        return
+    selected_tools, _, selected_strategies = resolve_experiment_filters(
+        tools=args.tools,
+        strategies=args.strategies,
+    )
+    smell_detector = resolve_smell_detector(args.smell_detector)
+    frame = pd.read_csv(input_file, keep_default_na=False, na_filter=False)
+    frame = frame[(frame["smell_detector"] == smell_detector) & (frame["change"] == args.change)]
+    if selected_tools is not None:
+        frame = frame[frame["tool"].isin(selected_tools)]
+    if selected_strategies is not None:
+        frame = frame[frame["strategy"].isin(selected_strategies)]
+    smell_names = load_test_smell_names(smell_detector)
+    for row in frame[["strategy", "tool", "smell_detector", "change"]].drop_duplicates().itertuples(index=False):
+        table_df = frame[(frame["strategy"] == row.strategy) & (frame["tool"] == row.tool)]
+        output_file = (
+            output_directory
+            / f"t2p-test-smell-association-table--{row.tool}--{row.strategy}--{row.smell_detector}--{row.change}.tex"
+        )
+        os.makedirs(output_file.parent, exist_ok=True)
+        output_file.write_text(render_latex_table(table_df, smell_names), encoding="utf-8")
+        print(f"Wrote {output_file}")
+
+
+if __name__ == "__main__":
+    main()

@@ -26,6 +26,12 @@ from ptc.generator.t2p_test_smell_prevalence import (
     ALL_SMELLS,
     main as prevalence_main,
     prevalence_rows,
+    unique_method_frame,
+)
+from ptc.generator.t2p_test_smell_association import (
+    association_rows,
+    benjamini_hochberg,
+    main as association_main,
 )
 from ptc.generator.t2p_test_smell_revision import (
     REVISION_GROUP_1,
@@ -38,8 +44,14 @@ from ptc.generator.t2p_test_smell_revision import (
 )
 from ptc.plot.t2p_test_smell_barchart import (
     display_smell,
+    effect_order,
     main as barchart_main,
+    plot_effect_axis,
     plot_prevalence_axis,
+)
+from ptc.plot.t2p_test_smell_association_table import (
+    main as association_table_main,
+    render_latex_table,
 )
 from ptc.plot.t2p_test_smell_boxplot import (
     ALL_GROUPS,
@@ -310,23 +322,32 @@ class TestT2PTestSmell(unittest.TestCase):
             (prevalence["revision_group"] == REVISION_GROUP_2)
             & (prevalence["smell"] == ALL_SMELLS)
         ].iloc[0]
-        rt_ar = prevalence[
-            (prevalence["revision_group"] == REVISION_GROUP_2)
-            & (prevalence["smell"] == "AR")
-        ].iloc[0]
 
-        self.assertEqual(3, rt_all["smell_total"])
-        self.assertEqual(2, rt_all["methods"])
-        self.assertEqual(2, rt_all["smell_n"])
-        self.assertEqual(66.67, rt_all["percent"])
-        self.assertEqual(3, rt_ar["smell_total"])
-        self.assertEqual(2, rt_ar["methods"])
-        self.assertEqual(2, rt_ar["smell_n"])
-        self.assertEqual(66.67, rt_ar["percent"])
+        self.assertEqual(1, rt_all["smell_total"])
+        self.assertEqual(1, rt_all["methods"])
+        self.assertEqual(0, rt_all["smell_n"])
+        self.assertEqual(0, rt_all["percent"])
+        self.assertNotIn("AR", prevalence["smell"].tolist())
         self.assertEqual(
-            [1] * len(prevalence[prevalence["revision_group"] == REVISION_GROUP_3]),
+            [0] * len(prevalence[prevalence["revision_group"] == REVISION_GROUP_3]),
             prevalence[prevalence["revision_group"] == REVISION_GROUP_3]["methods"].tolist(),
         )
+
+    def test_unique_method_frame_deduplicates_and_excludes_conflicting_groups(self):
+        frame = pd.DataFrame(
+            [
+                {"project": "one", "from_url": "test://A", "smells": "AR", "rg_ch_diff": REVISION_GROUP_1},
+                {"project": "one", "from_url": "test://A", "smells": "AR ET", "rg_ch_diff": REVISION_GROUP_1},
+                {"project": "one", "from_url": "test://B", "smells": "VT", "rg_ch_diff": REVISION_GROUP_1},
+                {"project": "one", "from_url": "test://B", "smells": "VT", "rg_ch_diff": REVISION_GROUP_3},
+                {"project": "two", "from_url": "test://C", "smells": "", "rg_ch_diff": REVISION_GROUP_3},
+            ]
+        )
+
+        unique = unique_method_frame(frame, "ch_diff", [REVISION_GROUP_1, REVISION_GROUP_3])
+
+        self.assertEqual(["test://A", "test://C"], unique["from_url"].tolist())
+        self.assertEqual(["AR ET", ""], unique["smells"].tolist())
 
     def test_prevalence_rows_warns_and_skips_missing_from_url(self):
         frame = pd.DataFrame([{"smells": "AR", "rg_ch_diff": REVISION_GROUP_2}])
@@ -450,17 +471,17 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertIn("50.0%", labels)
         self.assertNotIn("0.0%", labels)
 
-    def test_barchart_main_reads_prevalence_csv_and_writes_figure(self):
+    def test_effect_plot_main_reads_association_csv_and_writes_figure(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             experiment_dir = self.create_experiment(tmpdir)
             aggregate_dir = experiment_dir / "aggregate"
             aggregate_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
-                    self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_2, ALL_SMELLS, 50, 2, 1),
-                    self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_2, "AR", 50, 2, 1),
+                    self.association_row(ALL_SMELLS, 10, 20, 10, 20, ""),
+                    self.association_row("AR", 10, 20, 30, 50, "x"),
                 ]
-            ).to_csv(aggregate_dir / "t2p-test-smell-prevalence.csv", index=False)
+            ).to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
 
             barchart_main(
                 [
@@ -485,7 +506,203 @@ class TestT2PTestSmell(unittest.TestCase):
                 (
                     experiment_dir
                     / "figure"
-                    / "t2p-test-smell-barchart--historyFinder--nc--jnose--ch_diff.pdf"
+                    / "t2p-test-smell-effectplot--historyFinder--nc--jnose--ch_diff.pdf"
+                ).exists()
+            )
+
+    def test_effect_plot_writes_to_project_relative_output_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_directory = Path(tmpdir)
+            experiment_dir = self.create_experiment(tmpdir)
+            aggregate_dir = experiment_dir / "aggregate"
+            aggregate_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    self.association_row(ALL_SMELLS, 10, 20, 10, 20, ""),
+                    self.association_row("AR", 10, 20, 30, 50, "x"),
+                ]
+            ).to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
+
+            barchart_main(
+                [
+                    "--project-directory",
+                    str(project_directory),
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--revision-types",
+                    "ch_diff",
+                    "--output-directory",
+                    "t2plinker-latex/figure",
+                ]
+            )
+
+            self.assertTrue(
+                (
+                    project_directory
+                    / "t2plinker-latex"
+                    / "figure"
+                    / "t2p-test-smell-effectplot--historyFinder--nc--jnose--ch_diff.pdf"
+                ).exists()
+            )
+
+    def test_association_rows_report_pooled_and_project_adjusted_results(self):
+        frame = pd.DataFrame(
+            [
+                self.generated_row("one", "test://r1", "prod://1", 20, 1, "AR", REVISION_GROUP_3),
+                self.generated_row("one", "test://r2", "prod://2", 20, 1, "AR", REVISION_GROUP_3),
+                self.generated_row("one", "test://p1", "prod://3", 1, 2, "", REVISION_GROUP_1),
+                self.generated_row("one", "test://p2", "prod://4", 1, 2, "", REVISION_GROUP_1),
+                self.generated_row("two", "test://r3", "prod://5", 20, 1, "VT", REVISION_GROUP_3),
+                self.generated_row("two", "test://p3", "prod://6", 1, 2, "", REVISION_GROUP_1),
+            ]
+        )
+
+        rows = association_rows(frame, strategy="nc", tool="historyFinder", smell_detector="jnose")
+        association = pd.DataFrame(rows).set_index("smell")
+
+        self.assertEqual(3, association.loc["AR", "focal_n"])
+        self.assertEqual(3, association.loc["AR", "baseline_n"])
+        self.assertGreater(association.loc["AR", "difference_pp"], 0)
+        self.assertGreater(association.loc["AR", "odds_ratio"], 1)
+        self.assertGreater(association.loc["AR", "mh_odds_ratio"], 1)
+        self.assertLess(association.loc["AR", "difference_ci_low"], association.loc["AR", "difference_ci_high"])
+        self.assertIn("fisher_p_adjusted", association.columns)
+
+    def test_association_main_writes_unique_method_results(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            output_dir = output_directory(experiment_dir, "nc", "historyFinder", "jnose")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    self.generated_row("demo", "test://r", "prod://1", 20, 1, "AR", REVISION_GROUP_3),
+                    self.generated_row("demo", "test://r", "prod://2", 20, 1, "AR", REVISION_GROUP_3),
+                    self.generated_row("demo", "test://p", "prod://3", 1, 2, "", REVISION_GROUP_1),
+                ]
+            ).to_csv(output_dir / "demo.csv", index=False)
+
+            association_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--min-t2p-links",
+                    "0",
+                ]
+            )
+
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-association.csv")
+            ar = output_df[output_df["smell"] == "AR"].iloc[0]
+            self.assertEqual(1, ar["focal_n"])
+            self.assertEqual(1, ar["baseline_n"])
+
+    def test_benjamini_hochberg_preserves_order_and_monotonicity(self):
+        adjusted = benjamini_hochberg([0.04, 0.001, 0.03])
+        self.assertEqual([0.04, 0.003, 0.04], [round(value, 3) for value in adjusted])
+
+    def test_effect_plot_orders_by_difference_and_marks_significance(self):
+        frame = pd.DataFrame(
+            [
+                self.association_row("AR", 10, 20, 30, 50, "x"),
+                self.association_row("VT", 10, 20, 12, 25, ""),
+            ]
+        )
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        try:
+            plot_effect_axis(ax, frame, {"AR": "Assertion Roulette", "VT": "Verbose Test"})
+            labels = [label.get_text() for label in ax.get_yticklabels()]
+        finally:
+            plt.close(fig)
+
+        self.assertEqual(["VT", "AR"], effect_order(frame))
+        self.assertEqual(["Verbose Test", "Assertion Roulette"], labels)
+
+    def test_association_table_renders_and_main_writes_latex(self):
+        frame = pd.DataFrame(
+            [
+                self.association_row(ALL_SMELLS, 50, 100, 75, 100, ""),
+                self.association_row("AR", 10, 100, 30, 100, "x"),
+            ]
+        )
+        latex = render_latex_table(frame, {"AR": "Assertion Roulette"})
+        self.assertIn(r"\textbf{Assertion Roulette}", latex)
+        self.assertIn("Any test smell", latex)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            aggregate_dir = experiment_dir / "aggregate"
+            aggregate_dir.mkdir(parents=True, exist_ok=True)
+            frame.to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
+            association_table_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                ]
+            )
+            self.assertTrue(
+                (
+                    experiment_dir
+                    / "figure"
+                    / "t2p-test-smell-association-table--historyFinder--nc--jnose--ch_diff.tex"
+                ).exists()
+            )
+
+    def test_association_table_writes_to_project_relative_output_directory(self):
+        frame = pd.DataFrame(
+            [
+                self.association_row(ALL_SMELLS, 50, 100, 75, 100, ""),
+                self.association_row("AR", 10, 100, 30, 100, "x"),
+            ]
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_directory = Path(tmpdir)
+            experiment_dir = self.create_experiment(tmpdir)
+            aggregate_dir = experiment_dir / "aggregate"
+            aggregate_dir.mkdir(parents=True, exist_ok=True)
+            frame.to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
+
+            association_table_main(
+                [
+                    "--project-directory",
+                    str(project_directory),
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--output-directory",
+                    "t2plinker-latex/figure",
+                ]
+            )
+
+            self.assertTrue(
+                (
+                    project_directory
+                    / "t2plinker-latex"
+                    / "figure"
+                    / "t2p-test-smell-association-table--historyFinder--nc--jnose--ch_diff.tex"
                 ).exists()
             )
 
@@ -777,6 +994,48 @@ class TestT2PTestSmell(unittest.TestCase):
             "percent": percent,
             "smell_total": smell_total,
             "smell_n": smell_n,
+        }
+
+    def association_row(
+        self,
+        smell: str,
+        baseline_smell_n: int,
+        baseline_n: int,
+        focal_smell_n: int,
+        focal_n: int,
+        significant: str,
+    ) -> dict:
+        baseline_percent = baseline_smell_n / baseline_n * 100
+        focal_percent = focal_smell_n / focal_n * 100
+        difference = focal_percent - baseline_percent
+        return {
+            "strategy": "nc",
+            "tool": "historyFinder",
+            "smell_detector": "jnose",
+            "change": "ch_diff",
+            "baseline_group": REVISION_GROUP_1,
+            "focal_group": REVISION_GROUP_3,
+            "smell": smell,
+            "baseline_n": baseline_n,
+            "baseline_smell_n": baseline_smell_n,
+            "baseline_percent": baseline_percent,
+            "focal_n": focal_n,
+            "focal_smell_n": focal_smell_n,
+            "focal_percent": focal_percent,
+            "difference_pp": difference,
+            "difference_ci_low": difference - 5,
+            "difference_ci_high": difference + 5,
+            "odds_ratio": 2.0,
+            "odds_ratio_ci_low": 1.2,
+            "odds_ratio_ci_high": 3.0,
+            "fisher_p": 0.01,
+            "fisher_p_adjusted": 0.02,
+            "significant": significant,
+            "mh_odds_ratio": 1.8,
+            "mh_p": 0.02,
+            "mh_p_adjusted": 0.03,
+            "mh_significant": significant,
+            "sensitivity_agrees": significant,
         }
 
 

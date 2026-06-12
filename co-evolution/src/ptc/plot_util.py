@@ -42,6 +42,8 @@ def build_experiment_plot_parser(
     include_strategies: bool = True,
     include_revision_types: bool = False,
     include_smell_detector: bool = False,
+    include_project_directory: bool = False,
+    include_output_directory: bool = False,
 ) -> "argparse.ArgumentParser":
     return build_experiment_parser(
         description,
@@ -50,6 +52,8 @@ def build_experiment_plot_parser(
         include_strategies=include_strategies,
         include_revision_types=include_revision_types,
         include_smell_detector=include_smell_detector,
+        include_project_directory=include_project_directory,
+        include_output_directory=include_output_directory,
         tools_help="Comma-separated tool names to plot. Defaults to ME_TOOLS.",
         projects_help=(
             "Comma-separated project names to include. Defaults to ME_PROJECTS."
