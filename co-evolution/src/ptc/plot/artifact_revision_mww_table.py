@@ -13,6 +13,7 @@ from ptc.plot_util import (
     resolve_experiment_paths,
     select_named_items,
 )
+from ptc.plot.method_history_runtime_table import resolve_path
 
 TABLE_COLUMNS = ["project", "p-value", "d-value", "+/-", "N", "S", "M", "L"]
 
@@ -21,6 +22,8 @@ def build_parser():
     return build_experiment_plot_parser(
         "Render revision MWU diff tables.",
         include_strategies=False,
+        include_project_directory=True,
+        include_output_directory=True,
     )
 
 
@@ -158,11 +161,11 @@ i.e.\ test methods are revised more frequently ($\delta < 0$).
 """
 
 
-def compile_latex(tex_file: Path) -> None:
+def compile_latex(tex_file: Path) -> Path | None:
     latex_engine = shutil.which("pdflatex")
     if latex_engine is None:
         warnings.warn(f"pdflatex not found; generated LaTeX only: {tex_file}")
-        return
+        return None
 
     subprocess.run(
         [
@@ -177,10 +180,22 @@ def compile_latex(tex_file: Path) -> None:
         stderr=subprocess.PIPE,
         text=True,
     )
+    return tex_file.with_suffix(".pdf")
+
+
+def resolve_output_directory(
+        project_directory: Path,
+        experiment_directory: Path,
+        output_directory: str | None,
+) -> Path:
+    if output_directory is None:
+        return experiment_directory / "figure"
+    return resolve_path(project_directory, output_directory, Path())
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    project_directory = Path(args.project_directory)
     experiment_directory = resolve_experiment_paths(
         getattr(args, "workspace_directory", None),
         args.experiment_name,
@@ -220,7 +235,12 @@ def main(argv: list[str] | None = None) -> None:
         selected_tools,
         item_label="tool",
     )
-    figure_directory = experiment_directory / "figure"
+    figure_directory = resolve_output_directory(
+        project_directory,
+        experiment_directory,
+        args.output_directory,
+    )
+    build_root = figure_directory / "build"
     os.makedirs(figure_directory, exist_ok=True)
 
     for tool in tools:
@@ -228,9 +248,14 @@ def main(argv: list[str] | None = None) -> None:
         if tool_df.empty:
             continue
 
-        tex_file = figure_directory / f"artifact-revision-mww--{tool}.tex"
+        output_stem = f"artifact-revision-mww--{tool}"
+        tool_build_directory = build_root / output_stem
+        os.makedirs(tool_build_directory, exist_ok=True)
+        tex_file = tool_build_directory / f"{output_stem}.tex"
         tex_file.write_text(render_latex_table(tool, tool_df), encoding="utf-8")
-        compile_latex(tex_file)
+        build_pdf = compile_latex(tex_file)
+        if build_pdf is not None:
+            shutil.copy2(build_pdf, figure_directory / build_pdf.name)
 
 
 if __name__ == "__main__":

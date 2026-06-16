@@ -9,7 +9,7 @@ from matplotlib.lines import Line2D
 import pandas as pd
 
 import mhc.util as util
-from mhc.artifacts import is_main_code, is_test_code
+from mhc.artifacts import is_main_code, is_test_case_method
 from ptc.constants import ALL_REPOSITORY, MethodChangeType
 from ptc.plot_util import (
     GRAPH_STYLES,
@@ -25,14 +25,19 @@ from ptc.plot_util import (
 )
 from ptc.util.helper import filter_concrete_methods
 
-METHOD_KINDS = ["test-code", "main-code"]
+METHOD_KINDS = ["test-case-method", "main-code"]
 METHOD_KIND_LABELS = {
-    "test-code": "test",
-    "main-code": "production",
+    "test-case-method": "Test Method",
+    "main-code": "Production Method",
 }
 METHOD_KIND_COLORS = {
-    "test-code": "tab:blue",
+    "test-case-method": "tab:blue",
     "main-code": "tab:orange",
+}
+PAPER_REVISION_CLIP_MAX = 10
+CHANGE_COLUMN_LABELS = {
+    "ch_diff": "ch_diff",
+    "ch_all": "All revisions",
 }
 CHANGE_COLUMNS = [
     "ch_all",
@@ -42,15 +47,24 @@ CHANGE_COLUMNS = [
 
 
 def classify_method_kind(artifact: str | None) -> str | None:
-    if is_test_code(artifact):
-        return "test-code"
+    if is_test_case_method(artifact):
+        return "test-case-method"
     if is_main_code(artifact):
         return "main-code"
     return None
 
 
-def order_change_columns(columns: list[str]) -> list[str]:
-    return select_revision_columns(columns, preferred_order=CHANGE_COLUMNS, include_extra=False)
+def order_change_columns(columns: list[str], selected_revision_types: str | list[str] | None = None) -> list[str]:
+    return select_revision_columns(
+        columns,
+        selected_revision_types,
+        preferred_order=CHANGE_COLUMNS,
+        include_extra=False,
+    )
+
+
+def change_column_label(change: str) -> str:
+    return CHANGE_COLUMN_LABELS.get(change, f"{change.replace('ch_', '')}".capitalize())
 
 
 def format_percent(count: int, total: int) -> str:
@@ -65,13 +79,27 @@ def format_count(value: int) -> str:
 
 def build_project_stats(project_df: pd.DataFrame) -> dict[str, int]:
     total = len(project_df)
-    test_count = int((project_df["method_kind"] == "test-code").sum())
+    test_count = int((project_df["method_kind"] == "test-case-method").sum())
     production_count = int((project_df["method_kind"] == "main-code").sum())
     return {
         "total": total,
         "test": test_count,
         "production": production_count,
     }
+
+
+def method_kind_legend_handles() -> list[Line2D]:
+    return [
+        Line2D(
+            [0],
+            [0],
+            color=METHOD_KIND_COLORS[method_kind],
+            linewidth=GRAPH_WIDTHS[0],
+            linestyle=GRAPH_STYLES[index % len(GRAPH_STYLES)],
+            label=METHOD_KIND_LABELS[method_kind],
+        )
+        for index, method_kind in enumerate(METHOD_KINDS)
+    ]
 
 
 def draw_row_info_axis(ax, project: str, project_df: pd.DataFrame) -> None:
@@ -105,19 +133,8 @@ def draw_row_info_axis(ax, project: str, project_df: pd.DataFrame) -> None:
         linespacing=1.2,
     )
 
-    legend_handles = [
-        Line2D(
-            [0],
-            [0],
-            color=METHOD_KIND_COLORS[method_kind],
-            linewidth=GRAPH_WIDTHS[0],
-            linestyle=GRAPH_STYLES[index % len(GRAPH_STYLES)],
-            label=METHOD_KIND_LABELS[method_kind],
-        )
-        for index, method_kind in enumerate(METHOD_KINDS)
-    ]
     ax.legend(
-        handles=legend_handles,
+        handles=method_kind_legend_handles(),
         loc="lower left",
         frameon=False,
         fontsize=12,
@@ -127,10 +144,30 @@ def draw_row_info_axis(ax, project: str, project_df: pd.DataFrame) -> None:
 
 
 def build_parser():
-    return build_experiment_plot_parser(
+    parser = build_experiment_plot_parser(
         "Plot method revision CDFs.",
         include_strategies=False,
+        include_revision_types=True,
+        include_project_directory=True,
+        include_output_directory=True,
     )
+    parser.add_argument(
+        "--all-projects-only",
+        action="store_true",
+        help="Generate only the pooled all-projects plot.",
+    )
+    return parser
+
+
+def resolve_output_directory(
+        project_directory: Path,
+        experiment_directory: Path,
+        output_directory: str | None,
+) -> Path:
+    if output_directory is None:
+        return experiment_directory / "figure"
+    output_path = Path(output_directory)
+    return output_path if output_path.is_absolute() else project_directory / output_path
 
 
 def load_history_repository_dfs(
@@ -150,12 +187,83 @@ def load_history_repository_dfs(
     return [df for df in history_repository_dfs if not df.empty]
 
 
+def clipped_ecdf(series: pd.Series, max_revision_count: int) -> tuple[pd.Series, pd.Series]:
+    return ecdf(series.clip(upper=max_revision_count))
+
+
+def subsequent_revision_series(series: pd.Series) -> pd.Series:
+    return (series - 1).clip(lower=0)
+
+
+def plot_change_axis(
+        ax,
+        project_df: pd.DataFrame,
+        change: str,
+        change_index: int,
+        *,
+        paper_mode: bool,
+) -> None:
+    if paper_mode:
+        ax.set_title("")
+    else:
+        ax.set_title(change_column_label(change), fontsize=24)
+
+    for method_kind_index, current_method_kind in enumerate(METHOD_KINDS):
+        change_series = pd.to_numeric(
+            project_df[project_df["method_kind"] == current_method_kind][change],
+            errors="coerce",
+        ).dropna()
+        if change_series.empty:
+            continue
+
+        x, y = clipped_ecdf(subsequent_revision_series(change_series), PAPER_REVISION_CLIP_MAX)
+        ax.plot(
+            x,
+            y,
+            linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
+            color=METHOD_KIND_COLORS[current_method_kind],
+            ls=GRAPH_STYLES[method_kind_index % len(GRAPH_STYLES)],
+            label=METHOD_KIND_LABELS[current_method_kind],
+        )
+
+    ax.set_xlim(0, PAPER_REVISION_CLIP_MAX)
+    ax.set_xticks(range(0, PAPER_REVISION_CLIP_MAX + 1))
+    ax.set_xticklabels(
+        [
+            f"{PAPER_REVISION_CLIP_MAX}+"
+            if tick == PAPER_REVISION_CLIP_MAX
+            else str(tick)
+            for tick in range(0, PAPER_REVISION_CLIP_MAX + 1)
+        ]
+    )
+    ax.set_xlabel("# Method Revisions")
+    ax.set_ylabel("CDF")
+    if paper_mode:
+        ax.legend(
+            handles=method_kind_legend_handles(),
+            loc="center",
+            bbox_to_anchor=(0.38, 0.30),
+            frameon=True,
+            fontsize=10,
+            borderaxespad=0.4,
+            handlelength=2.4,
+        )
+
+    ax.grid(True, alpha=0.25)
+
+
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    project_directory = Path(args.project_directory)
     experiment_directory = resolve_experiment_paths(
         getattr(args, "workspace_directory", None),
         args.experiment_name,
     ).experiment_directory
+    output_directory = resolve_output_directory(
+        project_directory,
+        experiment_directory,
+        args.output_directory,
+    )
     selected_tools, selected_projects, _ = resolve_experiment_filters(
         tools=args.tools,
         projects=args.projects,
@@ -188,10 +296,13 @@ def main(argv: list[str] | None = None) -> None:
         df["method_kind"] = df["artifact"].map(classify_method_kind)
         df = df[df["method_kind"].isin(METHOD_KINDS)]
         if df.empty:
-            print(f"No test-code or main-code method-history data available to plot for {tool}.")
+            print(f"No test-case-method or main-code method-history data available to plot for {tool}.")
             continue
 
-        change_cols = order_change_columns([c for c in df.columns if c.startswith("ch_")])
+        change_cols = order_change_columns(
+            [c for c in df.columns if c.startswith("ch_")],
+            args.revision_types,
+        )
         if not change_cols:
             print(f"No ch_* revision columns found for {tool}.")
             continue
@@ -204,60 +315,41 @@ def main(argv: list[str] | None = None) -> None:
             item_label="project",
             strict=False,
         )
-        projects.append(ALL_REPOSITORY)
+        projects = [ALL_REPOSITORY] if args.all_projects_only else [*projects, ALL_REPOSITORY]
 
-        fig, axes = plt.subplots(
-            len(projects),
-            len(change_cols) + 1,
-            figsize=(1.8 + 4 * len(change_cols), 3.2 * len(projects)),
-            gridspec_kw={"width_ratios": [1.4, *([4] * len(change_cols))]},
-            squeeze=False,
-        )
+        if args.all_projects_only:
+            fig, axes = plt.subplots(
+                1,
+                len(change_cols),
+                figsize=(4.8 * len(change_cols), 3.1),
+                squeeze=False,
+            )
+        else:
+            fig, axes = plt.subplots(
+                len(projects),
+                len(change_cols) + 1,
+                figsize=(1.8 + 4 * len(change_cols), 3.2 * len(projects)),
+                gridspec_kw={"width_ratios": [1.4, *([4] * len(change_cols))]},
+                squeeze=False,
+            )
 
         for repository_index, project in enumerate(projects):
             project_df = df if project == ALL_REPOSITORY else df[df["project"] == project]
-            draw_row_info_axis(axes[repository_index][0], project, project_df)
+            if not args.all_projects_only:
+                draw_row_info_axis(axes[repository_index][0], project, project_df)
 
             for change_index, change in enumerate(change_cols):
-                ax = axes[repository_index][change_index + 1]
-                ax.set_title(f"{change.replace('ch_', '')}".capitalize(), fontsize=24)
-
-                max_x = 0
-                min_positive_x = None
-                for method_kind_index, current_method_kind in enumerate(METHOD_KINDS):
-                    change_series = pd.to_numeric(
-                        project_df[project_df["method_kind"] == current_method_kind][change],
-                        errors="coerce",
-                    ).dropna()
-                    if change_series.empty:
-                        continue
-
-                    x, y = ecdf(change_series)
-                    max_x = max(max_x, max(x))
-                    positive_x = x[x > 0]
-                    if len(positive_x) > 0:
-                        min_positive_x = min(
-                            min_positive_x if min_positive_x is not None else positive_x[0],
-                            positive_x[0],
-                        )
-                    ax.plot(
-                        x,
-                        y,
-                        linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
-                        color=METHOD_KIND_COLORS[current_method_kind],
-                        ls=GRAPH_STYLES[method_kind_index % len(GRAPH_STYLES)],
-                        label=METHOD_KIND_LABELS[current_method_kind],
-                    )
-
-                if max_x > 50:
-                    ax.set_xscale("log")
-                    if min_positive_x is not None:
-                        ax.set_xlim(left=min_positive_x)
-
-                ax.grid(True, alpha=0.25)
+                ax = axes[repository_index][change_index if args.all_projects_only else change_index + 1]
+                plot_change_axis(
+                    ax,
+                    project_df,
+                    change,
+                    change_index,
+                    paper_mode=args.all_projects_only,
+                )
 
         fig.tight_layout()
-        fig_file = experiment_directory / "figure" / f"artifact-revision-cdf--{tool}.pdf"
+        fig_file = output_directory / f"artifact-revision-cdf--{tool}.pdf"
         os.makedirs(os.path.dirname(fig_file), exist_ok=True)
         fig.savefig(fig_file, bbox_inches="tight")
         plt.close(fig)

@@ -25,6 +25,7 @@ class TestRevisionMwuPlot(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             experiment_dir = self.create_experiment(tmpdir)
             self.write_revision_mwu_csv(experiment_dir)
+            output_directory = Path(tmpdir) / "paper-figure"
 
             with warnings.catch_warnings(record=True) as caught_warnings:
                 warnings.simplefilter("always")
@@ -36,13 +37,20 @@ class TestRevisionMwuPlot(unittest.TestCase):
                         "demo",
                         "--tools",
                         "codeShovel,historyFinder",
+                        "--output-directory",
+                        str(output_directory),
                     ]
                 )
 
-            first_tex = experiment_dir / "figure" / "artifact-revision-mww--historyFinder.tex"
-            second_tex = experiment_dir / "figure" / "artifact-revision-mww--codeShovel.tex"
+            first_build_dir = output_directory / "build" / "artifact-revision-mww--historyFinder"
+            second_build_dir = output_directory / "build" / "artifact-revision-mww--codeShovel"
+            first_tex = first_build_dir / "artifact-revision-mww--historyFinder.tex"
+            second_tex = second_build_dir / "artifact-revision-mww--codeShovel.tex"
             self.assertTrue(first_tex.exists())
             self.assertTrue(second_tex.exists())
+            self.assertFalse((output_directory / "artifact-revision-mww--historyFinder.tex").exists())
+            self.assertFalse((output_directory / "artifact-revision-mww--historyFinder.aux").exists())
+            self.assertFalse((output_directory / "artifact-revision-mww--historyFinder.log").exists())
 
             first_text = first_tex.read_text(encoding="utf-8")
             self.assertIn("projectA", first_text)
@@ -52,8 +60,11 @@ class TestRevisionMwuPlot(unittest.TestCase):
             if shutil.which("pdflatex") is None:
                 self.assertTrue(any("pdflatex not found" in str(warning.message) for warning in caught_warnings))
             else:
-                self.assertTrue((experiment_dir / "figure" / "artifact-revision-mww--historyFinder.pdf").exists())
-                self.assertTrue((experiment_dir / "figure" / "artifact-revision-mww--codeShovel.pdf").exists())
+                self.assertTrue((output_directory / "artifact-revision-mww--historyFinder.pdf").exists())
+                self.assertTrue((output_directory / "artifact-revision-mww--codeShovel.pdf").exists())
+                self.assertTrue((first_build_dir / "artifact-revision-mww--historyFinder.pdf").exists())
+                self.assertTrue((first_build_dir / "artifact-revision-mww--historyFinder.aux").exists())
+                self.assertTrue((first_build_dir / "artifact-revision-mww--historyFinder.log").exists())
 
     def create_experiment(self, workspace_dir: str) -> Path:
         experiment_dir = Path(workspace_dir) / "experiment" / "demo"

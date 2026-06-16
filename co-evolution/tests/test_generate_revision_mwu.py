@@ -16,11 +16,46 @@ except ImportError:  # pragma: no cover
     pd = None
 
 from ptc.constants import ALL_REPOSITORY
-from ptc.generator.artifact_revision_mww import MIN_REVISION_METHODS_FOR_MWU, main
+from ptc.generator.artifact_revision_mww import (
+    MIN_REVISION_METHODS_FOR_MWU,
+    build_stat_row,
+    classify_method_kind,
+    main,
+    subsequent_revision_series,
+)
 
 
 @unittest.skipIf(pd is None, "pandas is required for generate_revision_mwu tests")
 class TestGenerateRevisionMwu(unittest.TestCase):
+    def test_classifies_only_test_case_methods_as_test_methods(self):
+        self.assertEqual("test-case-method", classify_method_kind("#test-code #test-case-method"))
+        self.assertIsNone(classify_method_kind("#test-code"))
+        self.assertEqual("main-code", classify_method_kind("#main-code"))
+
+    def test_subsequent_revision_series_excludes_introduction(self):
+        series = pd.Series([0, 1, 2, 11])
+
+        self.assertEqual([0, 0, 1, 10], subsequent_revision_series(series).tolist())
+
+    def test_build_stat_row_compares_post_introduction_revisions(self):
+        project_df = pd.DataFrame(
+            [
+                {"method_kind": "main-code", "ch_diff": 1},
+                {"method_kind": "main-code", "ch_diff": 2},
+                {"method_kind": "test-case-method", "ch_diff": 0},
+                {"method_kind": "test-case-method", "ch_diff": 2},
+            ]
+        )
+
+        row = build_stat_row("demo", "historyFinder", "ch_diff", project_df)
+
+        self.assertIsNotNone(row)
+        self.assertEqual(4, row["size"])
+        self.assertEqual(2, row["main_size"])
+        self.assertEqual(2, row["test_size"])
+        self.assertEqual(0.0, row["d_value"])
+        self.assertEqual("=", row["d_sign"])
+
     def test_generates_revision_mwu_rows_and_markers(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             experiment_dir = self.create_experiment(tmpdir)
@@ -55,7 +90,7 @@ class TestGenerateRevisionMwu(unittest.TestCase):
             marked_columns = [column for column in ["N", "S", "M", "L"] if diff_row[column] == "x"]
             self.assertEqual(1, len(marked_columns))
             self.assertIn(
-                "project=demo: 1 invalid abstract values out of 33 methods.",
+                "project=demo: 1 invalid abstract values out of 34 methods.",
                 [str(warning.message) for warning in caught_warnings],
             )
 
@@ -68,7 +103,7 @@ class TestGenerateRevisionMwu(unittest.TestCase):
                 "small",
                 [
                     {"artifact": "#main-code", "abstract": 0, "ch_all": 1, "ch_diff": 1},
-                    {"artifact": "#test-code", "abstract": 0, "ch_all": 2, "ch_diff": 2},
+                    {"artifact": "#test-code #test-case-method", "abstract": 0, "ch_all": 2, "ch_diff": 2},
                 ],
             )
             self.write_rows(
@@ -108,11 +143,12 @@ class TestGenerateRevisionMwu(unittest.TestCase):
         for value in main_values:
             rows.append({"artifact": "#main-code", "abstract": 0, "ch_all": value, "ch_diff": value})
         for value in test_values:
-            rows.append({"artifact": "#test-code", "abstract": 0, "ch_all": value, "ch_diff": value})
+            rows.append({"artifact": "#test-code #test-case-method", "abstract": 0, "ch_all": value, "ch_diff": value})
         rows.extend(
             [
                 {"artifact": "#main-code", "abstract": 1, "ch_all": 999, "ch_diff": 999},
-                {"artifact": "#test-code", "abstract": 1, "ch_all": 999, "ch_diff": 999},
+                {"artifact": "#test-code #test-case-method", "abstract": 1, "ch_all": 999, "ch_diff": 999},
+                {"artifact": "#test-code", "abstract": 0, "ch_all": 997, "ch_diff": 997},
                 {"artifact": "#main-code", "abstract": "", "ch_all": 998, "ch_diff": 998},
             ]
         )
