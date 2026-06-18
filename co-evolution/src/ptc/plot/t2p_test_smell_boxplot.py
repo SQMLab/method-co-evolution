@@ -30,6 +30,7 @@ from ptc.generator.t2p_test_smell_revision import (
     OUTPUT_DIRECTORY_NAME,
     REVISION_GROUP_LABELS,
     REVISION_GROUP_ORDER,
+    normalize_revision_group,
     output_directory,
 )
 from ptc.generator.t2p_test_smell_prevalence import unique_method_frame
@@ -83,7 +84,7 @@ def build_parser():
 
 
 def selected_revision_groups(value: str | list[str] | None) -> list[str]:
-    selected = parse_name_list(value) or list(REVISION_GROUP_ORDER)
+    selected = [normalize_revision_group(group) for group in (parse_name_list(value) or list(REVISION_GROUP_ORDER))]
     known_groups = set(REVISION_GROUP_ORDER)
     unknown = [group for group in selected if group not in known_groups]
     if unknown:

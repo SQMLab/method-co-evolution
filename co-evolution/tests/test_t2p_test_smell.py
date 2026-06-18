@@ -29,7 +29,9 @@ from ptc.generator.t2p_test_smell_loc_group import (
     unique_method_locs,
 )
 from ptc.generator.t2p_test_smell_prevalence import (
+    ALL_LOC_GROUP,
     ALL_SMELLS,
+    loc_group_frame,
     main as prevalence_main,
     prevalence_rows,
     unique_method_frame,
@@ -58,6 +60,10 @@ from ptc.plot.t2p_test_smell_barchart import (
 from ptc.plot.t2p_test_smell_association_table import (
     main as association_table_main,
     render_latex_table,
+)
+from ptc.plot.t2p_test_smell_prevalence_wilcoxon_srt_table import (
+    main as wilcoxon_table_main,
+    render_latex_table as render_wilcoxon_table,
 )
 from ptc.plot.t2p_test_smell_boxplot import (
     ALL_GROUPS,
@@ -326,7 +332,8 @@ class TestT2PTestSmell(unittest.TestCase):
         )
         prevalence = pd.DataFrame(rows)
         rt_all = prevalence[
-            (prevalence["revision_group"] == REVISION_GROUP_2)
+            (prevalence["rg_group"] == REVISION_GROUP_2)
+            & (prevalence["loc_group"] == ALL_LOC_GROUP)
             & (prevalence["smell"] == ALL_SMELLS)
         ].iloc[0]
 
@@ -336,8 +343,8 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertEqual(0, rt_all["percent"])
         self.assertNotIn("AR", prevalence["smell"].tolist())
         self.assertEqual(
-            [0] * len(prevalence[prevalence["revision_group"] == REVISION_GROUP_3]),
-            prevalence[prevalence["revision_group"] == REVISION_GROUP_3]["methods"].tolist(),
+            [0] * len(prevalence[prevalence["rg_group"] == REVISION_GROUP_3]),
+            prevalence[prevalence["rg_group"] == REVISION_GROUP_3]["methods"].tolist(),
         )
 
     def test_unique_method_frame_deduplicates_and_excludes_conflicting_groups(self):
@@ -384,6 +391,14 @@ class TestT2PTestSmell(unittest.TestCase):
             pd.DataFrame(
                 [self.generated_row("small", "test://small", "prod://small", 5, 1, "ET", REVISION_GROUP_2)]
             ).to_csv(output_dir / "small.csv", index=False)
+            self.write_smells(
+                experiment_dir,
+                "large",
+                [
+                    {"url": "test://A", "smell": "AR", "loc": 10},
+                    {"url": "test://B", "smell": "VT", "loc": 20},
+                ],
+            )
 
             with self.assertWarnsRegex(UserWarning, "below min_t2p_links=2"):
                 prevalence_main(
@@ -419,7 +434,8 @@ class TestT2PTestSmell(unittest.TestCase):
                     "tool",
                     "smell_detector",
                     "change",
-                    "revision_group",
+                    "rg_group",
+                    "loc_group",
                     "methods",
                     "smell",
                     "percent",
@@ -428,6 +444,28 @@ class TestT2PTestSmell(unittest.TestCase):
                 ],
                 output_df.columns.tolist(),
             )
+            self.assertIn(REVISION_GROUP_3, output_df["rg_group"].tolist())
+            self.assertNotIn("loc", output_df["change"].tolist())
+            self.assertIn(ALL_LOC_GROUP, output_df["loc_group"].tolist())
+            self.assertIn("S", output_df["loc_group"].tolist())
+
+    def test_loc_group_frame_assigns_groups_and_deduplicates_methods(self):
+        smell_df = pd.DataFrame(
+            [
+                {"url": f"test://{index}", "smell": "AR", "loc": index}
+                for index in range(1, 11)
+            ]
+            + [
+                {"url": "test://1", "smell": "VT", "loc": 99},
+                {"url": "test://bad", "smell": "ET", "loc": "bad"},
+            ]
+        )
+
+        output = loc_group_frame([smell_df])
+
+        self.assertEqual(10, len(output))
+        self.assertEqual(["S", "M", "L", "XL"], sorted(output["loc_group"].unique(), key=["S", "M", "L", "XL"].index))
+        self.assertEqual(["S"], output[output["from_url"] == "test://1"]["loc_group"].tolist())
 
     def test_loc_group_uses_unique_first_valid_method_loc(self):
         frame = pd.DataFrame(
@@ -452,13 +490,13 @@ class TestT2PTestSmell(unittest.TestCase):
         )
 
         rows = loc_group_rows(method_locs, strategy="nc", smell_detector="jnose")
-        output = pd.DataFrame(rows).set_index("group")
+        output = pd.DataFrame(rows).set_index("loc_group")
 
-        groups = ["LOC_S", "LOC_M", "LOC_L", "LOC_XL"]
-        self.assertEqual("LOC_S", loc_group(7, (7, 8, 9)))
-        self.assertEqual("LOC_M", loc_group(8, (7, 8, 9)))
-        self.assertEqual("LOC_L", loc_group(9, (7, 8, 9)))
-        self.assertEqual("LOC_XL", loc_group(10, (7, 8, 9)))
+        groups = ["S", "M", "L", "XL"]
+        self.assertEqual("S", loc_group(7, (7, 8, 9)))
+        self.assertEqual("M", loc_group(8, (7, 8, 9)))
+        self.assertEqual("L", loc_group(9, (7, 8, 9)))
+        self.assertEqual("XL", loc_group(10, (7, 8, 9)))
         self.assertEqual(["1", "8", "9", "10"], output.loc[groups, "loc_min"].tolist())
         self.assertEqual(["7", "8", "9", "10"], output.loc[groups, "loc_max"].tolist())
         self.assertEqual([7, 1, 1, 1], output.loc[groups, "methods"].tolist())
@@ -503,10 +541,10 @@ class TestT2PTestSmell(unittest.TestCase):
                 na_filter=False,
             )
             self.assertEqual(
-                ["strategy", "smell_detector", "group", "loc_min", "loc_max", "methods", "percent"],
+                ["strategy", "smell_detector", "loc_group", "loc_min", "loc_max", "methods", "percent"],
                 output_df.columns.tolist(),
             )
-            self.assertEqual(["LOC_S", "LOC_M", "LOC_L", "LOC_XL"], output_df["group"].tolist())
+            self.assertEqual(["S", "M", "L", "XL"], output_df["loc_group"].tolist())
             self.assertEqual([1, 8, 9, 10], output_df["loc_min"].tolist())
             self.assertEqual([7, 8, 9, 10], output_df["loc_max"].tolist())
             self.assertNotIn(100, output_df["loc_max"].tolist())
@@ -662,6 +700,9 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertGreater(association.loc["AR", "mh_odds_ratio"], 1)
         self.assertLess(association.loc["AR", "difference_ci_low"], association.loc["AR", "difference_ci_high"])
         self.assertIn("fisher_p_adjusted", association.columns)
+        self.assertEqual(ALL_LOC_GROUP, association.loc["AR", "loc_group"])
+        self.assertEqual("RP", association.loc["AR", "baseline_group"])
+        self.assertEqual("RRT", association.loc["AR", "focal_group"])
 
     def test_association_main_writes_unique_method_results(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -695,6 +736,8 @@ class TestT2PTestSmell(unittest.TestCase):
             ar = output_df[output_df["smell"] == "AR"].iloc[0]
             self.assertEqual(1, ar["focal_n"])
             self.assertEqual(1, ar["baseline_n"])
+            self.assertEqual("RP", ar["baseline_group"])
+            self.assertEqual("RRT", ar["focal_group"])
 
     def test_benjamini_hochberg_preserves_order_and_monotonicity(self):
         adjusted = benjamini_hochberg([0.04, 0.001, 0.03])
@@ -755,6 +798,21 @@ class TestT2PTestSmell(unittest.TestCase):
                 ).exists()
             )
 
+    def test_association_table_renders_string_numeric_columns_and_blank_p_values(self):
+        frame = pd.DataFrame(
+            [
+                self.association_row(ALL_SMELLS, 50, 100, 75, 100, ""),
+                self.association_row("AR", 10, 100, 30, 100, "x"),
+            ]
+        ).astype(str)
+        frame.loc[frame["smell"] == ALL_SMELLS, ["fisher_p_adjusted", "mh_p_adjusted"]] = ""
+
+        latex = render_latex_table(frame, {"AR": "Assertion Roulette"})
+
+        self.assertIn("30.0", latex)
+        self.assertIn("2.00 [1.20, 3.00]", latex)
+        self.assertIn("Any test smell was present in 50.0\\% of RP methods", latex)
+
     def test_association_table_writes_to_project_relative_output_directory(self):
         frame = pd.DataFrame(
             [
@@ -792,6 +850,67 @@ class TestT2PTestSmell(unittest.TestCase):
                     / "t2plinker-latex"
                     / "figure"
                     / "t2p-test-smell-association-table--historyFinder--nc--jnose--ch_diff.tex"
+                ).exists()
+            )
+
+    def test_wilcoxon_table_renders_all_and_loc_group_rows(self):
+        frame = pd.DataFrame(
+            [
+                self.wilcoxon_row("ALL", 0, 0.0004, 0.83, "+", "large", "L"),
+                self.wilcoxon_row("S", 1, 0.02, 0.20, "+", "small", "S"),
+            ]
+        ).astype(str)
+
+        latex = render_wilcoxon_table(frame)
+
+        self.assertIn("All", latex)
+        self.assertIn("Small", latex)
+        self.assertIn(r"$<.001$", latex)
+        self.assertIn("+0.83", latex)
+        self.assertIn("large", latex)
+        self.assertIn(r"\begin{table}", latex)
+        self.assertNotIn(r"\begin{table*}", latex)
+        self.assertIn(r"\textbf{Group}", latex)
+        self.assertNotIn(r"\textbf{LOC group}", latex)
+        self.assertNotIn(r"\textbf{Groups}", latex)
+        self.assertNotIn(r"\textbf{Smells}", latex)
+        self.assertNotIn(r"\textbf{$W$}", latex)
+        self.assertNotIn(r"\textbf{N}", latex)
+
+    def test_wilcoxon_table_main_writes_latex(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            aggregate_dir = experiment_dir / "aggregate"
+            aggregate_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    self.wilcoxon_row("ALL", 0, 0.0004, 0.83, "+", "large", "L"),
+                    self.wilcoxon_row("S", 1, 0.02, 0.20, "+", "small", "S"),
+                ]
+            ).to_csv(aggregate_dir / "t2p-test-smell-prevalence-wilcoxon-srt.csv", index=False)
+
+            wilcoxon_table_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--revision-types",
+                    "ch_diff",
+                    "--smell-detector",
+                    "jnose",
+                ]
+            )
+
+            self.assertTrue(
+                (
+                    experiment_dir
+                    / "figure"
+                    / "t2p-test-smell-prevalence-wilcoxon-srt-table--historyFinder--nc--jnose--ch_diff.tex"
                 ).exists()
             )
 
@@ -1015,6 +1134,7 @@ class TestT2PTestSmell(unittest.TestCase):
         )
 
         self.assertEqual("RRT,RP", stat_row["groups"])
+        self.assertEqual(ALL_LOC_GROUP, stat_row["loc_group"])
         self.assertEqual(2, stat_row["size"])
         self.assertEqual(2, stat_row["g1_size"])
         self.assertEqual(2, stat_row["g2_size"])
@@ -1092,6 +1212,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     "tool",
                     "smell_detector",
                     "change",
+                    "loc_group",
                     "size",
                     "g1_size",
                     "g2_size",
@@ -1181,7 +1302,8 @@ class TestT2PTestSmell(unittest.TestCase):
             "tool": tool,
             "smell_detector": smell_detector,
             "change": change,
-            "revision_group": revision_group,
+            "rg_group": revision_group,
+            "loc_group": ALL_LOC_GROUP,
             "smell": smell,
             "percent": percent,
             "smell_total": smell_total,
@@ -1205,6 +1327,7 @@ class TestT2PTestSmell(unittest.TestCase):
             "tool": "historyFinder",
             "smell_detector": "jnose",
             "change": "ch_diff",
+            "loc_group": ALL_LOC_GROUP,
             "baseline_group": REVISION_GROUP_1,
             "focal_group": REVISION_GROUP_3,
             "smell": smell,
@@ -1228,6 +1351,36 @@ class TestT2PTestSmell(unittest.TestCase):
             "mh_p_adjusted": 0.03,
             "mh_significant": significant,
             "sensitivity_agrees": significant,
+        }
+
+    def wilcoxon_row(
+        self,
+        loc_group: str,
+        w_stat: float,
+        w_p: float,
+        d_value: float,
+        d_sign: str,
+        effect_size: str,
+        marker_column: str,
+    ) -> dict:
+        markers = {column: "" for column in ["N", "S", "M", "L"]}
+        markers[marker_column] = "x"
+        return {
+            "groups": "RP,RRT",
+            "strategy": "nc",
+            "tool": "historyFinder",
+            "smell_detector": "jnose",
+            "change": "ch_diff",
+            "loc_group": loc_group,
+            "size": 17,
+            "g1_size": 17,
+            "g2_size": 17,
+            "w_stat": w_stat,
+            "w_p": w_p,
+            "d_value": d_value,
+            "d_sign": d_sign,
+            "effect_size": effect_size,
+            **markers,
         }
 
 
