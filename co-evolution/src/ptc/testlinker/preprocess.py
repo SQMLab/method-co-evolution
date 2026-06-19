@@ -217,6 +217,7 @@ def preprocess_project(*, experiment_directory: str | Path, experiment_name:str,
             rows.extend(_order_rows_by_invocation(test_rows, invocation_order_lookup.get(str(first_row.get("from_name", "")))))
 
         input_df = pd.DataFrame(rows, columns=INPUT_COLUMNS)
+        _validate_body_coverage(input_df, project=project, method_code_file=method_code_file)
         output_file.parent.mkdir(parents=True, exist_ok=True)
         input_df.to_csv(output_file, index=False)
 
@@ -225,17 +226,36 @@ def preprocess_project(*, experiment_directory: str | Path, experiment_name:str,
 
 def _load_method_code_lookup(method_code_file: Path) -> dict[str, str]:
     if not method_code_file.exists():
-        return {}
+        raise FileNotFoundError(
+            f"Method code CSV not found: {method_code_file}. "
+            "Run the mhc method-code stage before TestLinker preprocessing."
+        )
 
     method_code_df = pd.read_csv(method_code_file, keep_default_na=False, na_filter=False)
     if "url" not in method_code_df.columns or "code" not in method_code_df.columns:
-        return {}
+        raise ValueError(f"Method code CSV {method_code_file} must contain 'url' and 'code' columns.")
 
     return {
         row["url"]: row["code"]
         for row in method_code_df.to_dict(orient="records")
         if row.get("url")
     }
+
+
+def _validate_body_coverage(input_df: pd.DataFrame, *, project: str, method_code_file: Path) -> None:
+    if input_df.empty:
+        return
+
+    test_methods = input_df[["from_url", "body"]].drop_duplicates(subset=["from_url"])
+    missing_count = int(test_methods["body"].astype(str).str.len().eq(0).sum())
+    if missing_count == 0:
+        return
+
+    total_count = len(test_methods)
+    raise ValueError(
+        f"TestLinker preprocessing for {project} produced empty test bodies for "
+        f"{missing_count}/{total_count} test methods. Check method-code coverage in {method_code_file}."
+    )
 
 
 def _load_label_lookup(ground_truth_path: Path, project:str) -> dict[str, dict[str, object]]:

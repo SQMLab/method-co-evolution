@@ -23,6 +23,7 @@ class TestT2PLinkMetricTable(unittest.TestCase):
         for experiment in DATASET_LABELS:
             for strategy, values in [
                 ("nc", (2, 1, 3, 0.67, 0.40, 0.50, 0.45, None)),
+                ("omc--nc", (3, 1, 2, 0.75, 0.60, 0.67, 0.55, None)),
                 ("tarantula", (4, 2, 1, 0.67, 0.80, 0.73, 0.70, 0.75)),
             ]:
                 rows.append(
@@ -51,17 +52,20 @@ class TestT2PLinkMetricTable(unittest.TestCase):
         return pd.DataFrame(rows)
 
     def test_selects_only_average_rows_in_dataset_and_strategy_order(self):
-        result_df = select_average_rows(self.metric_df(), ["tarantula", "nc"])
+        result_df = select_average_rows(self.metric_df(), ["nc", "omc--nc", "tarantula"])
 
         self.assertEqual(
-            [experiment for experiment in DATASET_LABELS for _ in range(2)],
+            [experiment for experiment in DATASET_LABELS for _ in range(3)],
             result_df["experiment"].tolist(),
         )
-        self.assertEqual(["tarantula", "nc"] * len(DATASET_LABELS), result_df["strategy"].tolist())
+        self.assertEqual(
+            ["nc", "omc--nc", "tarantula"] * len(DATASET_LABELS),
+            result_df["strategy"].tolist(),
+        )
         self.assertNotIn(99, result_df["tp"].tolist())
 
     def test_renders_mappings_booktabs_bolding_and_missing_values(self):
-        table_df = select_average_rows(self.metric_df(), ["nc", "tarantula"])
+        table_df = select_average_rows(self.metric_df(), ["nc", "omc--nc", "tarantula"])
 
         latex = render_latex_table(table_df)
 
@@ -74,12 +78,13 @@ class TestT2PLinkMetricTable(unittest.TestCase):
         self.assertIn(r"TCTracer ICSE~\cite{white_establishing_2020}", latex)
         self.assertIn(r"TCTracer ESE~\cite{white_tctracer_2022}", latex)
         self.assertIn(r"TestLinker TSE~\cite{sun_method-level_2024}", latex)
-        self.assertIn(r"\multirow{2}{*}{Ours}", latex)
-        self.assertIn(r"NC & 2 & 1 & 3 & \textbf{0.67}", latex)
-        self.assertIn(r"Tarantula & 4 & 2 & 1 & \textbf{0.67}", latex)
+        self.assertIn(r"\multirow{3}{*}{Ours}", latex)
+        self.assertIn(r"NC & 2 & 1 & 3 & 0.67", latex)
+        self.assertIn(r"OMC+NC & 3 & 1 & 2 & \textbf{0.75}", latex)
+        self.assertIn(r"Tarantula & 4 & 2 & 1 & 0.67", latex)
         self.assertIn(r"\textbf{0.75}", latex)
         self.assertIn(" -- \\\\", latex)
-        self.assertEqual(len(DATASET_LABELS), latex.count(r"\multirow{2}{*}"))
+        self.assertEqual(len(DATASET_LABELS), latex.count(r"\multirow{3}{*}"))
         self.assertEqual(len(DATASET_LABELS), latex.count(r"\midrule"))
 
     def test_validation_errors_are_helpful(self):

@@ -169,7 +169,6 @@ def _recommended_signatures(top_rows: pd.DataFrame, mapped_example: dict[str, ob
 
 def _warn_if_mapping_files_missing(*, root: Path, project: str) -> None:
     required_files = [
-        class_map_directory(root) / "java_class_list.json",
         class_map_directory(root) / f"{project}_class_list.json",
         class_map_directory(root) / f"{project}_class_list_fqn.json",
         projects_all_functions_directory(root) / f"{project}_all_functions_full.json",

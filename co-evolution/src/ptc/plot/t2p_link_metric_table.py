@@ -24,6 +24,7 @@ STRATEGY_LABELS = {
     "nc": "NC",
     "ncc": "NCC",
     "omc": "OMC",
+    "omc--nc": "OMC+NC",
     "lcs-u": "LCS-U",
     "lcs-b": "LCS-B",
     "leven": "Leven",

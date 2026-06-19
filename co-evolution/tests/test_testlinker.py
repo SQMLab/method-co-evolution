@@ -232,6 +232,64 @@ class TestTestLinkerPipeline(unittest.TestCase):
             self.assertEqual([0, 0], result_df["label"].tolist())
             self.assertTrue(input_csv_path(cache_dir / "testlinker", "demo").exists())
 
+    def test_preprocess_requires_method_code_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            data_dir = cache_dir
+            (data_dir / "t2p-candidate-filtered").mkdir(parents=True)
+            pd.DataFrame(
+                [
+                    {
+                        "project": "demo",
+                        "from_url": "test://A.testCopy",
+                        "from_name": "testCopy",
+                        "from_file": "src/test/A.java",
+                        "to_url": "prod://A.copy",
+                        "to_name": "copy",
+                        "to_tctracer_fqs": "demo.A.copy(String)",
+                    }
+                ]
+            ).to_csv(data_dir / "t2p-candidate-filtered" / "demo.csv", index=False)
+
+            with self.assertRaisesRegex(FileNotFoundError, "Run the mhc method-code stage"):
+                preprocess_project(experiment_directory=cache_dir, experiment_name="t2plinker", project="demo")
+
+    def test_preprocess_rejects_empty_test_bodies(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            data_dir = cache_dir
+            (data_dir / "t2p-candidate-filtered").mkdir(parents=True)
+            (data_dir / "method-code").mkdir(parents=True)
+            pd.DataFrame(
+                [
+                    {
+                        "project": "demo",
+                        "from_url": "test://A.testCopy",
+                        "from_name": "testCopy",
+                        "from_file": "src/test/A.java",
+                        "to_url": "prod://A.copy",
+                        "to_name": "copy",
+                        "to_tctracer_fqs": "demo.A.copy(String)",
+                    }
+                ]
+            ).to_csv(data_dir / "t2p-candidate-filtered" / "demo.csv", index=False)
+            pd.DataFrame(
+                [
+                    {
+                        "project": "demo",
+                        "name": "differentTest",
+                        "url": "test://A.differentTest",
+                        "artifact": "#test-code #test-case-method",
+                        "start_line": 1,
+                        "end_line": 3,
+                        "code": "void differentTest() {}",
+                    }
+                ]
+            ).to_csv(data_dir / "method-code" / "demo.csv", index=False)
+
+            with self.assertRaisesRegex(ValueError, "produced empty test bodies for 1/1 test methods"):
+                preprocess_project(experiment_directory=cache_dir, experiment_name="t2plinker", project="demo")
+
     def test_convert_author_results_expands_invocations(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             input_dir = Path(tmpdir) / "result"
@@ -362,7 +420,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
             testlinker_dir = cache_dir / "testlinker"
             (data_dir / "t2p-candidate-filtered").mkdir(parents=True)
             (data_dir / "method-code").mkdir(parents=True)
-            (data_dir / "ground-truth").mkdir(parents=True)
+            (data_dir / "data" / "t2plinker" / "t2p-ground-truth").mkdir(parents=True)
             pd.DataFrame(
                 [
                     {
@@ -412,7 +470,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
                         "to_url": "prod://A.copy",
                     }
                 ]
-            ).to_csv(data_dir / "ground-truth" / "demo.csv", index=False)
+            ).to_csv(data_dir / "data" / "t2plinker" / "t2p-ground-truth" / "demo.csv", index=False)
 
             result_df = preprocess_project(experiment_directory=cache_dir, experiment_name="t2plinker", project="demo",
                                            include_labels=True)
@@ -474,8 +532,7 @@ class TestTestLinkerPipeline(unittest.TestCase):
 
             with mock.patch("ptc.testlinker.execute._build_ranker", return_value=Ranker()):
                 execute_df = execute_project(experiment_directory=cache_dir, project="demo")
-            with self.assertWarnsRegex(RuntimeWarning, "TestLinker mapping files are missing"):
-                postprocess_results = postprocess_project(experiment_directory=cache_dir, project="demo", top_k=1)
+            postprocess_results = postprocess_project(experiment_directory=cache_dir, project="demo", top_k=1)
             final_df = postprocess_results["testlinker"]
 
             self.assertTrue(model_output_csv_path(cache_dir / "testlinker", "demo", "codet5").exists())
