@@ -1,3 +1,4 @@
+import io
 from pathlib import Path
 import sys
 import tempfile
@@ -51,9 +52,13 @@ from ptc.generator.t2p_test_smell_revision import (
     output_directory,
 )
 from ptc.plot.t2p_test_smell_barchart import (
+    NONSIGNIFICANT_MARKER,
+    SIGNIFICANT_MARKER,
     display_smell,
     effect_order,
+    format_any_smell_summary,
     main as barchart_main,
+    plot_effect,
     plot_effect_axis,
     plot_prevalence_axis,
 )
@@ -610,24 +615,25 @@ class TestT2PTestSmell(unittest.TestCase):
                 ]
             ).to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
 
-            barchart_main(
-                [
-                    "--workspace-directory",
-                    tmpdir,
-                    "--experiment-name",
-                    "demo-exp",
-                    "--tools",
-                    "historyFinder",
-                    "--strategies",
-                    "nc",
-                    "--revision-types",
-                    "ch_diff",
-                    "--revision-groups",
-                    "RT",
-                    "--smell-detector",
-                    "jnose",
-                ]
-            )
+            with mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                barchart_main(
+                    [
+                        "--workspace-directory",
+                        tmpdir,
+                        "--experiment-name",
+                        "demo-exp",
+                        "--tools",
+                        "historyFinder",
+                        "--strategies",
+                        "nc",
+                        "--revision-types",
+                        "ch_diff",
+                        "--revision-groups",
+                        "RT",
+                        "--smell-detector",
+                        "jnose",
+                    ]
+                )
 
             self.assertTrue(
                 (
@@ -636,6 +642,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     / "t2p-test-smell-effectplot--historyFinder--nc--jnose--ch_diff.pdf"
                 ).exists()
             )
+            self.assertIn("Any test smell: RP 50.0% vs RRT 50.0% (+0.0 pp)", stdout.getvalue())
 
     def test_effect_plot_writes_to_project_relative_output_directory(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -756,11 +763,48 @@ class TestT2PTestSmell(unittest.TestCase):
         try:
             plot_effect_axis(ax, frame, {"AR": "Assertion Roulette", "VT": "Verbose Test"})
             labels = [label.get_text() for label in ax.get_yticklabels()]
+            legend_markers = [handle.get_marker() for handle in ax.get_legend().legend_handles]
         finally:
             plt.close(fig)
 
         self.assertEqual(["VT", "AR"], effect_order(frame))
         self.assertEqual(["Verbose Test", "Assertion Roulette"], labels)
+        self.assertEqual("", ax.get_xlabel())
+        self.assertEqual([SIGNIFICANT_MARKER, NONSIGNIFICANT_MARKER], legend_markers)
+
+    def test_effect_plot_formats_any_smell_summary(self):
+        frame = pd.DataFrame(
+            [
+                self.association_row(ALL_SMELLS, 379, 1000, 675, 1000, ""),
+                self.association_row("AR", 10, 20, 30, 50, "x"),
+            ]
+        )
+
+        self.assertEqual(
+            "Any test smell: RP 37.9% vs RRT 67.5% (+29.6 pp)",
+            format_any_smell_summary(frame),
+        )
+
+    def test_effect_plot_has_no_generated_title(self):
+        frame = pd.DataFrame(
+            [
+                self.association_row(ALL_SMELLS, 50, 100, 75, 100, ""),
+                self.association_row("AR", 10, 20, 30, 50, "x"),
+            ]
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch("matplotlib.figure.Figure.suptitle") as suptitle:
+                plot_effect(
+                    frame,
+                    strategy="nc",
+                    tool="historyFinder",
+                    smell_detector="jnose",
+                    change="ch_diff",
+                    smell_names={"AR": "Assertion Roulette"},
+                    output_file=Path(tmpdir) / "effect.pdf",
+                )
+
+        suptitle.assert_not_called()
 
     def test_association_table_renders_and_main_writes_latex(self):
         frame = pd.DataFrame(
@@ -776,8 +820,11 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertNotIn(r"\centering", latex)
         self.assertNotIn(r"\caption", latex)
         self.assertNotIn(r"\label", latex)
-        self.assertIn(r"\textbf{Assertion Roulette}", latex)
-        self.assertIn("Any test smell", latex)
+        self.assertNotIn(r"\footnotesize", latex)
+        self.assertNotIn(r"\textbf{Assertion Roulette}", latex)
+        self.assertIn("Assertion Roulette", latex)
+        self.assertIn("0.020", latex)
+        self.assertTrue(latex.rstrip().endswith(r"\end{tabular}"))
 
         with tempfile.TemporaryDirectory() as tmpdir:
             experiment_dir = self.create_experiment(tmpdir)
@@ -817,7 +864,8 @@ class TestT2PTestSmell(unittest.TestCase):
 
         self.assertIn("30.0", latex)
         self.assertIn("2.00 [1.20, 3.00]", latex)
-        self.assertIn("Any test smell was present in 50.0\\% of RP methods", latex)
+        self.assertNotIn("Any test smell was present", latex)
+        self.assertNotIn(r"\footnotesize", latex)
 
     def test_association_table_writes_to_project_relative_output_directory(self):
         frame = pd.DataFrame(
@@ -1100,6 +1148,7 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertEqual(["AR VT", "AR"], captured_frames[0]["smells"].tolist())
 
     def test_wilcoxon_requires_two_revision_groups_and_preserves_order(self):
+        self.assertEqual([REVISION_GROUP_3, REVISION_GROUP_1], selected_two_revision_groups(None))
         self.assertEqual([REVISION_GROUP_3, REVISION_GROUP_1], selected_two_revision_groups("RRT,RP"))
         with self.assertRaises(ValueError):
             selected_two_revision_groups("RT")
@@ -1118,10 +1167,12 @@ class TestT2PTestSmell(unittest.TestCase):
         paired_df = paired_smell_values(prevalence, REVISION_GROUP_3, REVISION_GROUP_1)
 
         self.assertEqual(["AR", "ET"], paired_df["smell"].tolist())
+        self.assertEqual([75, 25], paired_df["g1_percent"].tolist())
+        self.assertEqual([25, 0], paired_df["g2_percent"].tolist())
         self.assertEqual([3, 1], paired_df["g1_smell_n"].tolist())
         self.assertEqual([1, 0], paired_df["g2_smell_n"].tolist())
 
-    def test_wilcoxon_build_stat_row_excludes_all_and_uses_smell_n(self):
+    def test_wilcoxon_build_stat_row_excludes_all_and_uses_percent(self):
         prevalence = pd.DataFrame(
             [
                 self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_3, ALL_SMELLS, 100, 4, 4),
@@ -1150,6 +1201,29 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertEqual(2, stat_row["g2_size"])
         self.assertIn("w_stat", stat_row)
         self.assertIn("w_p", stat_row)
+
+    def test_wilcoxon_build_stat_row_uses_percent_not_raw_smell_counts(self):
+        prevalence = pd.DataFrame(
+            [
+                self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_3, "AR", 50, 2, 1),
+                self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_3, "ET", 25, 4, 1),
+                self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_1, "AR", 25, 4, 1),
+                self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_1, "ET", 10, 10, 1),
+            ]
+        )
+
+        stat_row = build_stat_row(
+            prevalence,
+            group1=REVISION_GROUP_3,
+            group2=REVISION_GROUP_1,
+            strategy="nc",
+            tool="historyFinder",
+            smell_detector="jnose",
+            change="ch_diff",
+        )
+
+        self.assertEqual("+", stat_row["d_sign"])
+        self.assertGreater(stat_row["d_value"], 0)
 
     def test_wilcoxon_all_zero_difference_fallback(self):
         prevalence = pd.DataFrame(
@@ -1376,7 +1450,7 @@ class TestT2PTestSmell(unittest.TestCase):
         markers = {column: "" for column in ["N", "S", "M", "L"]}
         markers[marker_column] = "x"
         return {
-            "groups": "RP,RRT",
+            "groups": "RRT,RP",
             "strategy": "nc",
             "tool": "historyFinder",
             "smell_detector": "jnose",

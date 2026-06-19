@@ -75,8 +75,6 @@ def render_latex_table(frame: pd.DataFrame, smell_names: dict[str, str]) -> str:
     rows = []
     for _, row in individual.iterrows():
         smell = escape_latex(smell_names.get(row["smell"], row["smell"]))
-        if str(row["significant"]) == "x":
-            smell = rf"\textbf{{{smell}}}"
         odds_ratio = format_number(row["odds_ratio"], ".2f")
         odds_ratio_low = format_number(row["odds_ratio_ci_low"], ".2f")
         odds_ratio_high = format_number(row["odds_ratio_ci_high"], ".2f")
@@ -88,15 +86,6 @@ def render_latex_table(frame: pd.DataFrame, smell_names: dict[str, str]) -> str:
             f"{format_p(row['fisher_p_adjusted'])} & {format_number(row['mh_odds_ratio'], '.2f')} & "
             f"{format_p(row['mh_p_adjusted'])} \\\\"
         )
-    summary = frame[frame["smell"] == ALL_SMELLS]
-    summary_text = ""
-    if not summary.empty:
-        row = summary.iloc[0]
-        summary_text = (
-            f"Any test smell was present in {format_number(row['baseline_percent'], '.1f')}\\% of RP methods and "
-            f"{format_number(row['focal_percent'], '.1f')}\\% of RRT methods "
-            f"({format_number(row['difference_pp'], '+.1f')} percentage points)."
-        )
     body = "\n".join(rows)
     return rf"""\begin{{tabular}}{{lrrrrrrr}}
 \toprule
@@ -106,11 +95,6 @@ def render_latex_table(frame: pd.DataFrame, smell_names: dict[str, str]) -> str:
 {body}
 \bottomrule
 \end{{tabular}}
-\vspace{{2pt}}
-
-\footnotesize RP methods changed fewer times than their linked production methods; RRT methods exceeded
-their linked production methods by at least ten revisions. Each unique test method appears in one group;
-methods classified into both groups are excluded. {summary_text}
 """
 
 

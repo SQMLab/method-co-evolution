@@ -28,7 +28,7 @@ from ptc.generator.t2p_test_smell_revision import (
 )
 
 OUTPUT_FILE = "t2p-test-smell-prevalence-wilcoxon-srt.csv"
-DEFAULT_REVISION_GROUPS = [REVISION_GROUP_1, REVISION_GROUP_3]
+DEFAULT_REVISION_GROUPS = [REVISION_GROUP_3, REVISION_GROUP_1]
 STAT_COLUMNS = [
     "groups",
     "strategy",
@@ -88,16 +88,18 @@ def selected_two_revision_groups(value: str | list[str] | None) -> list[str]:
 
 def paired_smell_values(pair_df: pd.DataFrame, group1: str, group2: str) -> pd.DataFrame:
     group_column = "rg_group" if "rg_group" in pair_df.columns else ("group" if "group" in pair_df.columns else "revision_group")
-    g1_df = pair_df[pair_df[group_column] == group1][["smell", "smell_n"]].copy()
-    g2_df = pair_df[pair_df[group_column] == group2][["smell", "smell_n"]].copy()
+    g1_df = pair_df[pair_df[group_column] == group1][["smell", "percent", "smell_n"]].copy()
+    g2_df = pair_df[pair_df[group_column] == group2][["smell", "percent", "smell_n"]].copy()
+    g1_df["g1_percent"] = pd.to_numeric(g1_df["percent"], errors="coerce")
+    g2_df["g2_percent"] = pd.to_numeric(g2_df["percent"], errors="coerce")
     g1_df["g1_smell_n"] = pd.to_numeric(g1_df["smell_n"], errors="coerce")
     g2_df["g2_smell_n"] = pd.to_numeric(g2_df["smell_n"], errors="coerce")
-    paired_df = g1_df[["smell", "g1_smell_n"]].merge(
-        g2_df[["smell", "g2_smell_n"]],
+    paired_df = g1_df[["smell", "g1_percent", "g1_smell_n"]].merge(
+        g2_df[["smell", "g2_percent", "g2_smell_n"]],
         on="smell",
         how="inner",
     )
-    return paired_df.dropna(subset=["g1_smell_n", "g2_smell_n"])
+    return paired_df.dropna(subset=["g1_percent", "g2_percent"])
 
 
 def wilcoxon_signed_rank(g1_values: pd.Series, g2_values: pd.Series) -> tuple[float, float]:
@@ -136,8 +138,8 @@ def build_stat_row(
     if paired_df.empty:
         return None
 
-    g1_values = paired_df["g1_smell_n"]
-    g2_values = paired_df["g2_smell_n"]
+    g1_values = paired_df["g1_percent"]
+    g2_values = paired_df["g2_percent"]
     w_stat, w_p = wilcoxon_signed_rank(g1_values, g2_values)
     d_value, effect_size = cliffs_delta.cliffs_delta(g1_values, g2_values)
     d_sign = "+" if d_value > 0 else ("-" if d_value < 0 else "=")
