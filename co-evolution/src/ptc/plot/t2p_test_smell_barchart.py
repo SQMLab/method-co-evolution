@@ -32,6 +32,9 @@ from ptc.plot.method_history_runtime_table import resolve_path
 from ptc.plot.t2p_test_smell_boxplot import GROUP_STYLE_COLORS
 from ptc.plot_util import build_experiment_plot_parser
 
+SIGNIFICANT_MARKER = "D"
+NONSIGNIFICANT_MARKER = "o"
+
 
 def build_parser():
     parser = build_experiment_plot_parser(
@@ -178,6 +181,18 @@ def effect_order(frame: pd.DataFrame) -> list[str]:
     )
 
 
+def format_any_smell_summary(association_df: pd.DataFrame) -> str:
+    summary = association_df[association_df["smell"] == ALL_SMELLS]
+    if summary.empty:
+        return ""
+    row = summary.iloc[0]
+    return (
+        f"Any test smell: RP {float(row['baseline_percent']):.1f}% vs "
+        f"RRT {float(row['focal_percent']):.1f}% "
+        f"({float(row['difference_pp']):+.1f} pp)"
+    )
+
+
 def plot_effect_axis(ax, association_df: pd.DataFrame, smell_names: dict[str, str]) -> None:
     individual = association_df[association_df["smell"] != ALL_SMELLS].sort_values(
         "difference_pp",
@@ -192,27 +207,61 @@ def plot_effect_axis(ax, association_df: pd.DataFrame, smell_names: dict[str, st
     differences = individual["difference_pp"].astype(float).tolist()
     lower = individual["difference_ci_low"].astype(float).tolist()
     upper = individual["difference_ci_high"].astype(float).tolist()
-    colors = ["tab:blue" if str(value) == "x" else "0.55" for value in individual["significant"]]
-    for position, difference, low, high, color in zip(y, differences, lower, upper, colors):
+    significant = [str(value) == "x" for value in individual["significant"]]
+    for position, difference, low, high in zip(y, differences, lower, upper):
         ax.errorbar(
             difference,
             position,
             xerr=[[difference - low], [high - difference]],
             fmt="none",
-            ecolor=color,
+            ecolor="black",
             elinewidth=1.3,
             capsize=3,
             zorder=1,
         )
-    ax.scatter(differences, y, c=colors, edgecolor="black", linewidth=0.5, zorder=2)
+    for marker, is_significant, facecolor, label in [
+        (SIGNIFICANT_MARKER, True, "black", "BH-adjusted p < .05"),
+        (NONSIGNIFICANT_MARKER, False, "white", "Not significant"),
+    ]:
+        marker_x = [difference for difference, flag in zip(differences, significant) if flag == is_significant]
+        marker_y = [position for position, flag in zip(y, significant) if flag == is_significant]
+        if not marker_x:
+            continue
+        ax.scatter(
+            marker_x,
+            marker_y,
+            marker=marker,
+            facecolor=facecolor,
+            edgecolor="black",
+            linewidth=0.7,
+            label=label,
+            zorder=2,
+        )
     ax.axvline(0, color="black", linewidth=0.9, linestyle="--")
     ax.set_yticks(y)
     ax.set_yticklabels([display_smell(smell, smell_names) for smell in individual["smell"]])
-    ax.set_xlabel("Prevalence difference: RRT - RP (percentage points)")
     ax.legend(
         handles=[
-            Line2D([0], [0], marker="o", color="tab:blue", linestyle="None", label="BH-adjusted p < .05"),
-            Line2D([0], [0], marker="o", color="0.55", linestyle="None", label="Not significant"),
+            Line2D(
+                [0],
+                [0],
+                marker=SIGNIFICANT_MARKER,
+                markerfacecolor="black",
+                markeredgecolor="black",
+                color="black",
+                linestyle="None",
+                label="BH-adjusted p < .05",
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker=NONSIGNIFICANT_MARKER,
+                markerfacecolor="white",
+                markeredgecolor="black",
+                color="black",
+                linestyle="None",
+                label="Not significant",
+            ),
         ],
         frameon=False,
         fontsize=8,
@@ -239,22 +288,10 @@ def plot_effect(
     ].copy()
     if plot_df.empty:
         return
-    summary = plot_df[plot_df["smell"] == ALL_SMELLS]
-    summary_text = ""
-    if not summary.empty:
-        row = summary.iloc[0]
-        summary_text = (
-            f"Any test smell: RP {row['baseline_percent']:.1f}% vs "
-            f"RRT {row['focal_percent']:.1f}% "
-            f"({row['difference_pp']:+.1f} pp)"
-        )
 
     fig, ax = plt.subplots(figsize=(7.2, max(5.0, len(effect_order(plot_df)) * 0.32)))
     plot_effect_axis(ax, plot_df, smell_names)
-    fig.suptitle("Initial test smells associated with recurrent revision-proneness", fontsize=11)
-    if summary_text:
-        ax.set_title(summary_text, fontsize=9, loc="left", pad=8)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.tight_layout()
     os.makedirs(output_file.parent, exist_ok=True)
     fig.savefig(output_file, bbox_inches="tight")
     plt.close(fig)
@@ -323,6 +360,16 @@ def main(argv: list[str] | None = None) -> None:
         if output_file.exists():
             plotted_any = True
             print(f"Wrote {output_file}")
+            summary = format_any_smell_summary(
+                frame[
+                    (frame["strategy"] == row.strategy)
+                    & (frame["tool"] == row.tool)
+                    & (frame["smell_detector"] == row.smell_detector)
+                    & (frame["change"] == row.change)
+                ]
+            )
+            if summary:
+                print(summary)
 
     if not plotted_any:
         print("No test smell effect plots generated.")
