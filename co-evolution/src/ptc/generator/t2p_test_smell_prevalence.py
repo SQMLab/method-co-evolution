@@ -359,6 +359,7 @@ def main(argv: list[str] | None = None) -> None:
         util.sorted_directory_names(generated_dir),
         selected_strategies,
         item_label="strategy",
+        strict=False,
     )
     for strategy in strategies:
         strategy_dir = generated_dir / strategy

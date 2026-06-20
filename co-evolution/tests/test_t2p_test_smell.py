@@ -415,7 +415,7 @@ class TestT2PTestSmell(unittest.TestCase):
                         "--tools",
                         "historyFinder",
                         "--strategies",
-                        "nc",
+                        "nc,omc--nc",
                         "--revision-types",
                         "ch_diff",
                         "--min-t2p-links",

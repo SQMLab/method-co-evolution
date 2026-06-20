@@ -1,10 +1,12 @@
 import os
+from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import MultipleLocator
 import pandas as pd
 
 import mhc.util as util
@@ -24,6 +26,8 @@ from ptc.plot_util import (
 )
 
 SIZE_ORDER = ["negligible", "small", "medium", "large"]
+PAPER_CORRELATION_COLOR = "0.40"
+PAPER_CORRELATION_X_PADDING = 0.05
 
 
 def format_count(value: int) -> str:
@@ -70,15 +74,87 @@ def draw_row_info_axis(ax, strategy: str, strategy_df: pd.DataFrame, changes: li
 
 
 def build_parser():
-    return build_experiment_plot_parser("Plot MWU aggregate CDFs and effect-size bars.")
+    parser = build_experiment_plot_parser(
+        "Plot MWU aggregate CDFs and effect-size bars.",
+        include_revision_types=True,
+        include_project_directory=True,
+        include_output_directory=True,
+    )
+    parser.add_argument(
+        "--correlation-only",
+        action="store_true",
+        help="Generate a paper-ready one-panel correlation CDF.",
+    )
+    return parser
+
+
+def resolve_output_directory(
+    project_directory: Path,
+    experiment_directory: Path,
+    output_directory: str | None,
+) -> Path:
+    if output_directory is None:
+        return experiment_directory / "figure"
+    output_path = Path(output_directory)
+    return output_path if output_path.is_absolute() else project_directory / output_path
+
+
+def select_change_names(available_changes: list[str], selected_revision_types: str | None = None) -> list[str]:
+    selected_columns = select_revision_columns(
+        [change if str(change).startswith("ch_") else f"ch_{change}" for change in available_changes],
+        selected_revision_types,
+    )
+    return [change.removeprefix("ch_") for change in selected_columns]
+
+
+def plot_correlation_only_axis(ax, strategy_df: pd.DataFrame, change_names: list[str]) -> None:
+    plotted_values = []
+    for change in change_names:
+        change_df = strategy_df[strategy_df["change"] == change]
+        corr_values = change_df["corr"].dropna()
+        if corr_values.empty:
+            continue
+
+        plotted_values.extend(corr_values.tolist())
+        x, y = ecdf(corr_values)
+        ax.step(
+            x,
+            y,
+            linewidth=1.8,
+            color=PAPER_CORRELATION_COLOR,
+            linestyle="-",
+            where="post",
+            label=change,
+        )
+
+    ax.set_xlabel("Correlation Coefficient", fontsize=14)
+    ax.set_ylabel("CDF", fontsize=14)
+    if plotted_values:
+        x_min = max(-1.0, min(plotted_values) - PAPER_CORRELATION_X_PADDING)
+        x_max = min(1.0, max(plotted_values) + PAPER_CORRELATION_X_PADDING)
+        if x_min == x_max:
+            x_min = max(-1.0, x_min - PAPER_CORRELATION_X_PADDING)
+            x_max = min(1.0, x_max + PAPER_CORRELATION_X_PADDING)
+        ax.set_xlim(x_min, x_max)
+    ax.xaxis.set_major_locator(MultipleLocator(0.1))
+    ax.set_ylim(0.0, 1.02)
+    ax.yaxis.set_major_locator(MultipleLocator(0.1))
+    ax.grid(True, alpha=0.25)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
-    experiment_directory = resolve_experiment_paths(
+    experiment_paths = resolve_experiment_paths(
         getattr(args, "workspace_directory", None),
         args.experiment_name,
-    ).experiment_directory
+    )
+    experiment_directory = experiment_paths.experiment_directory
+    project_directory = Path(args.project_directory)
+    output_directory = resolve_output_directory(
+        project_directory,
+        experiment_directory,
+        args.output_directory,
+    )
     stats_file = experiment_directory / "aggregate" / "t2p-correlation.csv"
     selected_tools, selected_projects, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
@@ -119,6 +195,23 @@ def main(argv: list[str] | None = None) -> None:
         if not strategies:
             continue
 
+        if args.correlation_only:
+            for strategy in strategies:
+                strategy_df = tool_df[tool_df["strategy"] == strategy].copy()
+                available_changes = sorted(strategy_df["change"].dropna().unique(), key=str.lower)
+                change_names = select_change_names(available_changes, args.revision_types)
+                if not change_names:
+                    continue
+
+                fig, ax = plt.subplots(figsize=(5.4, 3.8))
+                plot_correlation_only_axis(ax, strategy_df, change_names)
+                fig.tight_layout()
+                fig_file = output_directory / f"t2p-correlation-cdf--{tool}--{strategy}.pdf"
+                os.makedirs(os.path.dirname(fig_file), exist_ok=True)
+                fig.savefig(fig_file, bbox_inches="tight")
+                plt.close(fig)
+            continue
+
         fig, axes = plt.subplots(
             len(strategies),
             4,
@@ -130,12 +223,7 @@ def main(argv: list[str] | None = None) -> None:
         for strategy_index, strategy in enumerate(strategies):
             strategy_df = tool_df[tool_df["strategy"] == strategy].copy()
             available_changes = sorted(strategy_df["change"].dropna().unique(), key=str.lower)
-            change_names = [
-                change.removeprefix("ch_")
-                for change in select_revision_columns(
-                    [change if str(change).startswith("ch_") else f"ch_{change}" for change in available_changes]
-                )
-            ]
+            change_names = select_change_names(available_changes)
             change_colors = change_color_map(change_names)
             draw_row_info_axis(axes[strategy_index][0], strategy, strategy_df, change_names, change_colors)
 
@@ -234,7 +322,7 @@ def main(argv: list[str] | None = None) -> None:
                 size_ax.legend(fontsize=10)
 
         fig.tight_layout()
-        fig_file = experiment_directory / "figure" / f"t2p-correlation-cdf--{tool}.pdf"
+        fig_file = output_directory / f"t2p-correlation-cdf--{tool}.pdf"
         os.makedirs(os.path.dirname(fig_file), exist_ok=True)
         fig.savefig(fig_file, bbox_inches="tight")
         plt.close(fig)

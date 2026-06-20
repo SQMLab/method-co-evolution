@@ -4,11 +4,11 @@ import warnings
 from dataclasses import dataclass
 
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.ticker import FuncFormatter, MaxNLocator, NullFormatter
+from matplotlib.ticker import FixedLocator, FuncFormatter, MultipleLocator, NullFormatter
 import pandas as pd
 
 import mhc.util as util
@@ -16,10 +16,6 @@ from mhc.artifacts import is_main_code, is_test_case_method, is_test_code
 from mhc.command_util import non_negative_int, resolve_min_t2p_links
 from ptc.constants import ALL_REPOSITORY, CODE_SHOVEL_UNSUPPORTED_CHANGES, MethodChangeType
 from ptc.plot_util import (
-    GRAPH_MARKER_SIZES,
-    GRAPH_MARKS,
-    GRAPH_STYLES,
-    GRAPH_WIDTHS,
     build_experiment_plot_parser,
     list_csv_files,
     resolve_experiment_filters,
@@ -36,9 +32,18 @@ CHANGE_COLUMNS = [
 CODE_SHOVEL_UNSUPPORTED_CHANGE_SET = {
     f"ch_{change_type.name.lower()}" for change_type in CODE_SHOVEL_UNSUPPORTED_CHANGES
 }
-SERIES_COLOR = "tab:blue"
 SYMLIN_THRESHOLD = 10
 SYMLIN_TICKS = [-100, -50, -10, -5, -1, 1, 5, 10, 50, 100]
+PAPER_MIN_DELTA = -10
+PAPER_MAX_DELTA = 10
+PAPER_SERIES_COLOR = "0.22"
+PAPER_TICK_LABEL_SIZE = 12
+
+REVISION_DELTA_GROUPS = [
+    ("NTR", "<=0", lambda delta: delta <= 0),
+    ("MTR", "1-9", lambda delta: (delta >= 1) & (delta < PAPER_MAX_DELTA)),
+    ("HTR", "10+", lambda delta: delta >= PAPER_MAX_DELTA),
+]
 
 
 @dataclass(frozen=True)
@@ -49,13 +54,23 @@ class DeltaThreshold:
 
 
 def build_parser():
-    parser = build_experiment_plot_parser("Plot test-minus-production revision delta CDFs.")
+    parser = build_experiment_plot_parser(
+        "Plot test-minus-production revision delta CDFs.",
+        include_revision_types=True,
+        include_project_directory=True,
+        include_output_directory=True,
+    )
     parser.add_argument(
         "--min-t2p-links",
         dest="min_t2p_links",
         type=non_negative_int,
         default=resolve_min_t2p_links(),
         help="Minimum linked test-production pairs required before revision delta CDFs are plotted. Defaults to ME_MIN_T2P_LINKS.",
+    )
+    parser.add_argument(
+        "--all-projects-only",
+        action="store_true",
+        help="Generate only the paper-ready all-projects revision delta CDF.",
     )
     return parser
 
@@ -106,8 +121,6 @@ def draw_row_info_axis(ax, project: str, project_df: pd.DataFrame) -> None:
         "\n".join(
             [
                 f"total={format_count(total)}",
-                f"test={format_count(stats['test'])} ({format_percent(stats['test'], total)})",
-                f"production={format_count(stats['production'])} ({format_percent(stats['production'], total)})",
             ]
         ),
         transform=ax.transAxes,
@@ -115,23 +128,6 @@ def draw_row_info_axis(ax, project: str, project_df: pd.DataFrame) -> None:
         ha="left",
         fontsize=13,
         linespacing=1.2,
-    )
-    ax.legend(
-        handles=[
-            Line2D(
-                [0],
-                [0],
-                color=SERIES_COLOR,
-                linewidth=GRAPH_WIDTHS[0],
-                linestyle=GRAPH_STYLES[0],
-                label="test - production CDF",
-            )
-        ],
-        loc="lower left",
-        frameon=False,
-        fontsize=12,
-        borderaxespad=0,
-        handlelength=2.6,
     )
 
 
@@ -155,6 +151,17 @@ def load_t2p_change_dfs(
 
 def order_change_columns(columns: list[str]) -> list[str]:
     return select_revision_columns(columns, preferred_order=CHANGE_COLUMNS, include_extra=False)
+
+
+def resolve_output_directory(
+    project_directory: Path,
+    experiment_directory: Path,
+    output_directory: str | None,
+) -> Path:
+    if output_directory is None:
+        return experiment_directory / "figure"
+    output_path = Path(output_directory)
+    return output_path if output_path.is_absolute() else project_directory / output_path
 
 
 def format_change_name(change: str) -> str:
@@ -186,6 +193,85 @@ def delta_cdf(df: pd.DataFrame, change: str) -> pd.Series:
         fill_value=0,
     )
     return frequencies.cumsum() / frequencies.sum()
+
+
+def clipped_delta_cdf(delta: pd.Series) -> pd.Series:
+    if delta.empty:
+        return pd.Series(dtype="float64")
+
+    clipped_delta = delta.clip(lower=PAPER_MIN_DELTA, upper=PAPER_MAX_DELTA)
+    frequencies = clipped_delta.value_counts().sort_index()
+    frequencies = frequencies.reindex(range(PAPER_MIN_DELTA, PAPER_MAX_DELTA + 1), fill_value=0)
+    return frequencies.cumsum() / frequencies.sum()
+
+
+def revision_delta_group_counts(delta: pd.Series) -> list[tuple[str, str, int, float]]:
+    total = len(delta)
+    groups = []
+    for code, label, mask_fn in REVISION_DELTA_GROUPS:
+        count = int(mask_fn(delta).sum()) if total else 0
+        percent = (count / total) * 100 if total else 0.0
+        groups.append((code, label, count, percent))
+    return groups
+
+
+def format_paper_delta_tick(value: float, _: int) -> str:
+    if abs(value - round(value)) > 1e-9:
+        return ""
+    tick = int(round(value))
+    if tick == PAPER_MIN_DELTA:
+        return f"{PAPER_MIN_DELTA}"
+    if tick == PAPER_MAX_DELTA:
+        return f"{PAPER_MAX_DELTA}"
+    return str(tick)
+
+
+def draw_revision_group_summary(ax, delta: pd.Series) -> None:
+    summary_lines = [
+        f"{code} ({label}): {format_count(count)} ({percent:.1f}%)"
+        for code, label, count, percent in revision_delta_group_counts(delta)
+    ]
+    ax.text(
+        0.03,
+        0.97,
+        "\n".join(summary_lines),
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=10,
+        bbox={"facecolor": "white", "edgecolor": "0.75", "alpha": 0.85, "pad": 3},
+    )
+
+
+def plot_paper_delta_axis(ax, df: pd.DataFrame, change: str, *, show_group_summary: bool = True) -> None:
+    delta = delta_series(df, change)
+    if delta.empty:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", fontsize=14, transform=ax.transAxes)
+        return
+
+    cdf = clipped_delta_cdf(delta)
+    ax.step(
+        cdf.index,
+        cdf.values,
+        linewidth=1.8,
+        color=PAPER_SERIES_COLOR,
+        linestyle="-",
+        where="post",
+    )
+    ax.axvline(0, color="0.2", linewidth=1.0, alpha=0.45)
+    ax.axvline(PAPER_MAX_DELTA, color="0.2", linewidth=1.0, linestyle=":", alpha=0.5)
+    if show_group_summary:
+        draw_revision_group_summary(ax, delta)
+
+    ax.set_xlabel("# Test - Production Revisions", fontsize=14)
+    ax.set_ylabel("CDF", fontsize=14)
+    ax.set_xlim(PAPER_MIN_DELTA, PAPER_MAX_DELTA)
+    ax.set_ylim(0.0, 1.02)
+    ax.xaxis.set_major_locator(MultipleLocator(2))
+    ax.xaxis.set_major_formatter(FuncFormatter(format_paper_delta_tick))
+    ax.yaxis.set_major_locator(FixedLocator(np.arange(0.1, 1.1, 0.1)))
+    ax.tick_params(axis="both", labelsize=PAPER_TICK_LABEL_SIZE)
+    ax.grid(True, alpha=0.25)
 
 
 def delta_threshold(df: pd.DataFrame, change: str, coverage: float = 0.8) -> DeltaThreshold | None:
@@ -236,10 +322,17 @@ def draw_delta_threshold(ax, threshold: DeltaThreshold) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
-    experiment_directory = resolve_experiment_paths(
+    experiment_paths = resolve_experiment_paths(
         getattr(args, "workspace_directory", None),
         args.experiment_name,
-    ).experiment_directory
+    )
+    experiment_directory = experiment_paths.experiment_directory
+    project_directory = Path(args.project_directory)
+    output_directory = resolve_output_directory(
+        project_directory,
+        experiment_directory,
+        args.output_directory,
+    )
     selected_tools, selected_projects, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
         projects=args.projects,
@@ -275,11 +368,42 @@ def main(argv: list[str] | None = None) -> None:
             change_cols = order_change_columns(
                 [column[len("from_"):] for column in df.columns if column.startswith("from_ch_")]
             )
+            if args.all_projects_only:
+                change_cols = select_revision_columns(change_cols, args.revision_types)
             if not change_cols:
                 print(f"No from_ch_* columns found for {tool} {strategy}.")
                 continue
 
             print(tool, strategy)
+            if args.all_projects_only:
+                all_size = len(df)
+                if all_size < min_t2p_links:
+                    warnings.warn(
+                        f"Skipping T2P revision delta CDF for project={ALL_REPOSITORY}, tool={tool}, strategy={strategy}: "
+                        f"t2p_links={all_size} is below min_t2p_links={min_t2p_links}."
+                    )
+                    continue
+
+                plotted_any = True
+                fig, axes = plt.subplots(
+                    1,
+                    len(change_cols),
+                    figsize=(5.8 * len(change_cols), 4.2),
+                    squeeze=False,
+                )
+                for change_index, change in enumerate(change_cols):
+                    ax = axes[0][change_index]
+                    if len(change_cols) > 1:
+                        ax.set_title(format_change_name(change), fontsize=14)
+                    plot_paper_delta_axis(ax, df, change)
+
+                fig.tight_layout()
+                fig_file = output_directory / f"t2p-revision-delta-cdf--{tool}--{strategy}.pdf"
+                os.makedirs(fig_file.parent, exist_ok=True)
+                fig.savefig(fig_file, bbox_inches="tight")
+                plt.close(fig)
+                continue
+
             projects = select_named_items(
                 list(dict.fromkeys(df["project"].dropna())),
                 selected_projects,
@@ -314,23 +438,20 @@ def main(argv: list[str] | None = None) -> None:
             fig, axes = plt.subplots(
                 len(projects_to_plot),
                 len(change_cols) + 1,
-                figsize=(1.8 + 4 * len(change_cols), 3.2 * len(projects_to_plot)),
-                gridspec_kw={"width_ratios": [1.4, *([4] * len(change_cols))]},
+                figsize=(2.2 + 5.4 * len(change_cols), 3.2 * len(projects_to_plot)),
+                gridspec_kw={"width_ratios": [1.8, *([5.4] * len(change_cols))]},
                 squeeze=False,
             )
-            fig.supxlabel("test - production revisions (linear -10..10, log outside)", fontsize=20)
+            fig.supxlabel("# Test - Production Revisions", fontsize=20)
             fig.supylabel("CDF", fontsize=20)
 
             for project_index, project in enumerate(projects_to_plot):
                 project_df = df if project == ALL_REPOSITORY else df[df["project"] == project]
-                draw_row_info_axis(axes[project_index][0], project, project_df)
+                draw_row_info_axis(axes[project_index][0], project_df=project_df, project=project)
 
                 for change_index, change in enumerate(change_cols):
                     ax = axes[project_index][change_index + 1]
                     ax.set_title(format_change_name(change), fontsize=18)
-                    ax.set_ylim(-0.02, 1.02)
-                    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-
                     unsupported = tool == "codeShovel" and change in CODE_SHOVEL_UNSUPPORTED_CHANGE_SET
                     if unsupported:
                         ax.text(
@@ -355,34 +476,10 @@ def main(argv: list[str] | None = None) -> None:
                                 transform=ax.transAxes,
                             )
                         else:
-                            ax.step(
-                                cdf.index,
-                                cdf.values,
-                                linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
-                                color=SERIES_COLOR,
-                                linestyle=GRAPH_STYLES[0],
-                                where="post",
-                            )
-                            if len(change_cols) > 1:
-                                ax.plot(
-                                    cdf.index,
-                                    cdf.values,
-                                    linestyle="None",
-                                    color=SERIES_COLOR,
-                                    marker=GRAPH_MARKS[change_index % len(GRAPH_MARKS)],
-                                    markersize=GRAPH_MARKER_SIZES[
-                                        change_index % len(GRAPH_MARKER_SIZES)
-                                    ],
-                                )
-                            style_delta_axis(ax, cdf)
-                            threshold = delta_threshold(project_df, change)
-                            if threshold is not None:
-                                draw_delta_threshold(ax, threshold)
-
-                    ax.grid(True, alpha=0.25)
+                            plot_paper_delta_axis(ax, project_df, change, show_group_summary=True)
 
             fig.tight_layout(rect=(0.03, 0.03, 1, 1))
-            fig_file = experiment_directory / "figure" / f"t2p-revision-delta-cdf--{tool}--{strategy}.pdf"
+            fig_file = output_directory / f"t2p-revision-delta-cdf--{tool}--{strategy}.pdf"
             os.makedirs(fig_file.parent, exist_ok=True)
             fig.savefig(fig_file, bbox_inches="tight")
             plt.close(fig)
