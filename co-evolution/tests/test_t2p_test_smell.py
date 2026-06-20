@@ -23,6 +23,13 @@ from ptc.generator.t2p_test_smell_prevalence_wilcoxon_srt import (
     paired_smell_values,
     selected_two_revision_groups,
 )
+from ptc.generator.t2p_test_smell_count_mww import (
+    COUNT_MWW_COLUMNS,
+    count_mww_rows,
+    main as count_mww_main,
+    method_count_frame,
+    selected_revision_group_pairs,
+)
 from ptc.generator.t2p_test_smell_loc_group import (
     loc_group,
     loc_group_rows,
@@ -73,11 +80,14 @@ from ptc.plot.t2p_test_smell_prevalence_wilcoxon_srt_table import (
 from ptc.plot.t2p_test_smell_boxplot import (
     ALL_GROUPS,
     boxplot_values,
+    count_annotation,
+    extreme_point_count,
     load_generated_frames,
     main as boxplot_main,
     plot_boxplot_axis,
     plot_revision_type,
     selected_revision_groups,
+    unique_smell_count,
 )
 
 
@@ -107,6 +117,7 @@ class TestT2PTestSmell(unittest.TestCase):
 
     def test_assign_revision_group_uses_min_t2p_revision(self):
         self.assertEqual(REVISION_GROUP_1, assign_revision_group(2, 3, min_t2p_revision=5))
+        self.assertEqual(REVISION_GROUP_1, assign_revision_group(10, 10, min_t2p_revision=5))
         self.assertEqual(REVISION_GROUP_3, assign_revision_group(15, 10, min_t2p_revision=5))
         self.assertEqual(REVISION_GROUP_2, assign_revision_group(14, 10, min_t2p_revision=5))
 
@@ -313,9 +324,11 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertTrue(untouched_output.exists())
 
     def test_selected_revision_groups_validates_input(self):
-        self.assertEqual([REVISION_GROUP_2, REVISION_GROUP_3], selected_revision_groups("RT,RRT"))
+        self.assertEqual([REVISION_GROUP_2, REVISION_GROUP_3], selected_revision_groups("MTR,HTR"))
         with self.assertRaises(ValueError):
-            selected_revision_groups("RT,unknown")
+            selected_revision_groups("MTR,unknown")
+        with self.assertRaises(ValueError):
+            selected_revision_groups("RP,RRT")
 
     def test_prevalence_rows_use_group_denominator_and_include_all(self):
         frame = pd.DataFrame(
@@ -629,7 +642,7 @@ class TestT2PTestSmell(unittest.TestCase):
                         "--revision-types",
                         "ch_diff",
                         "--revision-groups",
-                        "RT",
+                        "MTR",
                         "--smell-detector",
                         "jnose",
                     ]
@@ -642,7 +655,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     / "t2p-test-smell-effectplot--historyFinder--nc--jnose--ch_diff.pdf"
                 ).exists()
             )
-            self.assertIn("Any test smell: RP 50.0% vs RRT 50.0% (+0.0 pp)", stdout.getvalue())
+            self.assertIn("Any test smell: NTR 50.0% vs HTR 50.0% (+0.0 pp)", stdout.getvalue())
 
     def test_effect_plot_writes_to_project_relative_output_directory(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -708,8 +721,8 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertLess(association.loc["AR", "difference_ci_low"], association.loc["AR", "difference_ci_high"])
         self.assertIn("fisher_p_adjusted", association.columns)
         self.assertEqual(ALL_LOC_GROUP, association.loc["AR", "loc_group"])
-        self.assertEqual("RP", association.loc["AR", "baseline_group"])
-        self.assertEqual("RRT", association.loc["AR", "focal_group"])
+        self.assertEqual("NTR", association.loc["AR", "baseline_group"])
+        self.assertEqual("HTR", association.loc["AR", "focal_group"])
 
     def test_association_main_writes_unique_method_results(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -743,8 +756,8 @@ class TestT2PTestSmell(unittest.TestCase):
             ar = output_df[output_df["smell"] == "AR"].iloc[0]
             self.assertEqual(1, ar["focal_n"])
             self.assertEqual(1, ar["baseline_n"])
-            self.assertEqual("RP", ar["baseline_group"])
-            self.assertEqual("RRT", ar["focal_group"])
+            self.assertEqual("NTR", ar["baseline_group"])
+            self.assertEqual("HTR", ar["focal_group"])
 
     def test_benjamini_hochberg_preserves_order_and_monotonicity(self):
         adjusted = benjamini_hochberg([0.04, 0.001, 0.03])
@@ -781,7 +794,7 @@ class TestT2PTestSmell(unittest.TestCase):
         )
 
         self.assertEqual(
-            "Any test smell: RP 37.9% vs RRT 67.5% (+29.6 pp)",
+            "Any test smell: NTR 37.9% vs HTR 67.5% (+29.6 pp)",
             format_any_smell_summary(frame),
         )
 
@@ -972,19 +985,27 @@ class TestT2PTestSmell(unittest.TestCase):
                 ).exists()
             )
 
-    def test_plot_boxplot_axis_uses_smell_labels_once_and_group_legend(self):
+    def test_plot_boxplot_axis_uses_independent_revision_and_loc_labels(self):
         frame = pd.DataFrame(
             [
-                {"smells": "AR", "from_ch_diff": 10, "rg_ch_diff": REVISION_GROUP_3},
-                {"smells": "AR", "from_ch_diff": 5, "rg_ch_diff": REVISION_GROUP_2},
-                {"smells": "VT", "from_ch_diff": 4, "rg_ch_diff": REVISION_GROUP_2},
+                {"from_url": "test://A", "smells": "AR", "rg_ch_diff": REVISION_GROUP_3},
+                {"from_url": "test://B", "smells": "AR VT", "rg_ch_diff": REVISION_GROUP_2},
+                {"from_url": "test://C", "smells": "", "rg_ch_diff": REVISION_GROUP_2},
             ]
         )
+        smell_frames = [
+            pd.DataFrame(
+                [
+                    {"url": f"test://{index}", "smell": "AR", "loc": index}
+                    for index in range(1, 11)
+                ]
+            )
+        ]
         rows = boxplot_values(
             frame,
             "ch_diff",
             [REVISION_GROUP_2, REVISION_GROUP_3],
-            {"AR": "Assertion Roulette", "VT": "Verbose Test"},
+            smell_frames=smell_frames,
         )
         import matplotlib.pyplot as plt
 
@@ -992,36 +1013,56 @@ class TestT2PTestSmell(unittest.TestCase):
         try:
             plot_boxplot_axis(ax, rows, [REVISION_GROUP_2, REVISION_GROUP_3])
             x_labels = [label.get_text() for label in ax.get_xticklabels()]
-            legend_labels = [text.get_text() for text in ax.get_legend().get_texts()]
-            legend_hatches = [handle.get_hatch() for handle in ax.get_legend().legend_handles]
         finally:
             plt.close(fig)
 
-        self.assertEqual(["Assertion Roulette", "Verbose Test"], x_labels)
+        self.assertEqual(["MTR", "HTR", "S", "M", "L", "XL"], x_labels)
         self.assertEqual("", ax.get_title())
-        self.assertEqual("# Test Method Revisions", ax.get_ylabel())
-        self.assertNotIn(ALL_GROUPS, legend_labels)
-        self.assertIn("Revision-Prone Test (RT)", legend_labels)
-        self.assertIn("Recurrent Revision-Prone Test (RRT)", legend_labels)
-        self.assertEqual(len(legend_hatches), len(set(legend_hatches)))
-        self.assertTrue(all(hatch for hatch in legend_hatches))
+        self.assertEqual("# Unique Test Smells", ax.get_ylabel())
+        self.assertEqual("", ax.get_xlabel())
+        self.assertIsNone(ax.get_legend())
+        self.assertEqual(list(range(0, 11)), [int(tick) for tick in ax.get_yticks()])
+        self.assertEqual((-0.1, 10.0), ax.get_ylim())
+        annotation_labels = [text.get_text() for text in ax.texts]
+        self.assertTrue(any(label.startswith("n=") and "\next=" in label for label in annotation_labels))
+        self.assertTrue(all(text.get_fontsize() >= 8 for text in ax.texts))
+        self.assertTrue(all(text.get_position()[1] < ax.get_ylim()[1] for text in ax.texts))
 
-    def test_boxplot_can_include_all_groups_when_requested(self):
+    def test_boxplot_extreme_point_count_uses_iqr_whisker_rule(self):
+        self.assertEqual(0, extreme_point_count([]))
+        self.assertEqual(1, extreme_point_count([0, 0, 0, 0, 5]))
+        self.assertEqual("n=68,896\next=4,676", count_annotation(68896, 4676))
+
+    def test_boxplot_values_counts_revision_and_loc_groups_independently(self):
         frame = pd.DataFrame(
             [
-                {"smells": "AR", "from_ch_diff": 10, "rg_ch_diff": REVISION_GROUP_3},
-                {"smells": "AR", "from_ch_diff": 5, "rg_ch_diff": REVISION_GROUP_2},
+                {"from_url": "test://A", "smells": "AR AR VT", "rg_ch_diff": REVISION_GROUP_3},
+                {"from_url": "test://B", "smells": "", "rg_ch_diff": REVISION_GROUP_2},
+                {"from_url": "test://C", "smells": "ET", "rg_ch_diff": REVISION_GROUP_2},
+            ]
+        )
+        smell_rows = [{"url": f"test://{index}", "smell": "AR", "loc": index} for index in range(1, 10)]
+        smell_rows.extend(
+            [
+                {"url": "test://outside", "smell": "AR", "loc": 10},
+                {"url": "test://outside", "smell": "VT", "loc": 10},
             ]
         )
         rows = boxplot_values(
             frame,
             "ch_diff",
             [REVISION_GROUP_2, REVISION_GROUP_3],
-            {"AR": "Assertion Roulette"},
-            include_all_groups=True,
+            smell_frames=[pd.DataFrame(smell_rows)],
         )
 
-        self.assertIn(ALL_GROUPS, [row["group"] for row in rows])
+        htr = next(row for row in rows if row["category"] == REVISION_GROUP_3)
+        mtr = next(row for row in rows if row["category"] == REVISION_GROUP_2)
+        xl = next(row for row in rows if row["category"] == "XL")
+        self.assertEqual([2], htr["values"])
+        self.assertEqual([0, 1], mtr["values"])
+        self.assertEqual([2], xl["values"])
+        self.assertEqual(2, unique_smell_count("AR AR VT"))
+        self.assertEqual(0, unique_smell_count(""))
 
     def test_boxplot_reads_generated_csv_and_filters_revision_groups(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1035,6 +1076,15 @@ class TestT2PTestSmell(unittest.TestCase):
                     self.generated_row("demo", "test://C", "prod://C", 1, 5, "ET", REVISION_GROUP_1),
                 ]
             ).to_csv(output_dir / "demo.csv", index=False)
+            self.write_smells(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://A", "smell": "AR", "loc": 10},
+                    {"url": "test://B", "smell": "VT", "loc": 20},
+                    {"url": "test://C", "smell": "ET", "loc": 30},
+                ],
+            )
 
             boxplot_main(
                 [
@@ -1051,7 +1101,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     "--revision-types",
                     "ch_diff",
                     "--revision-groups",
-                    "RT,RRT",
+                    "MTR,HTR",
                     "--min-t2p-links",
                     "0",
                     "--smell-detector",
@@ -1079,6 +1129,14 @@ class TestT2PTestSmell(unittest.TestCase):
                     self.generated_row("demo", "test://B", "prod://B", 1, 5, "ET", REVISION_GROUP_1),
                 ]
             ).to_csv(output_dir / "demo.csv", index=False)
+            self.write_smells(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://A", "smell": "AR", "loc": 10},
+                    {"url": "test://B", "smell": "ET", "loc": 20},
+                ],
+            )
 
             boxplot_main(
                 [
@@ -1097,7 +1155,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     "--revision-types",
                     "ch_diff",
                     "--revision-groups",
-                    "RP,RRT",
+                    "NTR,HTR",
                     "--min-t2p-links",
                     "0",
                     "--smell-detector",
@@ -1139,8 +1197,15 @@ class TestT2PTestSmell(unittest.TestCase):
                     frame,
                     "ch_diff",
                     [REVISION_GROUP_1, REVISION_GROUP_3],
-                    {"AR": "Assertion Roulette", "VT": "Verbose Test", "ET": "Exception Handling"},
                     output_file,
+                    smell_frames=[
+                        pd.DataFrame(
+                            [
+                                {"url": "test://dup", "smell": "AR", "loc": 1},
+                                {"url": "test://rp", "smell": "AR", "loc": 2},
+                            ]
+                        )
+                    ],
                 )
 
             plotted_urls = captured_frames[0]["from_url"].tolist()
@@ -1149,9 +1214,11 @@ class TestT2PTestSmell(unittest.TestCase):
 
     def test_wilcoxon_requires_two_revision_groups_and_preserves_order(self):
         self.assertEqual([REVISION_GROUP_3, REVISION_GROUP_1], selected_two_revision_groups(None))
-        self.assertEqual([REVISION_GROUP_3, REVISION_GROUP_1], selected_two_revision_groups("RRT,RP"))
+        self.assertEqual([REVISION_GROUP_3, REVISION_GROUP_1], selected_two_revision_groups("HTR,NTR"))
         with self.assertRaises(ValueError):
-            selected_two_revision_groups("RT")
+            selected_two_revision_groups("MTR")
+        with self.assertRaises(ValueError):
+            selected_two_revision_groups("RRT,RP")
 
     def test_wilcoxon_pairs_by_smell_and_drops_missing_smells(self):
         prevalence = pd.DataFrame(
@@ -1194,7 +1261,7 @@ class TestT2PTestSmell(unittest.TestCase):
             change="ch_diff",
         )
 
-        self.assertEqual("RRT,RP", stat_row["groups"])
+        self.assertEqual("HTR,NTR", stat_row["groups"])
         self.assertEqual(ALL_LOC_GROUP, stat_row["loc_group"])
         self.assertEqual(2, stat_row["size"])
         self.assertEqual(2, stat_row["g1_size"])
@@ -1277,7 +1344,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     "--revision-types",
                     "ch_diff",
                     "--revision-groups",
-                    "RRT,RP",
+                    "HTR,NTR",
                     "--smell-detector",
                     "jnose",
                     "--replace",
@@ -1288,7 +1355,7 @@ class TestT2PTestSmell(unittest.TestCase):
                 aggregate_dir / "t2p-test-smell-prevalence-wilcoxon-srt.csv",
                 keep_default_na=False,
             )
-            self.assertEqual(["RRT,RP"], output_df["groups"].tolist())
+            self.assertEqual(["HTR,NTR"], output_df["groups"].tolist())
             self.assertEqual(
                 [
                     "groups",
@@ -1313,6 +1380,137 @@ class TestT2PTestSmell(unittest.TestCase):
                 output_df.columns.tolist(),
             )
             self.assertNotIn("mww_p", output_df.columns)
+
+    def test_count_mww_revision_group_pair_defaults_and_custom_order(self):
+        self.assertEqual(
+            [(REVISION_GROUP_3, REVISION_GROUP_1), (REVISION_GROUP_3, REVISION_GROUP_2)],
+            selected_revision_group_pairs(None),
+        )
+        self.assertEqual(
+            [(REVISION_GROUP_3, REVISION_GROUP_1), (REVISION_GROUP_3, REVISION_GROUP_2)],
+            selected_revision_group_pairs("HTR,NTR;HTR,MTR"),
+        )
+        with self.assertRaises(ValueError):
+            selected_revision_group_pairs("HTR")
+
+    def test_count_mww_method_frame_counts_unique_smells_and_excludes_conflicts(self):
+        frame = pd.DataFrame(
+            [
+                self.generated_row("demo", "test://dup", "prod://1", 10, 1, "AR", REVISION_GROUP_3),
+                self.generated_row("demo", "test://dup", "prod://2", 10, 1, "AR VT", REVISION_GROUP_3),
+                self.generated_row("demo", "test://conflict", "prod://3", 10, 1, "ET", REVISION_GROUP_3),
+                self.generated_row("demo", "test://conflict", "prod://4", 1, 5, "ET", REVISION_GROUP_1),
+                self.generated_row("demo", "test://empty", "prod://5", 1, 5, "", REVISION_GROUP_1),
+            ]
+        )
+
+        output = method_count_frame(frame, "ch_diff", [REVISION_GROUP_3, REVISION_GROUP_1])
+
+        self.assertEqual(["test://dup", "test://empty"], output["from_url"].tolist())
+        self.assertEqual([2, 0], output["unique_smell_count"].tolist())
+
+    def test_count_mww_rows_include_all_and_loc_strata(self):
+        frame = pd.DataFrame(
+            [
+                self.generated_row("demo", "test://h1", "prod://1", 10, 1, "AR VT", REVISION_GROUP_3),
+                self.generated_row("demo", "test://h2", "prod://2", 11, 1, "AR VT ET", REVISION_GROUP_3),
+                self.generated_row("demo", "test://n1", "prod://3", 1, 5, "", REVISION_GROUP_1),
+                self.generated_row("demo", "test://n2", "prod://4", 1, 5, "AR", REVISION_GROUP_1),
+                self.generated_row("demo", "test://m1", "prod://5", 4, 1, "AR", REVISION_GROUP_2),
+                self.generated_row("demo", "test://m2", "prod://6", 5, 1, "AR VT", REVISION_GROUP_2),
+            ]
+        )
+        loc_groups = pd.DataFrame(
+            [
+                {"from_url": "test://h1", "loc_group": "S"},
+                {"from_url": "test://n1", "loc_group": "S"},
+                {"from_url": "test://h2", "loc_group": "M"},
+                {"from_url": "test://n2", "loc_group": "M"},
+                {"from_url": "test://m1", "loc_group": "S"},
+                {"from_url": "test://m2", "loc_group": "M"},
+            ]
+        )
+
+        rows = count_mww_rows(
+            frame,
+            strategy="nc",
+            tool="historyFinder",
+            smell_detector="jnose",
+            revision_type="ch_diff",
+            revision_group_pairs=[(REVISION_GROUP_3, REVISION_GROUP_1), (REVISION_GROUP_3, REVISION_GROUP_2)],
+            loc_groups=loc_groups,
+        )
+
+        comparisons = {(row["comparison"], row["loc_group"]) for row in rows}
+        self.assertIn(("HTR,NTR", ALL_LOC_GROUP), comparisons)
+        self.assertIn(("HTR,NTR", "S"), comparisons)
+        self.assertIn(("HTR,NTR", "M"), comparisons)
+        self.assertIn(("HTR,MTR", ALL_LOC_GROUP), comparisons)
+        all_row = next(row for row in rows if row["comparison"] == "HTR,NTR" and row["loc_group"] == ALL_LOC_GROUP)
+        self.assertEqual(4, all_row["size"])
+        self.assertEqual(2, all_row["g1_size"])
+        self.assertEqual(2, all_row["g2_size"])
+        self.assertGreater(all_row["d_value"], 0)
+        self.assertEqual("+", all_row["d_sign"])
+        self.assertIn("mww_p", all_row)
+
+    def test_count_mww_main_writes_expected_schema(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            output_dir = output_directory(experiment_dir, "nc", "historyFinder", "jnose")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    self.generated_row("demo", "test://h1", "prod://1", 10, 1, "AR VT", REVISION_GROUP_3),
+                    self.generated_row("demo", "test://h2", "prod://2", 11, 1, "AR VT ET", REVISION_GROUP_3),
+                    self.generated_row("demo", "test://n1", "prod://3", 1, 5, "", REVISION_GROUP_1),
+                    self.generated_row("demo", "test://n2", "prod://4", 1, 5, "AR", REVISION_GROUP_1),
+                    self.generated_row("demo", "test://m1", "prod://5", 4, 1, "AR", REVISION_GROUP_2),
+                    self.generated_row("demo", "test://m2", "prod://6", 5, 1, "AR VT", REVISION_GROUP_2),
+                ]
+            ).to_csv(output_dir / "demo.csv", index=False)
+            self.write_smells(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://h1", "smell": "AR", "loc": 1},
+                    {"url": "test://h2", "smell": "AR", "loc": 2},
+                    {"url": "test://n1", "smell": "", "loc": 3},
+                    {"url": "test://n2", "smell": "AR", "loc": 4},
+                    {"url": "test://m1", "smell": "AR", "loc": 5},
+                    {"url": "test://m2", "smell": "AR", "loc": 6},
+                ],
+            )
+
+            count_mww_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--projects",
+                    "demo",
+                    "--revision-types",
+                    "ch_diff",
+                    "--smell-detector",
+                    "jnose",
+                    "--min-t2p-links",
+                    "0",
+                    "--replace",
+                ]
+            )
+
+            output_df = pd.read_csv(
+                experiment_dir / "aggregate" / "t2p-test-smell-count-mww.csv",
+                keep_default_na=False,
+            )
+            self.assertEqual(COUNT_MWW_COLUMNS, output_df.columns.tolist())
+            self.assertEqual(["HTR,MTR", "HTR,NTR"], sorted(output_df["comparison"].unique().tolist()))
+            self.assertIn(ALL_LOC_GROUP, output_df["loc_group"].tolist())
 
     def create_experiment(self, workspace_dir: str) -> Path:
         experiment_dir = Path(workspace_dir) / "experiment" / "demo-exp"
@@ -1450,7 +1648,7 @@ class TestT2PTestSmell(unittest.TestCase):
         markers = {column: "" for column in ["N", "S", "M", "L"]}
         markers[marker_column] = "x"
         return {
-            "groups": "RRT,RP",
+            "groups": "HTR,NTR",
             "strategy": "nc",
             "tool": "historyFinder",
             "smell_detector": "jnose",

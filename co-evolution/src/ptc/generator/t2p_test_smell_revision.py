@@ -30,24 +30,19 @@ CHANGE_COLUMNS = [
 DEFAULT_MIN_T2P_REVISION = 10
 OUTPUT_DIRECTORY_NAME = "t2p-test-smell-with-revision"
 
-REVISION_GROUP_1 = "RP"
-REVISION_GROUP_2 = "RT"
-REVISION_GROUP_3 = "RRT"
+REVISION_GROUP_1 = "NTR"
+REVISION_GROUP_2 = "MTR"
+REVISION_GROUP_3 = "HTR"
 REVISION_GROUP_ORDER = [REVISION_GROUP_1, REVISION_GROUP_2, REVISION_GROUP_3]
 REVISION_GROUP_LABELS = {
-    REVISION_GROUP_1: "Revision-Prone Production (RP)",
-    REVISION_GROUP_2: "Revision-Prone Test (RT)",
-    REVISION_GROUP_3: "Recurrent Revision-Prone Test (RRT)",
-}
-REVISION_GROUP_ALIASES = {
-    "REVISION_RP": REVISION_GROUP_1,
-    "REVISION_RT": REVISION_GROUP_2,
-    "REVISION_RRT": REVISION_GROUP_3,
+    REVISION_GROUP_1: "Normal Test Revision (NTR)",
+    REVISION_GROUP_2: "Moderate Test Revision (MTR)",
+    REVISION_GROUP_3: "High Test Revision (HTR)",
 }
 
 
 def normalize_revision_group(group: str) -> str:
-    return REVISION_GROUP_ALIASES.get(group, group)
+    return group
 
 
 def build_parser():
@@ -77,7 +72,7 @@ def assign_revision_group(
     min_t2p_revision: int = DEFAULT_MIN_T2P_REVISION,
 ) -> str:
     revision_delta = test_revision - production_revision
-    if test_revision < production_revision:
+    if test_revision <= production_revision:
         return REVISION_GROUP_1
     if revision_delta >= min_t2p_revision:
         return REVISION_GROUP_3

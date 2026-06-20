@@ -50,7 +50,7 @@ def build_parser():
         dest="revision_groups",
         type=str,
         default=",".join(REVISION_GROUP_ORDER),
-        help="Comma-separated revision groups to plot. Defaults to RP,RT,RRT.",
+        help="Comma-separated revision groups to plot. Defaults to NTR,MTR,HTR.",
     )
     return parser
 
@@ -187,8 +187,8 @@ def format_any_smell_summary(association_df: pd.DataFrame) -> str:
         return ""
     row = summary.iloc[0]
     return (
-        f"Any test smell: RP {float(row['baseline_percent']):.1f}% vs "
-        f"RRT {float(row['focal_percent']):.1f}% "
+        f"Any test smell: NTR {float(row['baseline_percent']):.1f}% vs "
+        f"HTR {float(row['focal_percent']):.1f}% "
         f"({float(row['difference_pp']):+.1f} pp)"
     )
 

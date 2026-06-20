@@ -230,7 +230,9 @@ def plot_change_axis(
     ax.set_xticks(range(0, PAPER_REVISION_CLIP_MAX + 1))
     ax.set_xticklabels(
         [
-            f"{PAPER_REVISION_CLIP_MAX}+"
+            str(PAPER_REVISION_CLIP_MAX)
+            if paper_mode and tick == PAPER_REVISION_CLIP_MAX
+            else f"{PAPER_REVISION_CLIP_MAX}+"
             if tick == PAPER_REVISION_CLIP_MAX
             else str(tick)
             for tick in range(0, PAPER_REVISION_CLIP_MAX + 1)

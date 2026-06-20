@@ -14,7 +14,6 @@ import pandas as pd
 import mhc.util as util
 from mhc.command_util import (
     list_csv_files,
-    load_test_smell_names,
     non_negative_int,
     parse_name_list,
     resolve_experiment_filters,
@@ -33,23 +32,31 @@ from ptc.generator.t2p_test_smell_revision import (
     normalize_revision_group,
     output_directory,
 )
-from ptc.generator.t2p_test_smell_prevalence import unique_method_frame
+from ptc.generator.t2p_test_smell_loc_group import SIZE_GROUPS
+from ptc.generator.t2p_test_smell_prevalence import (
+    load_smell_frames,
+    loc_group_frame,
+    unique_method_frame,
+)
 from ptc.plot.method_history_runtime_table import resolve_path
 from ptc.plot_util import build_experiment_plot_parser
 
 ALL_GROUPS = "All groups"
 GROUP_STYLE_COLORS = {
     ALL_GROUPS: "white",
-    "RP": "tab:orange",
-    "RT": "tab:gray",
-    "RRT": "tab:blue",
+    "NTR": "tab:orange",
+    "MTR": "tab:gray",
+    "HTR": "tab:blue",
 }
 GROUP_STYLE_HATCHES = {
     ALL_GROUPS: "",
-    "RP": "....",
-    "RT": "...",
-    "RRT": "xx",
+    "NTR": "....",
+    "MTR": "...",
+    "HTR": "xx",
 }
+LOC_GROUP_HATCH = "\\\\\\\\"
+LOC_GROUP_LABEL = "LOC group"
+REVISION_GROUP_LABEL = "Revision group"
 
 
 def build_parser():
@@ -65,7 +72,7 @@ def build_parser():
         dest="revision_groups",
         type=str,
         default=",".join(REVISION_GROUP_ORDER),
-        help="Comma-separated revision groups to plot. Defaults to RP,RT,RRT.",
+        help="Comma-separated revision groups to plot. Defaults to NTR,MTR,HTR.",
     )
     parser.add_argument(
         "--min-t2p-links",
@@ -120,130 +127,181 @@ def load_generated_frames(
     return pd.concat(frames, ignore_index=True)
 
 
-def display_smell(acronym: str, smell_names: dict[str, str]) -> str:
-    return smell_names.get(acronym, acronym)
-
-
 def split_smells(value: str) -> list[str]:
     return [smell for smell in str(value).split() if smell]
 
 
-def smell_type_order(frame: pd.DataFrame, smell_names: dict[str, str]) -> list[str]:
-    counts: dict[str, int] = {}
-    for value in frame.get("smells", pd.Series(dtype=str)):
-        for smell in split_smells(value):
-            counts[smell] = counts.get(smell, 0) + 1
-    return sorted(counts, key=lambda smell: (-counts[smell], display_smell(smell, smell_names)))
+def unique_smell_count(value: str) -> int:
+    return len(set(split_smells(value)))
+
+
+def extreme_point_count(values: list[int | float]) -> int:
+    numeric = pd.to_numeric(pd.Series(values), errors="coerce").dropna()
+    if numeric.empty:
+        return 0
+    q1 = numeric.quantile(0.25)
+    q3 = numeric.quantile(0.75)
+    iqr = q3 - q1
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+    return int(((numeric < lower) | (numeric > upper)).sum())
+
+
+def count_annotation(method_count: int, extreme_count: int) -> str:
+    return f"n={method_count:,}\next={extreme_count:,}"
+
+
+def revision_boxplot_values(
+    frame: pd.DataFrame,
+    revision_type: str,
+    revision_groups: list[str],
+) -> list[dict]:
+    group_column = f"rg_{revision_type}"
+    if group_column not in frame.columns or "from_url" not in frame.columns:
+        return []
+
+    frame = frame.copy()
+    frame["unique_smell_count"] = frame["smells"].map(unique_smell_count)
+    rows = []
+    for group in revision_groups:
+        group_df = frame[frame[group_column] == group]
+        rows.append(
+            {
+                "category": group,
+                "family": "revision",
+                "style_key": group,
+                "values": pd.to_numeric(group_df["unique_smell_count"], errors="coerce").dropna().tolist(),
+            }
+        )
+    return rows
+
+
+def unique_smell_count_frame(smell_frames: list[pd.DataFrame]) -> pd.DataFrame:
+    rows = []
+    for smell_df in smell_frames:
+        if not {"url", "smell"}.issubset(smell_df.columns):
+            continue
+        rows.append(smell_df[["url", "smell"]].copy())
+    if not rows:
+        return pd.DataFrame(columns=["from_url", "smells", "unique_smell_count"])
+
+    frame = pd.concat(rows, ignore_index=True)
+    frame["url"] = frame["url"].astype(str)
+    frame = frame[frame["url"].astype(bool)].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=["from_url", "smells", "unique_smell_count"])
+
+    def combined_smells(values: pd.Series) -> str:
+        return " ".join(sorted({str(smell) for smell in values if str(smell)}))
+
+    output = frame.groupby("url", as_index=False, sort=False)["smell"].agg(combined_smells)
+    output = output.rename(columns={"url": "from_url", "smell": "smells"})
+    output["unique_smell_count"] = output["smells"].map(unique_smell_count)
+    return output[["from_url", "smells", "unique_smell_count"]]
+
+
+def loc_boxplot_values(smell_frames: list[pd.DataFrame]) -> list[dict]:
+    loc_groups = loc_group_frame(smell_frames)
+    smell_counts = unique_smell_count_frame(smell_frames)
+    if loc_groups.empty or smell_counts.empty:
+        return []
+
+    plot_df = smell_counts.merge(loc_groups[["from_url", "loc_group"]], on="from_url", how="inner")
+    plot_df = plot_df[plot_df["loc_group"].isin(SIZE_GROUPS)].copy()
+    rows = []
+    for loc_group in SIZE_GROUPS:
+        group_df = plot_df[plot_df["loc_group"] == loc_group]
+        rows.append(
+            {
+                "category": loc_group,
+                "family": "loc",
+                "style_key": "loc",
+                "values": pd.to_numeric(group_df["unique_smell_count"], errors="coerce").dropna().tolist(),
+            }
+        )
+    return rows
 
 
 def boxplot_values(
     frame: pd.DataFrame,
     revision_type: str,
     revision_groups: list[str],
-    smell_names: dict[str, str],
     *,
-    include_all_groups: bool = False,
+    smell_frames: list[pd.DataFrame],
 ) -> list[dict]:
-    group_column = f"rg_{revision_type}"
-    from_column = f"from_{revision_type}"
-    smell_types = smell_type_order(frame, smell_names)
-    rows = []
-    for smell in smell_types:
-        smell_mask = frame["smells"].map(lambda value: smell in split_smells(value))
-        smell_df = frame[smell_mask].copy()
-        if include_all_groups:
-            rows.append(
-                {
-                    "smell": smell,
-                    "smell_name": display_smell(smell, smell_names),
-                    "group": ALL_GROUPS,
-                    "values": pd.to_numeric(smell_df[from_column], errors="coerce").dropna().tolist(),
-                }
-            )
-        for group in revision_groups:
-            group_df = smell_df[smell_df[group_column] == group]
-            rows.append(
-                {
-                    "smell": smell,
-                    "smell_name": display_smell(smell, smell_names),
-                    "group": group,
-                    "values": pd.to_numeric(group_df[from_column], errors="coerce").dropna().tolist(),
-                }
-            )
-    return rows
-
-
-def _group_keys(revision_groups: list[str], *, include_all_groups: bool = False) -> list[str]:
-    return [ALL_GROUPS, *revision_groups] if include_all_groups else list(revision_groups)
+    return [
+        *revision_boxplot_values(frame, revision_type, revision_groups),
+        *loc_boxplot_values(smell_frames),
+    ]
 
 
 def plot_boxplot_axis(
     ax,
     box_rows: list[dict],
     revision_groups: list[str],
-    *,
-    include_all_groups: bool = False,
 ) -> None:
     plotted_rows = [row for row in box_rows if row["values"]]
     if not plotted_rows:
-        ax.text(0.5, 0.5, "No revision values", ha="center", va="center", transform=ax.transAxes)
+        ax.text(0.5, 0.5, "No smell-count values", ha="center", va="center", transform=ax.transAxes)
         ax.axis("off")
         return
 
-    smell_names = list(dict.fromkeys(row["smell_name"] for row in box_rows))
-    group_keys = _group_keys(revision_groups, include_all_groups=include_all_groups)
-    row_lookup = {
-        (row["smell_name"], row["group"]): row["values"]
-        for row in box_rows
-        if row["values"]
+    categories = [*revision_groups, *SIZE_GROUPS]
+    positions_by_category = {
+        category: index + 1 if index < len(revision_groups) else index + 2
+        for index, category in enumerate(categories)
     }
+    row_lookup = {row["category"]: row for row in box_rows if row["values"]}
     positions = []
     values = []
-    box_groups = []
-    box_width = 0.18 if len(group_keys) > 3 else 0.26
-    smell_spacing = 0.78
-    group_offsets = [
-        (index - (len(group_keys) - 1) / 2) * (box_width * 1.15)
-        for index in range(len(group_keys))
-    ]
-    for smell_index, smell_name in enumerate(smell_names, start=1):
-        smell_position = smell_index * smell_spacing
-        for group_index, group in enumerate(group_keys):
-            group_values = row_lookup.get((smell_name, group))
-            if not group_values:
-                continue
-            positions.append(smell_position + group_offsets[group_index])
-            values.append(group_values)
-            box_groups.append(group)
+    style_keys = []
+    for category in categories:
+        row = row_lookup.get(category)
+        if not row:
+            continue
+        positions.append(positions_by_category[category])
+        values.append(row["values"])
+        style_keys.append(row["style_key"])
 
     boxplot = ax.boxplot(
         values,
         positions=positions,
-        widths=box_width,
+        widths=0.36,
         patch_artist=True,
         showfliers=False,
+        boxprops={"linewidth": 1.15},
+        whiskerprops={"linewidth": 1.05, "color": "black"},
+        capprops={"linewidth": 1.05, "color": "black"},
+        medianprops={"linewidth": 1.25, "color": "black"},
     )
-    for patch, group in zip(boxplot["boxes"], box_groups):
+    for patch, style_key in zip(boxplot["boxes"], style_keys):
         patch.set_facecolor("white")
         patch.set_edgecolor("black")
-        patch.set_hatch(GROUP_STYLE_HATCHES.get(group, ""))
+        patch.set_hatch(LOC_GROUP_HATCH if style_key == "loc" else GROUP_STYLE_HATCHES.get(style_key, ""))
     for median in boxplot["medians"]:
         median.set_color("black")
 
-    ax.set_ylabel("# Test Method Revisions")
-    ax.set_xticks([index * smell_spacing for index in range(1, len(smell_names) + 1)])
-    ax.set_xticklabels(smell_names, rotation=40, ha="right", fontsize=8)
-    ax.set_xlim(smell_spacing * 0.35, smell_spacing * (len(smell_names) + 0.65))
-    legend_handles = [
-        Patch(
-            facecolor="white",
-            edgecolor="black",
-            hatch=GROUP_STYLE_HATCHES.get(group, ""),
-            label=REVISION_GROUP_LABELS.get(group, group),
+    annotation_y = 9.35
+    for position, row in zip(positions, [row_lookup[category] for category in categories if category in row_lookup]):
+        values_for_row = row["values"]
+        ax.text(
+            position,
+            annotation_y,
+            count_annotation(len(values_for_row), extreme_point_count(values_for_row)),
+            ha="center",
+            va="top",
+            fontsize=8.5,
+            linespacing=0.9,
         )
-        for group in group_keys
-    ]
-    ax.legend(handles=legend_handles, frameon=False, fontsize=9)
+
+    ax.set_ylabel("# Unique Test Smells")
+    ax.set_xticks([positions_by_category[category] for category in categories])
+    ax.set_xticklabels(categories)
+    ax.set_xlim(0.45, max(positions_by_category.values()) + 0.55)
+    ax.set_ylim(bottom=-0.1, top=10)
+    ax.set_yticks(range(0, 11))
+    separator = (positions_by_category[revision_groups[-1]] + positions_by_category[SIZE_GROUPS[0]]) / 2
+    ax.axvline(separator, color="black", linewidth=0.6, alpha=0.35)
     ax.grid(True, axis="y", alpha=0.25)
 
 
@@ -251,13 +309,13 @@ def plot_revision_type(
     frame: pd.DataFrame,
     revision_type: str,
     revision_groups: list[str],
-    smell_names: dict[str, str],
     output_file: Path,
     *,
+    smell_frames: list[pd.DataFrame],
     include_all_groups: bool = False,
 ) -> None:
     group_column = f"rg_{revision_type}"
-    if group_column not in frame.columns or f"from_{revision_type}" not in frame.columns:
+    if group_column not in frame.columns:
         warnings.warn(f"Skipping revision type {revision_type}: missing generated columns.")
         return
 
@@ -270,15 +328,17 @@ def plot_revision_type(
         plot_df,
         revision_type,
         revision_groups,
-        smell_names,
-        include_all_groups=include_all_groups,
+        smell_frames=smell_frames,
     )
-    fig, ax = plt.subplots(figsize=(max(10, len(smell_type_order(plot_df, smell_names)) * 0.72), 4.8))
+    if not any(row["values"] for row in box_rows):
+        warnings.warn(f"Skipping revision type {revision_type}: no smell-count rows.")
+        return
+
+    fig, ax = plt.subplots(figsize=(6.6, 4.2))
     plot_boxplot_axis(
         ax,
         box_rows,
         revision_groups,
-        include_all_groups=include_all_groups,
     )
     fig.tight_layout()
     os.makedirs(output_file.parent, exist_ok=True)
@@ -311,7 +371,6 @@ def main(argv: list[str] | None = None) -> None:
         preferred_order=CHANGE_COLUMNS,
         include_extra=False,
     )
-    smell_names = load_test_smell_names(smell_detector)
 
     generated_dir = experiment_directory / OUTPUT_DIRECTORY_NAME
     if not generated_dir.exists():
@@ -326,6 +385,12 @@ def main(argv: list[str] | None = None) -> None:
     plotted_any = False
     for strategy in strategies:
         strategy_dir = generated_dir / strategy
+        smell_frames = load_smell_frames(
+            experiment_directory,
+            smell_detector,
+            strategy,
+            selected_projects,
+        )
         tools = select_named_items(util.sorted_directory_names(strategy_dir), selected_tools, item_label="tool")
         for tool in tools:
             detector_dir = strategy_dir / tool / smell_detector
@@ -351,8 +416,8 @@ def main(argv: list[str] | None = None) -> None:
                     frame,
                     revision_type,
                     revision_groups,
-                    smell_names,
                     output_file,
+                    smell_frames=smell_frames,
                     include_all_groups=args.include_all_groups,
                 )
                 if output_file.exists():

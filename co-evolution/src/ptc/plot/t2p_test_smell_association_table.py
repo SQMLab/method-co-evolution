@@ -89,7 +89,7 @@ def render_latex_table(frame: pd.DataFrame, smell_names: dict[str, str]) -> str:
     body = "\n".join(rows)
     return rf"""\begin{{tabular}}{{lrrrrrrr}}
 \toprule
-\textbf{{Test smell}} & \textbf{{RP \%}} & \textbf{{RRT \%}} & \textbf{{$\Delta$ pp}} &
+\textbf{{Test smell}} & \textbf{{NTR \%}} & \textbf{{HTR \%}} & \textbf{{$\Delta$ pp}} &
 \textbf{{OR [95\% CI]}} & \textbf{{$p_{{BH}}$}} & \textbf{{MH OR}} & \textbf{{MH $p_{{BH}}$}} \\
 \midrule
 {body}

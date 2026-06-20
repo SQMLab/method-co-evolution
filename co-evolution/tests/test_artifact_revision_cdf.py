@@ -151,7 +151,7 @@ class TestArtifactRevisionCdf(unittest.TestCase):
             self.assertEqual("# Method Revisions", ax.get_xlabel())
             self.assertEqual("CDF", ax.get_ylabel())
             self.assertEqual(
-                [str(value) for value in range(10)] + ["10+"],
+                [str(value) for value in range(10)] + ["10"],
                 [tick.get_text() for tick in ax.get_xticklabels()],
             )
             legend = ax.get_legend()
