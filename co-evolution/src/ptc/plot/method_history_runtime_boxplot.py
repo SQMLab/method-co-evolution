@@ -23,6 +23,9 @@ DEFAULT_OUTPUT = Path("figure") / "method-history-runtime-boxplot.pdf"
 Y_AXIS_MAX_SECONDS = 12
 BOX_WIDTH = 0.32
 BOX_GAP = 0.72
+AXIS_LABEL_FONT_SIZE = 18
+TICK_LABEL_FONT_SIZE = 16
+BOUNDARY_COUNT_FONT_SIZE = 16
 BOX_COLORS = ["#E8E8E8", "#D8D8D8", "#C8C8C8", "#B8B8B8", "#A8A8A8"]
 BOX_HATCHES = ["///", "\\\\\\", "xx", "..", "++"]
 
@@ -117,12 +120,12 @@ def draw_runtime_boxplot(ax, runtime_series: list[dict]) -> None:
 
     ax.set_ylim(0, Y_AXIS_MAX_SECONDS)
     ax.set_xlim(positions[0] - 0.38, positions[-1] + 0.38)
-    ax.set_ylabel("Runtime (s)", fontsize=10)
+    ax.set_ylabel("Runtime (second)", fontsize=AXIS_LABEL_FONT_SIZE)
     ax.set_yticks(range(Y_AXIS_MAX_SECONDS + 1))
     ax.set_xticks(positions)
-    ax.set_xticklabels(labels)
-    ax.tick_params(axis="x", labelsize=9)
-    ax.tick_params(axis="y", labelsize=9)
+    ax.set_xticklabels(labels, rotation=30, ha="right", rotation_mode="anchor")
+    ax.tick_params(axis="x", labelsize=TICK_LABEL_FONT_SIZE)
+    ax.tick_params(axis="y", labelsize=TICK_LABEL_FONT_SIZE)
     ax.grid(True, axis="y", linestyle="--", linewidth=0.5, color="#C8C8C8")
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
@@ -134,7 +137,7 @@ def draw_runtime_boxplot(ax, runtime_series: list[dict]) -> None:
     for position, clipped_count in zip(positions, clipped_counts):
         if clipped_count == 0:
             continue
-        marker_y = Y_AXIS_MAX_SECONDS - 0.35
+        marker_y = Y_AXIS_MAX_SECONDS - 1.05
         ax.scatter(
             position,
             marker_y,
@@ -146,18 +149,18 @@ def draw_runtime_boxplot(ax, runtime_series: list[dict]) -> None:
             zorder=5,
         )
         ax.annotate(
-            f"n={clipped_count}",
+            f"{clipped_count}",
             xy=(position, marker_y),
-            xytext=(0, -10),
+            xytext=(0, 3),
             textcoords="offset points",
             ha="center",
-            va="top",
-            fontsize=7.5,
+            va="bottom",
+            fontsize=BOUNDARY_COUNT_FONT_SIZE,
         )
 
 
 def plot_runtime_boxplot(runtime_series: list[dict], output_file: Path) -> None:
-    fig, ax = plt.subplots(figsize=(7.2, 3.8))
+    fig, ax = plt.subplots(figsize=(7.2, 4.8))
     draw_runtime_boxplot(ax, runtime_series)
     fig.tight_layout()
     output_file.parent.mkdir(parents=True, exist_ok=True)
