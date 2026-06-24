@@ -40,6 +40,14 @@ from ptc.generator.t2p_test_smell_size_control_association import (
     main as size_control_association_main,
     top_smells_from_association,
 )
+from ptc.generator.t2p_test_smell_top_loc_correlation import (
+    OUTPUT_COLUMNS as TOP_LOC_CORRELATION_COLUMNS,
+    correlation_rows as top_loc_correlation_rows,
+    effect_size_label as correlation_effect_size_label,
+    main as top_loc_correlation_main,
+    top_smell_count_frame,
+    unique_test_method_loc_smells,
+)
 from ptc.generator.t2p_test_smell_loc_group import (
     loc_group,
     loc_group_rows,
@@ -1903,6 +1911,114 @@ class TestT2PTestSmell(unittest.TestCase):
                     / "t2p-test-smell-size-control-effectplot--historyFinder--nc--jnose--ch_diff.pdf"
                 ).exists()
             )
+
+    def test_top_loc_correlation_counts_unique_top_smells_and_computes_correlations(self):
+        methods = unique_test_method_loc_smells(
+            [
+                pd.DataFrame(
+                    [
+                        {"url": "test://a", "loc": 10, "smell": "AR"},
+                        {"url": "test://a", "loc": 10, "smell": "AR"},
+                        {"url": "test://a", "loc": 10, "smell": "VT"},
+                        {"url": "test://b", "loc": 20, "smell": "MNT"},
+                        {"url": "test://c", "loc": 30, "smell": ""},
+                        {"url": "test://d", "loc": 40, "smell": "DA"},
+                        {"url": "test://bad", "loc": 0, "smell": "AR"},
+                    ]
+                )
+            ]
+        )
+        count_frame = top_smell_count_frame(methods, ["AR", "VT", "MNT"])
+        count_by_url = count_frame.set_index("from_url")["top_smell_count"].to_dict()
+
+        self.assertEqual({"test://a", "test://b", "test://c", "test://d"}, set(count_frame["from_url"]))
+        self.assertEqual(2, count_by_url["test://a"])
+        self.assertEqual(1, count_by_url["test://b"])
+        self.assertEqual(0, count_by_url["test://c"])
+        self.assertEqual(0, count_by_url["test://d"])
+        self.assertEqual("negligible", correlation_effect_size_label(0.05))
+        self.assertEqual("small", correlation_effect_size_label(0.1))
+        self.assertEqual("medium", correlation_effect_size_label(0.3))
+        self.assertEqual("large", correlation_effect_size_label(0.5))
+
+        rows = top_loc_correlation_rows(
+            methods,
+            strategy="nc",
+            tool="historyFinder",
+            smell_detector="jnose",
+            revision_type="ch_diff",
+            top_smells=["AR", "VT", "MNT"],
+        )
+        output = pd.DataFrame(rows)
+
+        self.assertEqual(["spearman", "kendall", "pearson"], output["correlation_algorithm"].tolist())
+        self.assertEqual(3, output["top_n"].iloc[0])
+        self.assertEqual("AR VT MNT", output["top_smells"].iloc[0])
+        self.assertEqual(4, output["methods"].iloc[0])
+        self.assertEqual(0, output["top_smell_count_min"].iloc[0])
+        self.assertEqual(2, output["top_smell_count_max"].iloc[0])
+        self.assertTrue(output["correlation"].notna().all())
+        self.assertTrue(output["p_value"].notna().all())
+
+    def test_top_loc_correlation_main_writes_aggregate(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            generated_dir = experiment_dir / "t2p-test-smell-with-revision" / "nc" / "historyFinder" / "jnose"
+            generated_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame([self.generated_row("demo", "test://a", "prod://1", 10, 1, "AR", REVISION_GROUP_3)]).to_csv(
+                generated_dir / "demo.csv",
+                index=False,
+            )
+            self.write_smells(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://a", "smell": "AR", "loc": 10},
+                    {"url": "test://a", "smell": "VT", "loc": 10},
+                    {"url": "test://b", "smell": "MNT", "loc": 20},
+                    {"url": "test://c", "smell": "", "loc": 30},
+                    {"url": "test://d", "smell": "DA", "loc": 40},
+                    {"url": "test://bad", "smell": "AR", "loc": 0},
+                ],
+            )
+            (experiment_dir / "aggregate").mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    self.association_output_row("AR", 16.5, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("VT", 11.9, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("MNT", 8.4, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("CTL", 5.5, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("EH", 5.4, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("DA", 4.8, REVISION_GROUP_3, REVISION_GROUP_1),
+                ]
+            ).to_csv(experiment_dir / "aggregate" / "t2p-test-smell-association.csv", index=False)
+
+            top_loc_correlation_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--projects",
+                    "demo",
+                    "--revision-types",
+                    "ch_diff",
+                    "--smell-detector",
+                    "jnose",
+                    "--replace",
+                ]
+            )
+
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-top-loc-correlation.csv")
+            self.assertEqual(TOP_LOC_CORRELATION_COLUMNS, output_df.columns.tolist())
+            self.assertEqual(["kendall", "pearson", "spearman"], sorted(output_df["correlation_algorithm"].tolist()))
+            self.assertEqual(5, output_df["top_n"].iloc[0])
+            self.assertEqual("AR VT MNT CTL EH", output_df["top_smells"].iloc[0])
+            self.assertEqual(4, output_df["methods"].iloc[0])
 
     def create_experiment(self, workspace_dir: str) -> Path:
         experiment_dir = Path(workspace_dir) / "experiment" / "demo-exp"
