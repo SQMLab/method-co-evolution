@@ -22,7 +22,13 @@ from mhc.command_util import (
     select_revision_columns,
 )
 from ptc.generator.t2p_test_smell_association import OUTPUT_FILE_NAME as ASSOCIATION_OUTPUT_FILE_NAME
-from ptc.generator.t2p_test_smell_prevalence import ALL_SMELLS, OUTPUT_FILE_NAME
+from ptc.generator.t2p_test_smell_prevalence import (
+    ALL_SMELLS,
+    ANY_SMELL,
+    NO_SMELL,
+    OUTPUT_FILE_NAME,
+    PSEUDO_SMELLS,
+)
 from ptc.generator.t2p_test_smell_revision import (
     CHANGE_COLUMNS,
     REVISION_GROUP_LABELS,
@@ -97,8 +103,10 @@ def selected_revision_groups(value: str | list[str] | None) -> list[str]:
 
 
 def display_smell(acronym: str, smell_names: dict[str, str]) -> str:
-    if acronym == ALL_SMELLS:
-        return "All"
+    if acronym in {ALL_SMELLS, ANY_SMELL}:
+        return "Any smell"
+    if acronym == NO_SMELL:
+        return "No smell"
     return smell_names.get(acronym, acronym)
 
 
@@ -108,8 +116,9 @@ def smell_order(frame: pd.DataFrame) -> list[str]:
         if not frame.empty
         else pd.Series(dtype=int)
     )
-    smells = [smell for smell in counts.index.tolist() if smell != ALL_SMELLS]
-    return [ALL_SMELLS, *smells] if ALL_SMELLS in counts.index else smells
+    pseudo_order = [smell for smell in [ANY_SMELL, ALL_SMELLS, NO_SMELL] if smell in counts.index]
+    smells = [smell for smell in counts.index.tolist() if smell not in {ANY_SMELL, ALL_SMELLS, NO_SMELL}]
+    return [*pseudo_order, *smells]
 
 
 def plot_prevalence_axis(
@@ -236,7 +245,7 @@ def comparison_pairs(frame: pd.DataFrame) -> list[tuple[str, str]]:
 
 
 def effect_order(frame: pd.DataFrame, primary_pair: tuple[str, str] = PRIMARY_EFFECT_PAIR) -> list[str]:
-    individual = frame[frame["smell"] != ALL_SMELLS].copy()
+    individual = frame[~frame["smell"].isin(PSEUDO_SMELLS)].copy()
     if individual.empty:
         return []
 
@@ -251,7 +260,9 @@ def effect_order(frame: pd.DataFrame, primary_pair: tuple[str, str] = PRIMARY_EF
 
 
 def format_any_smell_summary(association_df: pd.DataFrame) -> str:
-    summary = association_df[association_df["smell"] == ALL_SMELLS]
+    summary = association_df[association_df["smell"] == ANY_SMELL]
+    if summary.empty:
+        summary = association_df[association_df["smell"] == ALL_SMELLS]
     if summary.empty:
         return ""
     lines = []
@@ -285,7 +296,7 @@ def draw_horizontal_ci(
 
 
 def plot_effect_axis(ax, association_df: pd.DataFrame, smell_names: dict[str, str]) -> None:
-    individual = association_df[association_df["smell"] != ALL_SMELLS].copy()
+    individual = association_df[~association_df["smell"].isin(PSEUDO_SMELLS)].copy()
     if individual.empty:
         ax.text(0.5, 0.5, "No association data", ha="center", va="center", transform=ax.transAxes)
         ax.axis("off")

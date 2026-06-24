@@ -19,16 +19,15 @@ from mhc.command_util import (
     select_named_items,
 )
 from ptc.generator.t2p_test_smell_prevalence import (
-    ALL_LOC_GROUP,
     ALL_SMELLS,
+    ANY_SMELL,
+    NO_SMELL,
+    PSEUDO_SMELLS,
     load_generated_frames,
-    load_smell_frames,
-    loc_group_frame,
     smell_type_order,
     split_smells,
     unique_method_frame,
 )
-from ptc.generator.t2p_test_smell_loc_group import SIZE_GROUPS
 from ptc.generator.t2p_test_smell_revision import (
     OUTPUT_DIRECTORY_NAME,
     REVISION_GROUP_1,
@@ -45,7 +44,6 @@ OUTPUT_COLUMNS = [
     "tool",
     "smell_detector",
     "change",
-    "loc_group",
     "baseline_group",
     "focal_group",
     "smell",
@@ -194,7 +192,7 @@ def mantel_haenszel_statistics(
         baseline = project_df[project_df[group_column] == baseline_group]
         if focal.empty or baseline.empty:
             continue
-        has_smell = lambda value: bool(split_smells(value)) if smell == ALL_SMELLS else smell in split_smells(value)
+        has_smell = smell_predicate(smell)
         focal_has = int(focal["smells"].map(has_smell).sum())
         baseline_has = int(baseline["smells"].map(has_smell).sum())
         a = focal_has
@@ -214,6 +212,15 @@ def mantel_haenszel_statistics(
     return mh_odds_ratio, mh_p
 
 
+def smell_predicate(smell: str):
+    normalized = ANY_SMELL if smell == ALL_SMELLS else smell
+    if normalized == ANY_SMELL:
+        return lambda value: bool(split_smells(value))
+    if normalized == NO_SMELL:
+        return lambda value: not bool(split_smells(value))
+    return lambda value: normalized in split_smells(value)
+
+
 def association_rows(
     frame: pd.DataFrame,
     *,
@@ -223,42 +230,21 @@ def association_rows(
     change: str = DEFAULT_CHANGE,
     baseline_group: str = REVISION_GROUP_1,
     focal_group: str = REVISION_GROUP_3,
-    loc_groups: pd.DataFrame | None = None,
 ) -> list[dict]:
     group_column = f"rg_{change}"
     unique = unique_method_frame(frame, change, [baseline_group, focal_group])
     if unique.empty or group_column not in unique.columns:
         return []
-    if loc_groups is not None and not loc_groups.empty:
-        unique = unique.merge(loc_groups[["from_url", "loc_group"]], on="from_url", how="left")
-    elif "loc_group" not in unique.columns:
-        unique["loc_group"] = ""
 
-    rows = _association_rows_for_frame(
+    return _association_rows_for_frame(
         unique,
         strategy=strategy,
         tool=tool,
         smell_detector=smell_detector,
         change=change,
-        loc_group=ALL_LOC_GROUP,
         baseline_group=baseline_group,
         focal_group=focal_group,
     )
-    for loc_group_value in SIZE_GROUPS:
-        loc_df = unique[unique["loc_group"] == loc_group_value].copy()
-        rows.extend(
-            _association_rows_for_frame(
-                loc_df,
-                strategy=strategy,
-                tool=tool,
-                smell_detector=smell_detector,
-                change=change,
-                loc_group=loc_group_value,
-                baseline_group=baseline_group,
-                focal_group=focal_group,
-            )
-        )
-    return rows
 
 
 def _association_rows_for_frame(
@@ -268,7 +254,6 @@ def _association_rows_for_frame(
     tool: str,
     smell_detector: str,
     change: str,
-    loc_group: str,
     baseline_group: str,
     focal_group: str,
 ) -> list[dict]:
@@ -281,8 +266,8 @@ def _association_rows_for_frame(
         return []
 
     rows = []
-    for smell in [ALL_SMELLS, *smell_type_order(unique)]:
-        has_smell = lambda value: bool(split_smells(value)) if smell == ALL_SMELLS else smell in split_smells(value)
+    for smell in [ANY_SMELL, NO_SMELL, *smell_type_order(unique)]:
+        has_smell = smell_predicate(smell)
         baseline_smell_n = int(baseline["smells"].map(has_smell).sum())
         focal_smell_n = int(focal["smells"].map(has_smell).sum())
         baseline_percent = baseline_smell_n / len(baseline) * 100
@@ -307,7 +292,6 @@ def _association_rows_for_frame(
                 "tool": tool,
                 "smell_detector": smell_detector,
                 "change": change,
-                "loc_group": loc_group,
                 "baseline_group": output_revision_group(baseline_group),
                 "focal_group": output_revision_group(focal_group),
                 "smell": smell,
@@ -329,7 +313,7 @@ def _association_rows_for_frame(
             }
         )
 
-    individual_indices = [index for index, row in enumerate(rows) if row["smell"] != ALL_SMELLS]
+    individual_indices = [index for index, row in enumerate(rows) if row["smell"] not in PSEUDO_SMELLS]
     fisher_adjusted = benjamini_hochberg([rows[index]["fisher_p"] for index in individual_indices])
     mh_adjusted = benjamini_hochberg([rows[index]["mh_p"] for index in individual_indices])
     for row in rows:
@@ -382,9 +366,6 @@ def main(argv: list[str] | None = None) -> None:
             item_label="tool",
         )
         for tool in tools:
-            loc_groups = loc_group_frame(
-                load_smell_frames(experiment_directory, smell_detector, strategy, selected_projects)
-            )
             frame = load_generated_frames(
                 experiment_directory,
                 tool,
@@ -404,7 +385,6 @@ def main(argv: list[str] | None = None) -> None:
                             change=args.change,
                             baseline_group=baseline_group,
                             focal_group=focal_group,
-                            loc_groups=loc_groups,
                         )
                     )
 
@@ -413,8 +393,8 @@ def main(argv: list[str] | None = None) -> None:
     output_df = pd.DataFrame(rows, columns=OUTPUT_COLUMNS)
     if not output_df.empty:
         output_df = output_df.sort_values(
-            ["strategy", "tool", "smell_detector", "change", "loc_group", "difference_pp"],
-            ascending=[True, True, True, True, True, False],
+            ["strategy", "tool", "smell_detector", "change", "difference_pp"],
+            ascending=[True, True, True, True, False],
         )
     output_df.to_csv(output_file, index=False)
     print(f"Wrote {output_file}")

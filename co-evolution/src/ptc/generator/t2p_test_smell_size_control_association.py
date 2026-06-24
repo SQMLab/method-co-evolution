@@ -31,8 +31,7 @@ from ptc.generator.t2p_test_smell_association import (
 )
 from ptc.generator.t2p_test_smell_loc_group import valid_loc
 from ptc.generator.t2p_test_smell_prevalence import (
-    ALL_LOC_GROUP,
-    ALL_SMELLS,
+    PSEUDO_SMELLS,
     load_generated_frames,
     load_smell_frames,
     split_smells,
@@ -158,7 +157,6 @@ def association_top_smells(
         "tool",
         "smell_detector",
         "change",
-        "loc_group",
         "baseline_group",
         "focal_group",
         "smell",
@@ -171,11 +169,12 @@ def association_top_smells(
         & (association_frame["tool"] == tool)
         & (association_frame["smell_detector"] == smell_detector)
         & (association_frame["change"] == revision_type)
-        & (association_frame["loc_group"] == ALL_LOC_GROUP)
         & (association_frame["focal_group"] == normalize_revision_group(focal_group))
         & (association_frame["baseline_group"] == normalize_revision_group(baseline_group))
-        & (~association_frame["smell"].isin([ALL_SMELLS, COMBINED_TOP_SMELLS]))
+        & (~association_frame["smell"].isin([*PSEUDO_SMELLS, COMBINED_TOP_SMELLS]))
     ].copy()
+    if "loc_group" in subset.columns:
+        subset = subset[subset["loc_group"] == "ALL"].copy()
     if subset.empty:
         return []
     subset["difference_pp"] = pd.to_numeric(subset["difference_pp"], errors="coerce")

@@ -18,7 +18,7 @@ from mhc.command_util import (
 )
 from ptc.generator.artifact_revision_mww import SIZE_MARKER_COLUMNS
 from ptc.generator.run_stats import GenerationStats, record_written_csv, should_generate
-from ptc.generator.t2p_test_smell_prevalence import ALL_SMELLS, OUTPUT_FILE_NAME
+from ptc.generator.t2p_test_smell_prevalence import OUTPUT_FILE_NAME, PSEUDO_SMELLS
 from ptc.generator.t2p_test_smell_revision import (
     CHANGE_COLUMNS,
     REVISION_GROUP_1,
@@ -87,6 +87,7 @@ def selected_two_revision_groups(value: str | list[str] | None) -> list[str]:
 
 
 def paired_smell_values(pair_df: pd.DataFrame, group1: str, group2: str) -> pd.DataFrame:
+    pair_df = pair_df[~pair_df["smell"].isin(PSEUDO_SMELLS)].copy()
     group_column = "rg_group" if "rg_group" in pair_df.columns else ("group" if "group" in pair_df.columns else "revision_group")
     g1_df = pair_df[pair_df[group_column] == group1][["smell", "percent", "smell_n"]].copy()
     g2_df = pair_df[pair_df[group_column] == group2][["smell", "percent", "smell_n"]].copy()
@@ -126,13 +127,15 @@ def build_stat_row(
     change: str,
     loc_group: str = "ALL",
 ) -> dict | None:
+    if "loc_group" not in prevalence_df.columns:
+        prevalence_df = prevalence_df.copy()
+        prevalence_df["loc_group"] = "ALL"
     pair_df = prevalence_df[
         (prevalence_df["strategy"] == strategy)
         & (prevalence_df["tool"] == tool)
         & (prevalence_df["smell_detector"] == smell_detector)
         & (prevalence_df["change"] == change)
         & (prevalence_df["loc_group"] == loc_group)
-        & (prevalence_df["smell"] != ALL_SMELLS)
     ].copy()
     paired_df = paired_smell_values(pair_df, group1, group2)
     if paired_df.empty:
