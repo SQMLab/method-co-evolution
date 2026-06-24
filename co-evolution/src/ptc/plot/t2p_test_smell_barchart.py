@@ -261,10 +261,20 @@ def format_any_smell_summary(association_df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
-def draw_horizontal_ci(ax, y: float, low: float, high: float, *, color: str, linestyle: str) -> None:
-    ax.hlines(y, low, high, colors=color, linestyles=linestyle, linewidth=1.4, zorder=1)
-    cap_half_height = 0.045
-    ax.vlines([low, high], y - cap_half_height, y + cap_half_height, colors=color, linewidth=1.1, zorder=1)
+def draw_horizontal_ci(
+    ax,
+    y: float,
+    low: float,
+    high: float,
+    *,
+    color: str,
+    linestyle: str,
+    linewidth: float = 1.4,
+    cap_linewidth: float = 1.1,
+    cap_half_height: float = 0.045,
+) -> None:
+    ax.hlines(y, low, high, colors=color, linestyles=linestyle, linewidth=linewidth, zorder=1)
+    ax.vlines([low, high], y - cap_half_height, y + cap_half_height, colors=color, linewidth=cap_linewidth, zorder=1)
 
 
 def plot_effect_axis(ax, association_df: pd.DataFrame, smell_names: dict[str, str]) -> None:
