@@ -12,7 +12,7 @@ from mhc.command_util import (
     resolve_smell_detector,
 )
 from ptc.generator.t2p_test_smell_association import DEFAULT_CHANGE, OUTPUT_FILE_NAME
-from ptc.generator.t2p_test_smell_prevalence import ALL_SMELLS
+from ptc.generator.t2p_test_smell_prevalence import PSEUDO_SMELLS
 from ptc.generator.t2p_test_smell_revision import REVISION_GROUP_1, REVISION_GROUP_3, normalize_revision_group
 from ptc.plot.method_history_runtime_table import resolve_path
 from ptc.plot_util import build_experiment_plot_parser
@@ -84,7 +84,7 @@ def format_p(value: object) -> str:
 
 def render_latex_table(frame: pd.DataFrame, smell_names: dict[str, str]) -> str:
     frame = numeric_table_frame(frame)
-    individual = frame[frame["smell"] != ALL_SMELLS].sort_values("difference_pp", ascending=False)
+    individual = frame[~frame["smell"].isin(PSEUDO_SMELLS)].sort_values("difference_pp", ascending=False)
     rows = []
     for _, row in individual.iterrows():
         smell = escape_latex(smell_names.get(row["smell"], row["smell"]))

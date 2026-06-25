@@ -40,6 +40,19 @@ from ptc.generator.t2p_test_smell_size_control_association import (
     main as size_control_association_main,
     top_smells_from_association,
 )
+from ptc.generator.t2p_test_smell_top_loc_correlation import (
+    OUTPUT_COLUMNS as TOP_LOC_CORRELATION_COLUMNS,
+    correlation_rows as top_loc_correlation_rows,
+    effect_size_label as correlation_effect_size_label,
+    main as top_loc_correlation_main,
+    method_frame_from_t2p_test_smell,
+    top_smell_count_frame,
+)
+from ptc.generator.t2p_test_smell import (
+    OUTPUT_COLUMNS as T2P_TEST_SMELL_COLUMNS,
+    build_project_frame as build_t2p_test_smell_frame,
+    main as t2p_test_smell_main,
+)
 from ptc.generator.t2p_test_smell_loc_group import (
     loc_group,
     loc_group_rows,
@@ -49,8 +62,11 @@ from ptc.generator.t2p_test_smell_loc_group import (
 from ptc.generator.t2p_test_smell_prevalence import (
     ALL_LOC_GROUP,
     ALL_SMELLS,
+    ANY_SMELL,
+    NO_SMELL,
     loc_group_frame,
     main as prevalence_main,
+    PREVALENCE_COLUMNS,
     prevalence_rows,
     unique_method_frame,
 )
@@ -125,6 +141,114 @@ from ptc.plot.t2p_test_smell_size_control_effectplot import (
 
 @unittest.skipIf(pd is None, "pandas is required for test smell tests")
 class TestT2PTestSmell(unittest.TestCase):
+    def test_t2p_test_smell_frame_keeps_linked_methods_without_smells(self):
+        project_df = pd.DataFrame(
+            [
+                {"from_url": "test://a", "to_url": "prod://1", "extra": "ignored"},
+                {"from_url": "test://b", "to_url": "prod://2", "extra": "ignored"},
+            ]
+        )
+        smell_df = pd.DataFrame(
+            [
+                {"url": "test://a", "smell": "AR"},
+                {"url": "test://a", "smell": "VT"},
+                {"url": "test://a", "smell": "AR"},
+            ]
+        )
+
+        output = build_t2p_test_smell_frame(project_df, smell_df, project="demo")
+
+        self.assertEqual(T2P_TEST_SMELL_COLUMNS, output.columns.tolist())
+        self.assertEqual(2, len(output))
+        self.assertEqual("AR VT", output.loc[output["from_url"] == "test://a", "smells"].iloc[0])
+        self.assertEqual("", output.loc[output["from_url"] == "test://b", "smells"].iloc[0])
+
+    def test_t2p_test_smell_main_writes_linked_smell_rows(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            link_dir = experiment_dir / "t2p-link" / "nc" / "historyFinder"
+            link_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    {"project": "demo", "from_url": "test://a", "to_url": "prod://1"},
+                    {"project": "demo", "from_url": "test://b", "to_url": "prod://2"},
+                ]
+            ).to_csv(link_dir / "demo.csv", index=False)
+            self.write_smells(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://a", "smell": "AR", "loc": 10},
+                    {"url": "test://a", "smell": "VT", "loc": 10},
+                ],
+            )
+
+            t2p_test_smell_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--projects",
+                    "demo",
+                    "--smell-detector",
+                    "jnose",
+                    "--replace",
+                ]
+            )
+
+            output = pd.read_csv(
+                experiment_dir / "t2p-test-smell" / "nc" / "historyFinder" / "jnose" / "demo.csv",
+                keep_default_na=False,
+            )
+            self.assertEqual(T2P_TEST_SMELL_COLUMNS, output.columns.tolist())
+            self.assertEqual(2, len(output))
+            self.assertEqual("", output.loc[output["from_url"] == "test://b", "smells"].iloc[0])
+
+    def test_t2p_test_smell_main_supports_direct_strategy_link_directory(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            link_dir = experiment_dir / "t2p-link" / "nc"
+            link_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    {"project": "demo", "from_url": "test://a", "to_url": "prod://1"},
+                    {"project": "demo", "from_url": "test://b", "to_url": "prod://2"},
+                ]
+            ).to_csv(link_dir / "demo.csv", index=False)
+            self.write_smells(
+                experiment_dir,
+                "demo",
+                [{"url": "test://a", "smell": "AR", "loc": 10}],
+            )
+
+            t2p_test_smell_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--strategies",
+                    "nc",
+                    "--projects",
+                    "demo",
+                    "--smell-detector",
+                    "jnose",
+                    "--replace",
+                ]
+            )
+
+            output = pd.read_csv(
+                experiment_dir / "t2p-test-smell" / "nc" / "jnose" / "demo.csv",
+                keep_default_na=False,
+            )
+            self.assertEqual(T2P_TEST_SMELL_COLUMNS, output.columns.tolist())
+            self.assertEqual(["AR", ""], output["smells"].tolist())
+
     def test_smell_config_loads_acronym_and_full_name(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             config_file = Path(tmpdir) / "test-smell.yml"
@@ -364,7 +488,7 @@ class TestT2PTestSmell(unittest.TestCase):
         with self.assertRaises(ValueError):
             selected_revision_groups("RP,RRT")
 
-    def test_prevalence_rows_use_group_denominator_and_include_all(self):
+    def test_prevalence_rows_use_group_denominator_and_include_any_none(self):
         frame = pd.DataFrame(
             [
                 {"from_url": "test://A", "smells": "AR ET", "rg_ch_diff": REVISION_GROUP_2},
@@ -383,16 +507,23 @@ class TestT2PTestSmell(unittest.TestCase):
             revision_groups=[REVISION_GROUP_2, REVISION_GROUP_3],
         )
         prevalence = pd.DataFrame(rows)
-        rt_all = prevalence[
+        rt_any = prevalence[
             (prevalence["rg_group"] == REVISION_GROUP_2)
-            & (prevalence["loc_group"] == ALL_LOC_GROUP)
-            & (prevalence["smell"] == ALL_SMELLS)
+            & (prevalence["smell"] == ANY_SMELL)
+        ].iloc[0]
+        rt_none = prevalence[
+            (prevalence["rg_group"] == REVISION_GROUP_2)
+            & (prevalence["smell"] == NO_SMELL)
         ].iloc[0]
 
-        self.assertEqual(1, rt_all["smell_total"])
-        self.assertEqual(1, rt_all["methods"])
-        self.assertEqual(0, rt_all["smell_n"])
-        self.assertEqual(0, rt_all["percent"])
+        self.assertNotIn("loc_group", prevalence.columns)
+        self.assertEqual(1, rt_any["smell_total"])
+        self.assertEqual(1, rt_any["methods"])
+        self.assertEqual(0, rt_any["smell_n"])
+        self.assertEqual(0, rt_any["percent"])
+        self.assertEqual(1, rt_none["smell_n"])
+        self.assertEqual(100, rt_none["percent"])
+        self.assertEqual(rt_any["methods"], rt_any["smell_n"] + rt_none["smell_n"])
         self.assertNotIn("AR", prevalence["smell"].tolist())
         self.assertEqual(
             [0] * len(prevalence[prevalence["rg_group"] == REVISION_GROUP_3]),
@@ -477,29 +608,22 @@ class TestT2PTestSmell(unittest.TestCase):
                 keep_default_na=False,
                 na_filter=False,
             )
-            self.assertIn(ALL_SMELLS, output_df["smell"].tolist())
+            self.assertIn(ANY_SMELL, output_df["smell"].tolist())
+            self.assertIn(NO_SMELL, output_df["smell"].tolist())
             self.assertNotIn("ET", output_df["smell"].tolist())
             self.assertTrue(output_df["percent"].map(lambda value: value == round(value, 2)).all())
-            self.assertEqual(
-                [
-                    "strategy",
-                    "tool",
-                    "smell_detector",
-                    "change",
-                    "rg_group",
-                    "loc_group",
-                    "methods",
-                    "smell",
-                    "percent",
-                    "smell_total",
-                    "smell_n",
-                ],
-                output_df.columns.tolist(),
-            )
+            self.assertEqual(PREVALENCE_COLUMNS, output_df.columns.tolist())
             self.assertIn(REVISION_GROUP_3, output_df["rg_group"].tolist())
             self.assertNotIn("loc", output_df["change"].tolist())
-            self.assertIn(ALL_LOC_GROUP, output_df["loc_group"].tolist())
-            self.assertIn("S", output_df["loc_group"].tolist())
+            self.assertNotIn("loc_group", output_df.columns)
+            by_group = output_df[output_df["smell"].isin([ANY_SMELL, NO_SMELL])].pivot(
+                index="rg_group",
+                columns="smell",
+                values="smell_n",
+            )
+            methods_by_group = output_df.drop_duplicates("rg_group").set_index("rg_group")["methods"]
+            for group, methods in methods_by_group.items():
+                self.assertEqual(methods, by_group.loc[group, ANY_SMELL] + by_group.loc[group, NO_SMELL])
 
     def test_loc_group_frame_assigns_groups_and_deduplicates_methods(self):
         smell_df = pd.DataFrame(
@@ -645,7 +769,8 @@ class TestT2PTestSmell(unittest.TestCase):
         finally:
             plt.close(fig)
 
-        self.assertEqual("All", display_smell(ALL_SMELLS, {"AR": "Assertion Roulette"}))
+        self.assertEqual("Any smell", display_smell(ALL_SMELLS, {"AR": "Assertion Roulette"}))
+        self.assertEqual("No smell", display_smell(NO_SMELL, {"AR": "Assertion Roulette"}))
         self.assertIn("Assertion Roulette", x_labels)
         self.assertIn("50.0%", labels)
         self.assertNotIn("0.0%", labels)
@@ -754,9 +879,17 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertGreater(association.loc["AR", "mh_odds_ratio"], 1)
         self.assertLess(association.loc["AR", "difference_ci_low"], association.loc["AR", "difference_ci_high"])
         self.assertIn("fisher_p_adjusted", association.columns)
-        self.assertEqual(ALL_LOC_GROUP, association.loc["AR", "loc_group"])
+        self.assertNotIn("loc_group", association.columns)
         self.assertEqual("NTR", association.loc["AR", "baseline_group"])
         self.assertEqual("HTR", association.loc["AR", "focal_group"])
+        self.assertIn(ANY_SMELL, association.index)
+        self.assertIn(NO_SMELL, association.index)
+        self.assertEqual(
+            association.loc["AR", "focal_n"],
+            association.loc[ANY_SMELL, "focal_smell_n"] + association.loc[NO_SMELL, "focal_smell_n"],
+        )
+        self.assertTrue(pd.isna(association.loc[ANY_SMELL, "fisher_p_adjusted"]))
+        self.assertTrue(pd.isna(association.loc[NO_SMELL, "fisher_p_adjusted"]))
 
     def test_association_revision_group_pair_defaults_and_custom_order(self):
         self.assertEqual(
@@ -811,6 +944,15 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertEqual(1, ar["baseline_n"])
             self.assertEqual("NTR", ar["baseline_group"])
             self.assertEqual("HTR", ar["focal_group"])
+            self.assertNotIn("loc_group", output_df.columns)
+            self.assertIn(ANY_SMELL, output_df["smell"].tolist())
+            self.assertIn(NO_SMELL, output_df["smell"].tolist())
+            summary = output_df[
+                (output_df["focal_group"] == "HTR")
+                & (output_df["smell"].isin([ANY_SMELL, NO_SMELL]))
+            ].set_index("smell")
+            self.assertEqual(ar["focal_n"], summary.loc[ANY_SMELL, "focal_smell_n"] + summary.loc[NO_SMELL, "focal_smell_n"])
+            self.assertEqual(ar["baseline_n"], summary.loc[ANY_SMELL, "baseline_smell_n"] + summary.loc[NO_SMELL, "baseline_smell_n"])
 
     def test_benjamini_hochberg_preserves_order_and_monotonicity(self):
         adjusted = benjamini_hochberg([0.04, 0.001, 0.03])
@@ -875,7 +1017,7 @@ class TestT2PTestSmell(unittest.TestCase):
     def test_effect_plot_formats_any_smell_summary(self):
         frame = pd.DataFrame(
             [
-                self.association_row(ALL_SMELLS, 379, 1000, 675, 1000, ""),
+                self.association_row(ANY_SMELL, 379, 1000, 675, 1000, ""),
                 self.association_row("AR", 10, 20, 30, 50, "x"),
             ]
         )
@@ -888,8 +1030,8 @@ class TestT2PTestSmell(unittest.TestCase):
     def test_effect_plot_formats_multiple_any_smell_summaries(self):
         frame = pd.DataFrame(
             [
-                self.association_row(ALL_SMELLS, 379, 1000, 675, 1000, ""),
-                self.association_row(ALL_SMELLS, 379, 1000, 500, 1000, "", focal_group=REVISION_GROUP_2),
+                self.association_row(ANY_SMELL, 379, 1000, 675, 1000, ""),
+                self.association_row(ANY_SMELL, 379, 1000, 500, 1000, "", focal_group=REVISION_GROUP_2),
             ]
         )
 
@@ -923,7 +1065,8 @@ class TestT2PTestSmell(unittest.TestCase):
     def test_association_table_renders_and_main_writes_latex(self):
         frame = pd.DataFrame(
             [
-                self.association_row(ALL_SMELLS, 50, 100, 75, 100, ""),
+                self.association_row(ANY_SMELL, 50, 100, 75, 100, ""),
+                self.association_row(NO_SMELL, 50, 100, 25, 100, ""),
                 self.association_row("AR", 10, 100, 30, 100, "x"),
             ]
         )
@@ -937,6 +1080,7 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertNotIn(r"\footnotesize", latex)
         self.assertNotIn(r"\textbf{Assertion Roulette}", latex)
         self.assertIn("Assertion Roulette", latex)
+        self.assertNotIn("No smell", latex)
         self.assertIn("0.020", latex)
         self.assertTrue(latex.rstrip().endswith(r"\end{tabular}"))
 
@@ -1699,6 +1843,8 @@ class TestT2PTestSmell(unittest.TestCase):
                 self.association_output_row("EH", 5.4, REVISION_GROUP_3, REVISION_GROUP_1),
                 self.association_output_row("DA", 4.8, REVISION_GROUP_3, REVISION_GROUP_1),
                 self.association_output_row(ALL_SMELLS, 20.0, REVISION_GROUP_3, REVISION_GROUP_1),
+                self.association_output_row(ANY_SMELL, 21.0, REVISION_GROUP_3, REVISION_GROUP_1),
+                self.association_output_row(NO_SMELL, -21.0, REVISION_GROUP_3, REVISION_GROUP_1),
                 self.association_output_row("ET", 1.6, REVISION_GROUP_2, REVISION_GROUP_1),
             ]
         )
@@ -1903,6 +2049,144 @@ class TestT2PTestSmell(unittest.TestCase):
                     / "t2p-test-smell-size-control-effectplot--historyFinder--nc--jnose--ch_diff.pdf"
                 ).exists()
             )
+
+    def test_top_loc_correlation_counts_unique_top_smells_and_computes_correlations(self):
+        methods = method_frame_from_t2p_test_smell(
+            [
+                pd.DataFrame(
+                    [
+                        {"from_url": "test://a", "smells": "AR VT AR"},
+                        {"from_url": "test://b", "smells": "MNT"},
+                        {"from_url": "test://c", "smells": ""},
+                        {"from_url": "test://d", "smells": "DA"},
+                        {"from_url": "test://e", "smells": ""},
+                    ]
+                )
+            ],
+            [
+                pd.DataFrame(
+                    [
+                        {"from_url": "test://a", "from_start": 1, "from_end": 10},
+                        {"from_url": "test://b", "from_start": 1, "from_end": 20},
+                        {"from_url": "test://c", "from_start": 1, "from_end": 30},
+                        {"from_url": "test://d", "from_start": 1, "from_end": 40},
+                        {"from_url": "test://e", "from_start": 1, "from_end": 50},
+                        {"from_url": "test://bad", "from_start": 10, "from_end": 0},
+                    ]
+                )
+            ]
+        )
+        count_frame = top_smell_count_frame(methods, ["AR", "VT", "MNT"])
+        count_by_url = count_frame.set_index("from_url")["top_smell_count"].to_dict()
+
+        self.assertEqual({"test://a", "test://b", "test://c", "test://d", "test://e"}, set(count_frame["from_url"]))
+        self.assertEqual(2, count_by_url["test://a"])
+        self.assertEqual(1, count_by_url["test://b"])
+        self.assertEqual(0, count_by_url["test://c"])
+        self.assertEqual(0, count_by_url["test://d"])
+        self.assertEqual(0, count_by_url["test://e"])
+        self.assertEqual("negligible", correlation_effect_size_label(0.05))
+        self.assertEqual("small", correlation_effect_size_label(0.1))
+        self.assertEqual("medium", correlation_effect_size_label(0.3))
+        self.assertEqual("large", correlation_effect_size_label(0.5))
+
+        rows = top_loc_correlation_rows(
+            methods,
+            strategy="nc",
+            tool="historyFinder",
+            smell_detector="jnose",
+            revision_type="ch_diff",
+            top_smells=["AR", "VT", "MNT"],
+        )
+        output = pd.DataFrame(rows)
+
+        self.assertEqual(["spearman", "kendall", "pearson"], output["correlation_algorithm"].tolist())
+        self.assertEqual(3, output["top_n"].iloc[0])
+        self.assertEqual("AR VT MNT", output["top_smells"].iloc[0])
+        self.assertEqual(5, output["methods"].iloc[0])
+        self.assertEqual(0, output["top_smell_count_min"].iloc[0])
+        self.assertEqual(2, output["top_smell_count_max"].iloc[0])
+        self.assertTrue(output["correlation"].notna().all())
+        self.assertTrue(output["p_value"].notna().all())
+
+    def test_top_loc_correlation_main_writes_aggregate(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            generated_dir = experiment_dir / "t2p-test-smell-with-revision" / "nc" / "historyFinder" / "jnose"
+            generated_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame([self.generated_row("demo", "test://a", "prod://1", 10, 1, "AR", REVISION_GROUP_3)]).to_csv(
+                generated_dir / "demo.csv",
+                index=False,
+            )
+            t2p_test_smell_dir = experiment_dir / "t2p-test-smell" / "nc" / "historyFinder" / "jnose"
+            t2p_test_smell_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    {"project": "demo", "from_url": "test://a", "to_url": "prod://1", "smells": "AR VT"},
+                    {"project": "demo", "from_url": "test://b", "to_url": "prod://2", "smells": "MNT"},
+                    {"project": "demo", "from_url": "test://c", "to_url": "prod://3", "smells": ""},
+                    {"project": "demo", "from_url": "test://d", "to_url": "prod://4", "smells": "DA"},
+                ]
+            ).to_csv(t2p_test_smell_dir / "demo.csv", index=False)
+            t2p_link_dir = experiment_dir / "t2p-link" / "nc" / "historyFinder"
+            t2p_link_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    {"project": "demo", "from_url": "test://a", "to_url": "prod://1", "from_start": 1, "from_end": 10},
+                    {"project": "demo", "from_url": "test://b", "to_url": "prod://2", "from_start": 1, "from_end": 20},
+                    {"project": "demo", "from_url": "test://c", "to_url": "prod://3", "from_start": 1, "from_end": 30},
+                    {"project": "demo", "from_url": "test://d", "to_url": "prod://4", "from_start": 1, "from_end": 40},
+                ]
+            ).to_csv(t2p_link_dir / "demo.csv", index=False)
+            self.write_smells(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://a", "smell": "AR", "loc": 10},
+                    {"url": "test://b", "smell": "MNT", "loc": 20},
+                    {"url": "test://c", "smell": "", "loc": 30},
+                    {"url": "test://d", "smell": "DA", "loc": 40},
+                    {"url": "test://bad", "smell": "AR", "loc": 0},
+                ],
+            )
+            (experiment_dir / "aggregate").mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                [
+                    self.association_output_row("AR", 16.5, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("VT", 11.9, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("MNT", 8.4, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("CTL", 5.5, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("EH", 5.4, REVISION_GROUP_3, REVISION_GROUP_1),
+                    self.association_output_row("DA", 4.8, REVISION_GROUP_3, REVISION_GROUP_1),
+                ]
+            ).to_csv(experiment_dir / "aggregate" / "t2p-test-smell-association.csv", index=False)
+
+            top_loc_correlation_main(
+                [
+                    "--workspace-directory",
+                    tmpdir,
+                    "--experiment-name",
+                    "demo-exp",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "nc",
+                    "--projects",
+                    "demo",
+                    "--revision-types",
+                    "ch_diff",
+                    "--smell-detector",
+                    "jnose",
+                    "--replace",
+                ]
+            )
+
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-top-loc-correlation.csv")
+            self.assertEqual(TOP_LOC_CORRELATION_COLUMNS, output_df.columns.tolist())
+            self.assertEqual(["kendall", "pearson", "spearman"], sorted(output_df["correlation_algorithm"].tolist()))
+            self.assertEqual(5, output_df["top_n"].iloc[0])
+            self.assertEqual("AR VT MNT CTL EH", output_df["top_smells"].iloc[0])
+            self.assertEqual(4, output_df["methods"].iloc[0])
 
     def create_experiment(self, workspace_dir: str) -> Path:
         experiment_dir = Path(workspace_dir) / "experiment" / "demo-exp"
