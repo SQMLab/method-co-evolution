@@ -65,6 +65,31 @@ def order_projects(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def overall_result_sentence(table_df: pd.DataFrame) -> str:
+    overall_df = table_df[table_df["project"] == ALL_REPOSITORY]
+    if overall_df.empty:
+        return ""
+
+    overall = overall_df.iloc[0]
+    sign = overall["d_sign"]
+    if sign == "+":
+        direction = "production methods revised more frequently overall"
+    elif sign == "-":
+        direction = "test methods revised more frequently overall"
+    else:
+        direction = "no directional difference overall"
+
+    effect_size = escape_latex(str(overall.get("effect_size", "") or ""))
+    p_value = pd.to_numeric(overall["mww_p"], errors="coerce")
+    p_text = "p < 0.05" if pd.notna(p_value) and p_value < 0.05 else f"p={format_number(overall['mww_p'])}"
+    return (
+        r"The pooled all-project comparison reports "
+        rf"${p_text}$, "
+        rf"Cliff's~$\delta={format_number(overall['d_value'])}$, "
+        rf"indicating a {effect_size} overall difference with {direction}."
+    )
+
+
 _EFFECT_SIZE_HEADER = r"\multicolumn{4}{c}{\textit{Effect size band (Cliff's~$\delta$)}}"
 # Effect size band thresholds follow Romano et al. for Cliff's delta:
 #   N = negligible: |d| < 0.147,  S = small: 0.147 <= |d| < 0.33,
@@ -98,9 +123,11 @@ def render_latex_table(tool: str, table_df: pd.DataFrame) -> str:
             + r" \\"
         )
 
-    sign_counts = table_df["d_sign"].value_counts()
+    project_df = table_df[table_df["project"] != ALL_REPOSITORY]
+    sign_counts = project_df["d_sign"].value_counts()
     n_positive = int(sign_counts.get("+", 0))
     n_negative = int(sign_counts.get("-", 0))
+    overall_sentence = overall_result_sentence(table_df)
 
     body = "\n".join(rows)
     # +/- and N S M L use equal-width centred columns; @{} removes trailing padding so L sits at the far right.
@@ -129,7 +156,7 @@ def render_latex_table(tool: str, table_df: pd.DataFrame) -> str:
 
 \begin{{document}}
 
-\section*{{Mann–Whitney U test for production and test code revisions}}
+\section*{{Mann–Whitney U test for production and test method revisions}}
 
 Two-sided Mann--Whitney U test comparing the number of revisions of \textbf{{production}} methods versus \textbf{{test}} methods
 per project.
@@ -139,6 +166,7 @@ have a higher revision count than test methods ($\delta > 0$);
 \textbf{{$-$}}~({n_negative}~project(s)) indicates the opposite,
 i.e.\ test methods are revised more frequently ($\delta < 0$).
 {_EFFECT_SIZE_NOTE}
+{overall_sentence}
 
 \begin{{longtable}}{{{col_spec}}}
 \toprule

@@ -56,6 +56,14 @@ class TestRevisionMwuPlot(unittest.TestCase):
             self.assertIn("projectA", first_text)
             self.assertIn("all", first_text)
             self.assertNotIn("projectOnlyAllChange", first_text)
+            self.assertIn(r"\textbf{$+$}~(1~project(s))", first_text)
+            self.assertIn(r"\textbf{$-$}~(1~project(s))", first_text)
+            self.assertIn(
+                r"The pooled all-project comparison reports $p < 0.05$, Cliff's~$\delta=-0.10$, "
+                r"indicating a negligible overall difference with test methods revised more frequently overall.",
+                first_text,
+            )
+            self.assertIn(r"all & 0.00 & -0.10 & - & x &  &  &  \\", first_text)
 
             if shutil.which("pdflatex") is None:
                 self.assertTrue(any("pdflatex not found" in str(warning.message) for warning in caught_warnings))
@@ -100,9 +108,27 @@ class TestRevisionMwuPlot(unittest.TestCase):
                 "test_size": 3,
                 "mww_u1": 9,
                 "mww_u2": 0,
-                "mww_p": 0.1,
-                "d_value": 1,
-                "d_sign": "+",
+                "mww_p": 0.0,
+                "d_value": -0.1,
+                "d_sign": "-",
+                "effect_size": "negligible",
+                "N": "x",
+                "S": "",
+                "M": "",
+                "L": "",
+            },
+            {
+                "project": "projectC",
+                "tool": "historyFinder",
+                "change": "diff",
+                "size": 6,
+                "main_size": 3,
+                "test_size": 3,
+                "mww_u1": 0,
+                "mww_u2": 9,
+                "mww_p": 0.3,
+                "d_value": -0.5,
+                "d_sign": "-",
                 "effect_size": "large",
                 "N": "",
                 "S": "",
