@@ -22,6 +22,8 @@ except ImportError:  # pragma: no cover
 
 from ptc.plot.t2p_revision_delta_cdf import (
     PAPER_LABEL_SIZE,
+    PAPER_FIGURE_SIZE,
+    PAPER_LINE_WIDTH,
     PAPER_MAX_DISPLAY_DELTA,
     PAPER_SERIES_COLOR,
     PAPER_TICK_LABEL_SIZE,
@@ -138,9 +140,14 @@ class TestT2PRevisionDeltaPlot(unittest.TestCase):
             self.assertEqual("# Test - Production Revisions", ax.get_xlabel())
             self.assertEqual("CDF", ax.get_ylabel())
             self.assertEqual((-10.0, 10.0), ax.get_xlim())
-            self.assertEqual([0.1, 0.2, 0.3], [round(value, 1) for value in ax.get_yticks()[:3]])
+            self.assertEqual([0.0, 0.2, 0.4], [round(value, 1) for value in ax.get_yticks()[:3]])
+            self.assertEqual(
+                [round(value, 1) for value in ax.yaxis.get_minorticklocs()[:3]],
+                [0.1, 0.3, 0.5],
+            )
             self.assertGreaterEqual(len(ax.lines), 1)
             self.assertEqual(PAPER_SERIES_COLOR, ax.lines[0].get_color())
+            self.assertEqual(PAPER_LINE_WIDTH, ax.lines[0].get_linewidth())
             self.assertEqual(PAPER_LABEL_SIZE, ax.xaxis.label.get_fontsize())
             self.assertEqual(PAPER_LABEL_SIZE, ax.yaxis.label.get_fontsize())
             self.assertEqual(PAPER_TICK_LABEL_SIZE, ax.xaxis.get_ticklabels()[0].get_fontsize())
@@ -150,6 +157,26 @@ class TestT2PRevisionDeltaPlot(unittest.TestCase):
             self.assertIn("HTR (5+): 1 (25.0%)", ax.texts[0].get_text())
         finally:
             plt.close(fig)
+
+    def test_paper_delta_axis_can_hide_revision_group_summary(self):
+        df = pd.DataFrame(
+            [
+                {"from_ch_diff": 0, "to_ch_diff": 0},
+                {"from_ch_diff": 4, "to_ch_diff": 0},
+                {"from_ch_diff": 5, "to_ch_diff": 0},
+            ]
+        )
+
+        fig, ax = plt.subplots()
+        try:
+            plot_paper_delta_axis(ax, df, "ch_diff", show_group_summary=False)
+
+            self.assertEqual([], [text.get_text() for text in ax.texts])
+        finally:
+            plt.close(fig)
+
+    def test_paper_figure_size_is_aligned_with_rq3_plots(self):
+        self.assertEqual((5.8, 4.2), PAPER_FIGURE_SIZE)
 
     def test_delta_axis_shows_revision_group_summary_by_default(self):
         df = pd.DataFrame(

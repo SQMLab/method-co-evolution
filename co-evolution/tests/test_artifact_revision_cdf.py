@@ -25,6 +25,7 @@ from ptc.plot.artifact_revision_cdf import (
     PAPER_AXIS_LABEL_FONT_SIZE,
     PAPER_CHANGE_AXIS_WIDTH,
     PAPER_LEGEND_ANCHOR,
+    PAPER_LINE_WIDTH,
     PAPER_MARK_EVERY,
     PAPER_MARKER_SIZE,
     PAPER_TICK_FONT_SIZE,
@@ -320,7 +321,11 @@ class TestArtifactRevisionCdf(unittest.TestCase):
             self.assertEqual(list(range(len(tick_labels))), ax.get_xticks().tolist())
             self.assertEqual(PAPER_AXIS_LABEL_FONT_SIZE, ax.xaxis.label.get_fontsize())
             self.assertEqual(PAPER_AXIS_LABEL_FONT_SIZE, ax.yaxis.label.get_fontsize())
-            self.assertEqual([round(value, 1) for value in ax.get_yticks().tolist()], [round(value / 10, 1) for value in range(11)])
+            self.assertEqual([round(value, 1) for value in ax.get_yticks().tolist()[:6]], [round(value / 5, 1) for value in range(6)])
+            self.assertEqual(
+                [round(value, 1) for value in ax.yaxis.get_minorticklocs()[:6]],
+                [0.1, 0.3, 0.5, 0.7, 0.9],
+            )
             self.assertTrue(
                 all(tick.get_fontsize() == PAPER_TICK_FONT_SIZE for tick in ax.get_xticklabels())
             )
@@ -334,15 +339,12 @@ class TestArtifactRevisionCdf(unittest.TestCase):
                 [text.get_text() for text in legend.get_texts()],
             )
             self.assertEqual([0, 1, 4.5], ax.lines[0].get_xdata().tolist())
-            self.assertEqual([0, 6], ax.lines[2].get_xdata().tolist())
+            self.assertEqual([0, 6], ax.lines[1].get_xdata().tolist())
             self.assertEqual("None", ax.lines[0].get_marker())
-            self.assertEqual("None", ax.lines[2].get_marker())
-            self.assertEqual([0, 2, 4, 6], ax.lines[1].get_xdata().tolist())
-            self.assertEqual([0.5, 2.5, 4.5], ax.lines[3].get_xdata().tolist())
-            self.assertEqual(METHOD_KIND_MARKERS["test-case-method"], ax.lines[1].get_marker())
-            self.assertEqual(METHOD_KIND_MARKERS["main-code"], ax.lines[3].get_marker())
-            self.assertEqual(PAPER_MARKER_SIZE, ax.lines[1].get_markersize())
-            self.assertEqual(PAPER_MARKER_SIZE, ax.lines[3].get_markersize())
+            self.assertEqual("None", ax.lines[1].get_marker())
+            self.assertEqual(PAPER_LINE_WIDTH, ax.lines[0].get_linewidth())
+            self.assertEqual(PAPER_LINE_WIDTH, ax.lines[1].get_linewidth())
+            self.assertEqual(2, len(ax.lines))
             self.assertEqual((0.0, 6.0), ax.get_xlim())
             self.assertEqual(PAPER_LEGEND_ANCHOR, legend.get_bbox_to_anchor()._bbox.bounds[:2])
         finally:
@@ -417,7 +419,7 @@ class TestArtifactRevisionCdf(unittest.TestCase):
         )
 
     def test_artifact_revision_cdf_figure_widths_are_increased(self):
-        self.assertEqual(4.6, PAPER_CHANGE_AXIS_WIDTH)
+        self.assertEqual(5.8, PAPER_CHANGE_AXIS_WIDTH)
         self.assertEqual(5.5, DEFAULT_CHANGE_AXIS_WIDTH)
 
     def test_subsequent_revision_series_excludes_introduction(self):

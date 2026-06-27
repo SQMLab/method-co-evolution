@@ -39,8 +39,10 @@ PAPER_MAX_DELTA = 5
 PAPER_MAX_DISPLAY_DELTA = 10
 PAPER_SERIES_COLOR = "#1f77b4"
 PAPER_THRESHOLD_COLOR = "#d62728"
-PAPER_LABEL_SIZE = 16
-PAPER_TICK_LABEL_SIZE = 14
+PAPER_LABEL_SIZE = 24
+PAPER_TICK_LABEL_SIZE = 22
+PAPER_LINE_WIDTH = 6
+PAPER_FIGURE_SIZE = (5.8, 4.2)
 
 REVISION_DELTA_GROUPS = [
     ("NTR", "<=0", lambda delta: delta <= 0),
@@ -256,7 +258,7 @@ def plot_paper_delta_axis(ax, df: pd.DataFrame, change: str, *, show_group_summa
     ax.step(
         cdf.index,
         cdf.values,
-        linewidth=1.8,
+        linewidth=PAPER_LINE_WIDTH,
         color=PAPER_SERIES_COLOR,
         linestyle="-",
         where="post",
@@ -272,9 +274,12 @@ def plot_paper_delta_axis(ax, df: pd.DataFrame, change: str, *, show_group_summa
     ax.set_ylim(0.0, 1.02)
     ax.xaxis.set_major_locator(MultipleLocator(2))
     ax.xaxis.set_major_formatter(FuncFormatter(format_paper_delta_tick))
-    ax.yaxis.set_major_locator(FixedLocator(np.arange(0.1, 1.1, 0.1)))
+    ax.yaxis.set_major_locator(FixedLocator(np.arange(0, 1.01, 0.2)))
+    ax.yaxis.set_minor_locator(FixedLocator(np.arange(0, 1.01, 0.1)))
+    ax.yaxis.set_minor_formatter(NullFormatter())
     ax.tick_params(axis="both", labelsize=PAPER_TICK_LABEL_SIZE)
-    ax.grid(True, alpha=0.25)
+    ax.grid(True, which="major", alpha=0.30)
+    ax.grid(True, which="minor", alpha=0.18)
 
 
 def delta_threshold(df: pd.DataFrame, change: str, coverage: float = 0.8) -> DeltaThreshold | None:
@@ -391,14 +396,14 @@ def main(argv: list[str] | None = None) -> None:
                 fig, axes = plt.subplots(
                     1,
                     len(change_cols),
-                    figsize=(5.8 * len(change_cols), 4.2),
+                    figsize=(PAPER_FIGURE_SIZE[0] * len(change_cols), PAPER_FIGURE_SIZE[1]),
                     squeeze=False,
                 )
                 for change_index, change in enumerate(change_cols):
                     ax = axes[0][change_index]
                     if len(change_cols) > 1:
                         ax.set_title(format_change_name(change), fontsize=14)
-                    plot_paper_delta_axis(ax, df, change)
+                    plot_paper_delta_axis(ax, df, change, show_group_summary=False)
 
                 fig.tight_layout()
                 fig_file = output_directory / f"t2p-revision-delta-cdf--{tool}--{strategy}.pdf"

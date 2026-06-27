@@ -17,6 +17,7 @@ for directory in (SRC_DIRECTORY, MHC_SRC_DIRECTORY):
 
 from ptc.plot.t2p_correlation_cdf import (
     PAPER_CORRELATION_COLOR,
+    PAPER_FIGURE_SIZE,
     PAPER_CORRELATION_LABEL_SIZE,
     PAPER_CORRELATION_LINE_WIDTH,
     PAPER_CORRELATION_TICK_LABEL_SIZE,
@@ -139,6 +140,9 @@ class TestT2PCorrelationCdf(unittest.TestCase):
             )
             self.assertFalse((output_directory / "t2p-correlation-cdf--historyFinder--nc.pdf").exists())
             self.assertFalse((experiment_dir / "figure" / "t2p-correlation-cdf--historyFinder.pdf").exists())
+
+    def test_paper_figure_size_is_aligned_with_rq3_plots(self):
+        self.assertEqual((5.8, 4.2), PAPER_FIGURE_SIZE)
 
 
 if __name__ == "__main__":

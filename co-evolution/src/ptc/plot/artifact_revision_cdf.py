@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FixedLocator, NullFormatter
 import numpy as np
 import pandas as pd
 
@@ -41,14 +42,15 @@ METHOD_KIND_MARKERS = {
     "test-case-method": "D",
     "main-code": "^",
 }
-PAPER_CHANGE_AXIS_WIDTH = 4.6
+PAPER_CHANGE_AXIS_WIDTH = 5.8
 DEFAULT_CHANGE_AXIS_WIDTH = 5.5
 ROW_INFO_AXIS_WIDTH = 1.8
-PAPER_FIGURE_HEIGHT = 3.1
+PAPER_FIGURE_HEIGHT = 4.2
 DEFAULT_ROW_HEIGHT = 3.2
-PAPER_TICK_FONT_SIZE = 12
+PAPER_TICK_FONT_SIZE = 22
 DEFAULT_TICK_FONT_SIZE = 13
-PAPER_AXIS_LABEL_FONT_SIZE = 14
+PAPER_AXIS_LABEL_FONT_SIZE = 24
+PAPER_LINE_WIDTH = 6
 PAPER_MARK_EVERY = 2
 PAPER_MARKER_SIZE = 4.2
 PAPER_MAX_REVISION_TICK = 50
@@ -324,22 +326,11 @@ def plot_change_axis(
         ax.plot(
             display_x,
             y,
-            linewidth=GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
+            linewidth=PAPER_LINE_WIDTH if paper_mode else GRAPH_WIDTHS[change_index % len(GRAPH_WIDTHS)],
             color=METHOD_KIND_COLORS[current_method_kind],
             ls=GRAPH_STYLES[method_kind_index % len(GRAPH_STYLES)],
             label=METHOD_KIND_LABELS[current_method_kind],
         )
-        if paper_mode:
-            marker_x = paper_marker_positions(ticks, current_method_kind)
-            marker_y = y_values_at_marker_positions(marker_x, display_x, y)
-            ax.plot(
-                marker_x,
-                marker_y,
-                linestyle="None",
-                marker=METHOD_KIND_MARKERS[current_method_kind],
-                color=METHOD_KIND_COLORS[current_method_kind],
-                markersize=PAPER_MARKER_SIZE,
-            )
 
     ax.set_xlim(0, revision_axis_upper_bound(ticks))
     ax.set_xticks(range(len(ticks)))
@@ -357,7 +348,9 @@ def plot_change_axis(
         labelsize=PAPER_TICK_FONT_SIZE if paper_mode else DEFAULT_TICK_FONT_SIZE,
     )
     if paper_mode:
-        ax.set_yticks(np.arange(0, 1.01, 0.1))
+        ax.yaxis.set_major_locator(FixedLocator(np.arange(0, 1.01, 0.2)))
+        ax.yaxis.set_minor_locator(FixedLocator(np.arange(0, 1.01, 0.1)))
+        ax.yaxis.set_minor_formatter(NullFormatter())
         ax.legend(
             handles=method_kind_legend_handles(),
             loc="center",
@@ -368,7 +361,11 @@ def plot_change_axis(
             handlelength=2.4,
         )
 
-    ax.grid(True, alpha=0.25)
+    if paper_mode:
+        ax.grid(True, which="major", alpha=0.30)
+        ax.grid(True, which="minor", alpha=0.18)
+    else:
+        ax.grid(True, alpha=0.25)
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -27,9 +27,10 @@ from ptc.plot_util import (
 
 SIZE_ORDER = ["negligible", "small", "medium", "large"]
 PAPER_CORRELATION_COLOR = "#1f77b4"
-PAPER_CORRELATION_LINE_WIDTH = 2.2
-PAPER_CORRELATION_LABEL_SIZE = 17
-PAPER_CORRELATION_TICK_LABEL_SIZE = 15
+PAPER_CORRELATION_LINE_WIDTH = 6
+PAPER_CORRELATION_LABEL_SIZE = 24
+PAPER_CORRELATION_TICK_LABEL_SIZE = 22
+PAPER_FIGURE_SIZE = (5.8, 4.2)
 PAPER_CORRELATION_X_PADDING = 0.05
 
 
@@ -212,7 +213,7 @@ def main(argv: list[str] | None = None) -> None:
                 if not change_names:
                     continue
 
-                fig, ax = plt.subplots(figsize=(5.4, 3.8))
+                fig, ax = plt.subplots(figsize=PAPER_FIGURE_SIZE)
                 plot_correlation_only_axis(ax, strategy_df, change_names)
                 fig.tight_layout()
                 fig_file = output_directory / f"t2p-correlation-cdf--{tool}--{strategy}.pdf"
