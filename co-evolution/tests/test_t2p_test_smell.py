@@ -133,8 +133,17 @@ from ptc.plot.t2p_test_smell_boxplot import (
 )
 from ptc.plot.t2p_test_smell_size_control_effectplot import (
     METHOD_SIZE_LABEL,
+    SIZE_CONTROL_AXIS_LABEL_FONTSIZE,
     SIZE_CONTROL_CI_LINEWIDTH,
+    SIZE_CONTROL_LEGEND_FONTSIZE,
+    SIZE_CONTROL_LEGEND_MARKER_SCALE,
+    SIZE_CONTROL_MARKER_EDGE_WIDTH,
+    SIZE_CONTROL_MARKER_SIZE,
+    SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL,
+    SIZE_CONTROL_SERIES_STEP,
+    SIZE_CONTROL_X_AXIS_LABEL,
     SIZE_CONTROL_XTICK_FONTSIZE,
+    SIZE_CONTROL_YTICK_FONTSIZE,
     pair_suffix as size_control_pair_suffix,
     pairs_suffix as size_control_pairs_suffix,
     control_group_order as size_control_group_order,
@@ -1072,8 +1081,8 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertIn(-1, minor_ticks)
         self.assertIn(1, minor_ticks)
         self.assertIn(17, minor_ticks)
-        self.assertEqual(SIZE_CONTROL_XTICK_FONTSIZE, EFFECT_MATCHED_XTICK_FONTSIZE)
-        self.assertEqual(SIZE_CONTROL_CI_LINEWIDTH, EFFECT_MATCHED_CI_LINEWIDTH)
+        self.assertGreater(SIZE_CONTROL_XTICK_FONTSIZE, EFFECT_MATCHED_XTICK_FONTSIZE)
+        self.assertGreater(SIZE_CONTROL_CI_LINEWIDTH, EFFECT_MATCHED_CI_LINEWIDTH)
         self.assertEqual(EFFECT_MATCHED_XTICK_FONTSIZE, ax.xaxis.get_ticklabels()[0].get_fontsize())
         self.assertEqual(EFFECT_MATCHED_CI_LINEWIDTH, ci_linewidth)
         self.assertGreaterEqual(ax.yaxis.get_ticklabels()[0].get_fontsize(), EFFECT_YTICK_FONTSIZE)
@@ -2214,11 +2223,35 @@ class TestT2PTestSmell(unittest.TestCase):
                 axes_count = len(figure.axes)
                 legend_labels = [text.get_text() for text in figure.legends[0].get_texts()]
                 legend_colors = [handle.get_color() for handle in figure.legends[0].legend_handles]
+                legend_marker_size = figure.legends[0].legend_handles[0].get_markersize()
+                xlim = figure.axes[0].get_xlim()
+                xticks = figure.axes[0].get_xticks()
+                xtick_steps = [
+                    int(xticks[index + 1] - xticks[index])
+                    for index in range(len(xticks) - 1)
+                    if figure.axes[0].get_xlim()[0] <= xticks[index] <= figure.axes[0].get_xlim()[1]
+                    and figure.axes[0].get_xlim()[0] <= xticks[index + 1] <= figure.axes[0].get_xlim()[1]
+                ]
+                minor_ticks = figure.axes[0].get_xticks(minor=True)
+                visible_minor_ticks = [
+                    tick
+                    for tick in minor_ticks
+                    if figure.axes[0].get_xlim()[0] <= tick <= figure.axes[0].get_xlim()[1]
+                ]
                 ytick_labels = [text.get_text() for text in figure.axes[0].get_yticklabels()]
+                xtick_fontsize = figure.axes[0].xaxis.get_ticklabels()[0].get_fontsize()
+                ytick_fontsize = figure.axes[0].yaxis.get_ticklabels()[0].get_fontsize()
                 ylabel = figure.axes[0].get_ylabel()
                 ylabel_size = figure.axes[0].yaxis.label.get_fontsize()
+                xlabel = figure._supxlabel.get_text()
                 xlabel_size = figure._supxlabel.get_fontsize()
                 ci_linewidth = figure.axes[0].collections[0].get_linewidths()[0]
+                marker_collections = [
+                    collection for collection in figure.axes[0].collections if hasattr(collection, "get_sizes")
+                ]
+                marker_size = marker_collections[-1].get_sizes()[0]
+                marker_edge_width = marker_collections[-1].get_linewidths()[0]
+                legend_fontsize = figure.legends[0].get_texts()[0].get_fontsize()
                 close.assert_called_once()
                 real_close(figure)
 
@@ -2226,8 +2259,22 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertEqual(["Small", "Medium", "Large"], size_control_group_order(frame))
             self.assertEqual(["Small", "Medium", "Large"], ytick_labels)
             self.assertEqual(METHOD_SIZE_LABEL, ylabel)
-            self.assertEqual(xlabel_size, ylabel_size)
+            self.assertEqual(SIZE_CONTROL_X_AXIS_LABEL, xlabel)
+            self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, xlabel_size)
+            self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, ylabel_size)
+            self.assertEqual(SIZE_CONTROL_XTICK_FONTSIZE, xtick_fontsize)
+            self.assertEqual(SIZE_CONTROL_YTICK_FONTSIZE, ytick_fontsize)
+            self.assertEqual(SIZE_CONTROL_LEGEND_FONTSIZE, legend_fontsize)
+            self.assertGreater(legend_marker_size, 6 * SIZE_CONTROL_LEGEND_MARKER_SCALE - 0.1)
+            self.assertEqual(-4, int(xlim[0]))
+            self.assertTrue(xtick_steps)
+            self.assertTrue(all(step == 4 for step in xtick_steps))
+            self.assertTrue(visible_minor_ticks)
+            self.assertTrue(all(float(tick).is_integer() for tick in visible_minor_ticks))
             self.assertEqual(SIZE_CONTROL_CI_LINEWIDTH, ci_linewidth)
+            self.assertEqual(SIZE_CONTROL_MARKER_SIZE, marker_size)
+            self.assertEqual(SIZE_CONTROL_MARKER_EDGE_WIDTH, marker_edge_width)
+            self.assertGreater(SIZE_CONTROL_SERIES_STEP, 0.16)
             self.assertEqual(1, axes_count)
             self.assertNotIn("Assertion Roulette", ytick_labels)
             self.assertEqual(["HTR - NTR"], legend_labels)
@@ -2279,15 +2326,47 @@ class TestT2PTestSmell(unittest.TestCase):
                 figure = plt.gcf()
                 axis = figure.axes[0]
                 xscale = axis.get_xscale()
+                xticks = axis.get_xticks()
+                xtick_steps = [
+                    round(float(xticks[index + 1] - xticks[index]), 1)
+                    for index in range(len(xticks) - 1)
+                    if axis.get_xlim()[0] <= xticks[index] <= axis.get_xlim()[1]
+                    and axis.get_xlim()[0] <= xticks[index + 1] <= axis.get_xlim()[1]
+                ]
                 reference_lines = [
                     line for line in axis.lines if len(line.get_xdata()) == 2 and list(line.get_xdata()) == [1, 1]
                 ]
+                grid_lines = axis.get_xgridlines()
+                xlabel = figure._supxlabel.get_text()
+                xlabel_size = figure._supxlabel.get_fontsize()
+                ylabel_size = axis.yaxis.label.get_fontsize()
+                xtick_fontsize = axis.xaxis.get_ticklabels()[0].get_fontsize()
+                ytick_fontsize = axis.yaxis.get_ticklabels()[0].get_fontsize()
+                ci_linewidth = axis.collections[0].get_linewidths()[0]
+                marker_collections = [
+                    collection for collection in axis.collections if hasattr(collection, "get_sizes")
+                ]
+                marker_size = marker_collections[-1].get_sizes()[0]
+                legend_fontsize = figure.legends[0].get_texts()[0].get_fontsize()
+                legend_marker_size = figure.legends[0].legend_handles[0].get_markersize()
                 close.assert_called_once()
                 real_close(figure)
 
             self.assertTrue(output_file.exists())
-            self.assertEqual("log", xscale)
+            self.assertEqual("linear", xscale)
+            self.assertTrue(xtick_steps)
+            self.assertTrue(all(step == 0.5 for step in xtick_steps))
             self.assertTrue(reference_lines)
+            self.assertTrue(any(line.get_visible() for line in grid_lines))
+            self.assertEqual(SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL, xlabel)
+            self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, xlabel_size)
+            self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, ylabel_size)
+            self.assertEqual(SIZE_CONTROL_XTICK_FONTSIZE, xtick_fontsize)
+            self.assertEqual(SIZE_CONTROL_YTICK_FONTSIZE, ytick_fontsize)
+            self.assertEqual(SIZE_CONTROL_LEGEND_FONTSIZE, legend_fontsize)
+            self.assertGreater(legend_marker_size, 6 * SIZE_CONTROL_LEGEND_MARKER_SCALE - 0.1)
+            self.assertEqual(SIZE_CONTROL_CI_LINEWIDTH, ci_linewidth)
+            self.assertEqual(SIZE_CONTROL_MARKER_SIZE, marker_size)
 
     def test_size_control_plots_support_multiple_revision_group_pairs(self):
         frame = pd.DataFrame(

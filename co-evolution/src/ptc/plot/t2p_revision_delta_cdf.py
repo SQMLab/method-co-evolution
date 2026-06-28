@@ -269,7 +269,7 @@ def plot_paper_delta_axis(ax, df: pd.DataFrame, change: str, *, show_group_summa
     if show_group_summary:
         draw_revision_group_summary(ax, delta)
 
-    ax.set_xlabel("# Test - Production Revisions", fontsize=PAPER_LABEL_SIZE)
+    ax.set_xlabel("# Revision Difference", fontsize=PAPER_LABEL_SIZE)
     ax.set_ylabel("CDF", fontsize=PAPER_LABEL_SIZE)
     ax.set_xlim(PAPER_MIN_DELTA, PAPER_MAX_DISPLAY_DELTA)
     ax.set_ylim(0.0, 1.02)

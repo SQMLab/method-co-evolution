@@ -10,7 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from matplotlib.ticker import FixedLocator, FuncFormatter
+from matplotlib.ticker import MultipleLocator
 import pandas as pd
 
 from mhc.command_util import (
@@ -27,20 +27,21 @@ from ptc.generator.t2p_test_smell_size_control_association import (
 )
 from ptc.generator.t2p_test_smell_revision import CHANGE_COLUMNS
 from ptc.plot.method_history_runtime_table import resolve_path
-from ptc.plot.t2p_test_smell_barchart import (
-    EFFECT_LEGEND_FONTSIZE,
-    EFFECT_YTICK_FONTSIZE,
-)
 from ptc.plot.t2p_test_smell_size_control_effectplot import (
     SIZE_CONTROL_AXIS_LABEL_FONTSIZE,
     SIZE_CONTROL_CI_CAP_HALF_HEIGHT,
     SIZE_CONTROL_CI_CAP_LINEWIDTH,
     SIZE_CONTROL_CI_LINEWIDTH,
+    SIZE_CONTROL_LEGEND_FONTSIZE,
+    SIZE_CONTROL_LEGEND_MARKER_SCALE,
+    SIZE_CONTROL_MARKER_EDGE_WIDTH,
     SIZE_CONTROL_MARKER_SIZE,
     SIZE_CONTROL_MIN_FIGURE_HEIGHT,
     SIZE_CONTROL_ROW_HEIGHT,
     SIZE_CONTROL_SERIES_STEP,
     SIZE_CONTROL_XTICK_FONTSIZE,
+    SIZE_CONTROL_YTICK_FONTSIZE,
+    SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL,
     METHOD_SIZE_LABEL,
     control_group_order,
     legend_pairs,
@@ -53,7 +54,6 @@ from ptc.plot.t2p_test_smell_barchart import comparison_label, comparison_pair, 
 from ptc.plot_util import build_experiment_plot_parser
 
 OUTPUT_FILE_PREFIX = "t2p-test-smell-size-control-odds-ratio-effectplot"
-ODDS_RATIO_X_AXIS_LABEL = "Initial Test-Smell Odds Ratio with 95% CI"
 
 
 def build_parser():
@@ -105,44 +105,33 @@ def write_latex_plot_wrapper(tex_file: Path, pdf_file: Path) -> None:
     tex_file.write_text(render_standalone_latex_plot(relative_pdf_path), encoding="utf-8")
 
 
-def finite_positive_values(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
+def finite_values(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
     values = pd.to_numeric(pd.concat([frame[column] for column in columns], ignore_index=True), errors="coerce")
-    return values[(values > 0) & values.map(math.isfinite)]
+    return values[values.map(math.isfinite)]
 
 
 def odds_ratio_axis_limits(frame: pd.DataFrame) -> tuple[float, float]:
-    values = finite_positive_values(frame, ["odds_ratio_ci_low", "odds_ratio_ci_high", "odds_ratio"])
+    values = finite_values(frame, ["odds_ratio_ci_low", "odds_ratio_ci_high", "odds_ratio"])
     if values.empty:
-        return 0.5, 16.0
-    low = 2 ** math.floor(math.log2(min(values.min(), 1.0)))
-    high = 2 ** math.ceil(math.log2(max(values.max(), 1.0)))
-    return max(low, 0.03125), max(high, 2.0)
-
-
-def odds_ratio_ticks(x_limits: tuple[float, float]) -> list[float]:
-    candidates = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64, 128]
-    return [value for value in candidates if x_limits[0] <= value <= x_limits[1]]
-
-
-def format_odds_tick(value: float, _position: int) -> str:
-    if value >= 1:
-        return f"{value:g}"
-    return f"{value:.3g}"
+        return 0.5, 2.0
+    low = min(values.min(), 1.0)
+    high = max(values.max(), 1.0)
+    padded_low = math.floor((low - 0.25) / 0.5) * 0.5
+    padded_high = math.ceil((high + 0.25) / 0.5) * 0.5
+    return max(0.0, padded_low), max(padded_high, 1.5)
 
 
 def numeric_cell(row: pd.Series, column: str) -> float:
     return float(pd.to_numeric(pd.Series([row[column]]), errors="coerce").iloc[0])
 
 
-def clip_for_log_axis(value: float, x_limits: tuple[float, float]) -> float:
+def clip_for_axis(value: float, x_limits: tuple[float, float]) -> float:
     if not math.isfinite(value):
         return math.nan
-    if value <= 0:
-        return x_limits[0]
     return min(max(value, x_limits[0]), x_limits[1])
 
 
-def draw_log_horizontal_ci(
+def draw_horizontal_odds_ci(
     ax,
     y: float,
     low: float,
@@ -198,13 +187,13 @@ def plot_odds_ratio_axis(
         high = numeric_cell(row, "odds_ratio_ci_high")
         if not all(math.isfinite(value) for value in [ratio, low, high]):
             continue
-        ratio = clip_for_log_axis(ratio, x_limits)
-        low = clip_for_log_axis(low, x_limits)
-        high = clip_for_log_axis(high, x_limits)
+        ratio = clip_for_axis(ratio, x_limits)
+        low = clip_for_axis(low, x_limits)
+        high = clip_for_axis(high, x_limits)
         if not all(math.isfinite(value) for value in [ratio, low, high]):
             continue
         y_position = y_by_control_group[control_group] + pair_offsets[pair]
-        draw_log_horizontal_ci(
+        draw_horizontal_odds_ci(
             ax,
             y_position,
             low,
@@ -218,24 +207,22 @@ def plot_odds_ratio_axis(
             marker=str(style["marker"]),
             facecolor=str(style["color"]) if str(row["significant"]) == "x" else "white",
             edgecolor="black",
-            linewidth=1.0,
+            linewidth=SIZE_CONTROL_MARKER_EDGE_WIDTH,
             s=SIZE_CONTROL_MARKER_SIZE,
             zorder=2,
         )
 
-    ax.axvline(1, color="black", linewidth=0.9, linestyle="--")
-    ax.set_xscale("log")
+    ax.axvline(1, color="black", linewidth=1.4, linestyle="--")
+    ax.set_xscale("linear")
     ax.set_xlim(*x_limits)
-    ticks = odds_ratio_ticks(x_limits)
-    ax.xaxis.set_major_locator(FixedLocator(ticks))
-    ax.xaxis.set_major_formatter(FuncFormatter(format_odds_tick))
+    ax.xaxis.set_major_locator(MultipleLocator(0.5))
     ax.tick_params(axis="x", labelsize=SIZE_CONTROL_XTICK_FONTSIZE)
     ax.set_yticks(list(range(len(control_groups))))
-    ax.set_yticklabels(control_groups, fontsize=EFFECT_YTICK_FONTSIZE)
+    ax.set_yticklabels(control_groups, fontsize=SIZE_CONTROL_YTICK_FONTSIZE)
     ax.set_ylabel(METHOD_SIZE_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
     ax.invert_yaxis()
     ax.set_ylim(len(control_groups) - 0.5, -0.5)
-    ax.grid(True, axis="x", which="major", alpha=0.3)
+    ax.grid(True, axis="x", which="major", alpha=0.42, linewidth=1.1)
 
 
 def plot_size_control_odds_ratio_effect(
@@ -286,9 +273,17 @@ def plot_size_control_odds_ratio_effect(
         )
         for pair in pairs
     ]
-    fig.legend(handles=handles, frameon=False, fontsize=EFFECT_LEGEND_FONTSIZE, loc="upper center", ncol=2)
-    fig.supxlabel(ODDS_RATIO_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    fig.legend(
+        handles=handles,
+        frameon=False,
+        fontsize=SIZE_CONTROL_LEGEND_FONTSIZE,
+        loc="upper center",
+        ncol=2,
+        markerscale=SIZE_CONTROL_LEGEND_MARKER_SCALE,
+        handlelength=2.2,
+    )
+    fig.supxlabel(SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
+    fig.tight_layout(rect=(0, 0, 1, 0.82))
     os.makedirs(output_file.parent, exist_ok=True)
     fig.savefig(output_file, bbox_inches="tight")
     plt.close(fig)

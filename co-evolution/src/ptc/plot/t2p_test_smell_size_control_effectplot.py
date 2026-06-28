@@ -30,10 +30,6 @@ from ptc.generator.t2p_test_smell_association import selected_revision_group_pai
 from ptc.generator.t2p_test_smell_revision import CHANGE_COLUMNS
 from ptc.plot.method_history_runtime_table import resolve_path
 from ptc.plot.t2p_test_smell_barchart import (
-    EFFECT_LEGEND_FONTSIZE,
-    EFFECT_X_AXIS_LABEL,
-    EFFECT_XTICK_FONTSIZE,
-    EFFECT_YTICK_FONTSIZE,
     comparison_label,
     comparison_pair,
     comparison_pairs,
@@ -43,16 +39,22 @@ from ptc.plot.t2p_test_smell_barchart import (
 from ptc.plot_util import build_experiment_plot_parser
 
 OUTPUT_FILE_PREFIX = "t2p-test-smell-size-control-effectplot"
-SIZE_CONTROL_XTICK_FONTSIZE = EFFECT_XTICK_FONTSIZE + 2
-SIZE_CONTROL_AXIS_LABEL_FONTSIZE = EFFECT_XTICK_FONTSIZE + 1
-SIZE_CONTROL_CI_LINEWIDTH = 2.6
-SIZE_CONTROL_CI_CAP_LINEWIDTH = 2.0
-SIZE_CONTROL_CI_CAP_HALF_HEIGHT = 0.07
-SIZE_CONTROL_MARKER_SIZE = 58
+SIZE_CONTROL_X_AXIS_LABEL = "Test Smell Difference"
+SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL = "Odd Ratio Difference"
+SIZE_CONTROL_XTICK_FONTSIZE = 30
+SIZE_CONTROL_YTICK_FONTSIZE = 30
+SIZE_CONTROL_AXIS_LABEL_FONTSIZE = 36
+SIZE_CONTROL_LEGEND_FONTSIZE = 30
+SIZE_CONTROL_CI_LINEWIDTH = 6.5
+SIZE_CONTROL_CI_CAP_LINEWIDTH = 4.5
+SIZE_CONTROL_CI_CAP_HALF_HEIGHT = 0.13
+SIZE_CONTROL_MARKER_SIZE = 320
+SIZE_CONTROL_MARKER_EDGE_WIDTH = 2.4
+SIZE_CONTROL_LEGEND_MARKER_SCALE = 1.8
 METHOD_SIZE_LABEL = "Method Size"
-SIZE_CONTROL_SERIES_STEP = 0.16
-SIZE_CONTROL_ROW_HEIGHT = 0.72
-SIZE_CONTROL_MIN_FIGURE_HEIGHT = 3.4
+SIZE_CONTROL_SERIES_STEP = 0.28
+SIZE_CONTROL_ROW_HEIGHT = 1.15
+SIZE_CONTROL_MIN_FIGURE_HEIGHT = 5.0
 
 
 def build_parser():
@@ -115,8 +117,8 @@ def axis_limits(frame: pd.DataFrame) -> tuple[int, int]:
         errors="coerce",
     ).dropna()
     if values.empty:
-        return -2, 18
-    low = min(-2, int(math.floor(values.min() / 2.0) * 2))
+        return -4, 18
+    low = min(-4, int(math.floor(values.min() / 2.0) * 2))
     high = max(18, int(math.ceil(values.max() / 2.0) * 2))
     return low, high
 
@@ -204,23 +206,23 @@ def plot_combined_axis(
             marker=str(style["marker"]),
             facecolor=str(style["color"]) if str(row["significant"]) == "x" else "white",
             edgecolor="black",
-            linewidth=1.0,
+            linewidth=SIZE_CONTROL_MARKER_EDGE_WIDTH,
             s=SIZE_CONTROL_MARKER_SIZE,
             zorder=2,
         )
 
-    ax.axvline(0, color="black", linewidth=0.9, linestyle="--")
+    ax.axvline(0, color="black", linewidth=1.4, linestyle="--")
     ax.set_yticks(list(range(len(control_groups))))
-    ax.set_yticklabels(control_groups, fontsize=EFFECT_YTICK_FONTSIZE)
+    ax.set_yticklabels(control_groups, fontsize=SIZE_CONTROL_YTICK_FONTSIZE)
     ax.set_ylabel(METHOD_SIZE_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
     ax.invert_yaxis()
     ax.set_ylim(len(control_groups) - 0.5, -0.5)
     ax.set_xlim(*x_limits)
-    ax.set_xticks(list(range(x_limits[0], x_limits[1] + 1, 2)))
+    ax.set_xticks(list(range(x_limits[0], x_limits[1] + 1, 4)))
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.tick_params(axis="x", labelsize=SIZE_CONTROL_XTICK_FONTSIZE)
-    ax.grid(True, axis="x", which="major", alpha=0.3)
-    ax.grid(True, axis="x", which="minor", alpha=0.18)
+    ax.grid(True, axis="x", which="major", alpha=0.48, linewidth=1.5)
+    ax.grid(True, axis="x", which="minor", alpha=0.24, linewidth=0.8)
 
 
 def plot_size_control_effect(
@@ -271,9 +273,17 @@ def plot_size_control_effect(
         )
         for pair in pairs
     ]
-    fig.legend(handles=handles, frameon=False, fontsize=EFFECT_LEGEND_FONTSIZE, loc="upper center", ncol=2)
-    fig.supxlabel(EFFECT_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
-    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    fig.legend(
+        handles=handles,
+        frameon=False,
+        fontsize=SIZE_CONTROL_LEGEND_FONTSIZE,
+        loc="upper center",
+        ncol=2,
+        markerscale=SIZE_CONTROL_LEGEND_MARKER_SCALE,
+        handlelength=2.2,
+    )
+    fig.supxlabel(SIZE_CONTROL_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
+    fig.tight_layout(rect=(0, 0, 1, 0.82))
     os.makedirs(output_file.parent, exist_ok=True)
     fig.savefig(output_file, bbox_inches="tight")
     plt.close(fig)

@@ -337,7 +337,7 @@ def plot_change_axis(
     ax.set_xticks(range(len(ticks)))
     ax.set_xticklabels([str(tick) for tick in ticks])
     ax.set_xlabel(
-        "# Method Revisions",
+        "# Revisions",
         fontsize=PAPER_AXIS_LABEL_FONT_SIZE if paper_mode else None,
     )
     ax.set_ylabel(
