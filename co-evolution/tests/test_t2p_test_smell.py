@@ -2264,6 +2264,11 @@ class TestT2PTestSmell(unittest.TestCase):
                 marker_collections = [
                     collection for collection in figure.axes[0].collections if hasattr(collection, "get_sizes")
                 ]
+                marker_facecolors = [
+                    collection.get_facecolors()[0].tolist()
+                    for collection in marker_collections
+                    if len(collection.get_facecolors()) > 0
+                ]
                 marker_size = marker_collections[-1].get_sizes()[0]
                 marker_edge_width = marker_collections[-1].get_linewidths()[0]
                 legend_fontsize = figure.legends[0].get_texts()[0].get_fontsize()
@@ -2316,6 +2321,8 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertAlmostEqual(SIZE_CONTROL_CI_CAP_HALF_HEIGHT, cap_half_height)
             self.assertEqual(SIZE_CONTROL_MARKER_SIZE, marker_size)
             self.assertEqual(SIZE_CONTROL_MARKER_EDGE_WIDTH, marker_edge_width)
+            self.assertNotIn([1.0, 1.0, 1.0, 1.0], marker_facecolors)
+            self.assertTrue(all(facecolor[-1] == 1.0 for facecolor in marker_facecolors))
             self.assertEqual(0.40, SIZE_CONTROL_SERIES_STEP)
             self.assertEqual(1.55, SIZE_CONTROL_ROW_HEIGHT)
             self.assertEqual(6.2, SIZE_CONTROL_MIN_FIGURE_HEIGHT)
@@ -2398,6 +2405,11 @@ class TestT2PTestSmell(unittest.TestCase):
                 marker_collections = [
                     collection for collection in axis.collections if hasattr(collection, "get_sizes")
                 ]
+                marker_facecolors = [
+                    collection.get_facecolors()[0].tolist()
+                    for collection in marker_collections
+                    if len(collection.get_facecolors()) > 0
+                ]
                 marker_size = marker_collections[-1].get_sizes()[0]
                 marker_edge_width = marker_collections[-1].get_linewidths()[0]
                 legend_fontsize = figure.legends[0].get_texts()[0].get_fontsize()
@@ -2448,6 +2460,8 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertAlmostEqual(SIZE_CONTROL_CI_CAP_HALF_HEIGHT, cap_half_height)
             self.assertEqual(SIZE_CONTROL_MARKER_SIZE, marker_size)
             self.assertEqual(SIZE_CONTROL_MARKER_EDGE_WIDTH, marker_edge_width)
+            self.assertNotIn([1.0, 1.0, 1.0, 1.0], marker_facecolors)
+            self.assertTrue(all(facecolor[-1] == 1.0 for facecolor in marker_facecolors))
             self.assertEqual(SIZE_CONTROL_MIN_FIGURE_HEIGHT, figure_height)
 
     def test_size_control_plots_support_multiple_revision_group_pairs(self):

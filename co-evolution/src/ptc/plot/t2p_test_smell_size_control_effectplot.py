@@ -222,7 +222,7 @@ def plot_combined_axis(
             [difference],
             [y_position],
             marker=str(style["marker"]),
-            facecolor=str(style["color"]) if str(row["significant"]) == "x" else "white",
+            facecolor=str(style["color"]),
             edgecolor="black",
             linewidth=SIZE_CONTROL_MARKER_EDGE_WIDTH,
             s=SIZE_CONTROL_MARKER_SIZE,
