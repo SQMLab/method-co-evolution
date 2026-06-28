@@ -44,6 +44,7 @@ from ptc.plot.t2p_test_smell_size_control_effectplot import (
     SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL,
     METHOD_SIZE_LABEL,
     SIZE_CONTROL_LEGEND_ANCHOR_X,
+    SIZE_CONTROL_XLABEL_Y,
     add_method_group_separators,
     control_group_order,
     legend_pairs,
@@ -219,6 +220,8 @@ def plot_odds_ratio_axis(
     ax.set_xlim(*x_limits)
     ax.xaxis.set_major_locator(MultipleLocator(0.5))
     ax.tick_params(axis="x", labelsize=SIZE_CONTROL_XTICK_FONTSIZE)
+    ax.set_xlabel(SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
+    ax.xaxis.set_label_coords(0.5, SIZE_CONTROL_XLABEL_Y)
     ax.set_yticks(list(range(len(control_groups))))
     ax.set_yticklabels(control_groups, fontsize=SIZE_CONTROL_YTICK_FONTSIZE)
     ax.set_ylabel(METHOD_SIZE_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
@@ -286,7 +289,6 @@ def plot_size_control_odds_ratio_effect(
         markerscale=SIZE_CONTROL_LEGEND_MARKER_SCALE,
         handlelength=2.2,
     )
-    fig.supxlabel(SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE, x=0.5, ha="center")
     fig.tight_layout(rect=(0, 0, 1, 0.82))
     os.makedirs(output_file.parent, exist_ok=True)
     fig.savefig(output_file, bbox_inches="tight")

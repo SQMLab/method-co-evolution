@@ -149,6 +149,7 @@ from ptc.plot.t2p_test_smell_size_control_effectplot import (
     SIZE_CONTROL_ROW_HEIGHT,
     SIZE_CONTROL_SERIES_STEP,
     SIZE_CONTROL_X_AXIS_LABEL,
+    SIZE_CONTROL_XLABEL_Y,
     SIZE_CONTROL_XTICK_FONTSIZE,
     SIZE_CONTROL_YTICK_FONTSIZE,
     pair_suffix as size_control_pair_suffix,
@@ -2251,10 +2252,11 @@ class TestT2PTestSmell(unittest.TestCase):
                 ytick_fontsize = figure.axes[0].yaxis.get_ticklabels()[0].get_fontsize()
                 ylabel = figure.axes[0].get_ylabel()
                 ylabel_size = figure.axes[0].yaxis.label.get_fontsize()
-                xlabel = figure._supxlabel.get_text()
-                xlabel_size = figure._supxlabel.get_fontsize()
-                xlabel_position = figure._supxlabel.get_position()
-                xlabel_alignment = figure._supxlabel.get_ha()
+                xlabel = figure.axes[0].get_xlabel()
+                xlabel_size = figure.axes[0].xaxis.label.get_fontsize()
+                xlabel_position = figure.axes[0].xaxis.get_label().get_position()
+                xlabel_alignment = figure.axes[0].xaxis.label.get_ha()
+                figure_xlabel = getattr(figure, "_supxlabel", None)
                 ci_linewidth = figure.axes[0].collections[0].get_linewidths()[0]
                 cap_linewidth = figure.axes[0].collections[1].get_linewidths()[0]
                 cap_segment = figure.axes[0].collections[1].get_segments()[0]
@@ -2285,7 +2287,9 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertEqual(SIZE_CONTROL_X_AXIS_LABEL, xlabel)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, xlabel_size)
             self.assertAlmostEqual(0.5, xlabel_position[0])
+            self.assertAlmostEqual(SIZE_CONTROL_XLABEL_Y, xlabel_position[1])
             self.assertEqual("center", xlabel_alignment)
+            self.assertIsNone(figure_xlabel)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, ylabel_size)
             self.assertEqual(SIZE_CONTROL_XTICK_FONTSIZE, xtick_fontsize)
             self.assertEqual(SIZE_CONTROL_YTICK_FONTSIZE, ytick_fontsize)
@@ -2377,10 +2381,11 @@ class TestT2PTestSmell(unittest.TestCase):
                     line for line in axis.lines if len(line.get_xdata()) == 2 and list(line.get_xdata()) == [1, 1]
                 ]
                 grid_lines = axis.get_xgridlines()
-                xlabel = figure._supxlabel.get_text()
-                xlabel_size = figure._supxlabel.get_fontsize()
-                xlabel_position = figure._supxlabel.get_position()
-                xlabel_alignment = figure._supxlabel.get_ha()
+                xlabel = axis.get_xlabel()
+                xlabel_size = axis.xaxis.label.get_fontsize()
+                xlabel_position = axis.xaxis.get_label().get_position()
+                xlabel_alignment = axis.xaxis.label.get_ha()
+                figure_xlabel = getattr(figure, "_supxlabel", None)
                 ylabel_size = axis.yaxis.label.get_fontsize()
                 xtick_fontsize = axis.xaxis.get_ticklabels()[0].get_fontsize()
                 ytick_fontsize = axis.yaxis.get_ticklabels()[0].get_fontsize()
@@ -2417,7 +2422,9 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertEqual(SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL, xlabel)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, xlabel_size)
             self.assertAlmostEqual(0.5, xlabel_position[0])
+            self.assertAlmostEqual(SIZE_CONTROL_XLABEL_Y, xlabel_position[1])
             self.assertEqual("center", xlabel_alignment)
+            self.assertIsNone(figure_xlabel)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, ylabel_size)
             self.assertEqual(SIZE_CONTROL_XTICK_FONTSIZE, xtick_fontsize)
             self.assertEqual(SIZE_CONTROL_YTICK_FONTSIZE, ytick_fontsize)

@@ -40,7 +40,7 @@ from ptc.plot_util import build_experiment_plot_parser
 
 OUTPUT_FILE_PREFIX = "t2p-test-smell-size-control-effectplot"
 SIZE_CONTROL_X_AXIS_LABEL = "Test Smell Difference"
-SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL = "Odd Ratio Difference"
+SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL = "Odds Ratio Difference"
 SIZE_CONTROL_XTICK_FONTSIZE = 30
 SIZE_CONTROL_YTICK_FONTSIZE = 30
 SIZE_CONTROL_AXIS_LABEL_FONTSIZE = 36
@@ -59,6 +59,7 @@ SIZE_CONTROL_GROUP_SEPARATOR_ALPHA = 0.75
 SIZE_CONTROL_GROUP_SEPARATOR_LINEWIDTH = 2.0
 SIZE_CONTROL_GROUP_SEPARATOR_LINESTYLE = ":"
 SIZE_CONTROL_LEGEND_ANCHOR_X = 0.58
+SIZE_CONTROL_XLABEL_Y = -0.14
 
 
 def build_parser():
@@ -239,6 +240,8 @@ def plot_combined_axis(
     ax.set_xticks(list(range(x_limits[0], x_limits[1] + 1, 4)))
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     ax.tick_params(axis="x", labelsize=SIZE_CONTROL_XTICK_FONTSIZE)
+    ax.set_xlabel(SIZE_CONTROL_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
+    ax.xaxis.set_label_coords(0.5, SIZE_CONTROL_XLABEL_Y)
     ax.grid(True, axis="x", which="major", alpha=0.48, linewidth=1.5)
     ax.grid(True, axis="x", which="minor", alpha=0.24, linewidth=0.8)
 
@@ -301,7 +304,6 @@ def plot_size_control_effect(
         markerscale=SIZE_CONTROL_LEGEND_MARKER_SCALE,
         handlelength=2.2,
     )
-    fig.supxlabel(SIZE_CONTROL_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE, x=0.5, ha="center")
     fig.tight_layout(rect=(0, 0, 1, 0.82))
     os.makedirs(output_file.parent, exist_ok=True)
     fig.savefig(output_file, bbox_inches="tight")
