@@ -1,14 +1,18 @@
 # Replication Package
 
-This document describes how to use the Zenodo replication package to replay the method co-evolution experiments. The package is organized so that its `workspace/...` files can be copied directly into the cloned project.
+This document explains how to use the Zenodo replication package to reproduce the method co-evolution experiment results. It is written for researchers who have downloaded the artifact and want to replay the analysis from the packaged data.
 
-## 1. Get the Project and Package
+## 1. Get the Code
 
-Clone the GitHub project from https://anonymous.4open.science/r/test-evolution. For project setup, dependencies, and build instructions, read the project README:
+Clone the anonymous GitHub repository:
 
 ```text
-README.md
+https://anonymous.4open.science/r/test-evolution
 ```
+
+After cloning the repository, read `README.md` in the project root and complete the project setup, dependency installation, and build steps described there.
+
+## 2. Download the Data
 
 Download the replication package from Zenodo:
 
@@ -18,11 +22,11 @@ https://zenodo.org/records/0000000
 
 The Zenodo URL is a placeholder and should be replaced with the final record URL before publication.
 
-## 2. Prepare the Workspace
+The extracted package contains a `.env` file and a `workspace/` directory. The `workspace/` directory preserves the same relative paths used by the project.
 
-Extract the Zenodo archive. It should contain a packaged `.env` file and a `workspace/` directory whose internal paths are preserved.
+## 3. Copy the Package into the Project
 
-Copy the packaged `.env` into the cloned project root:
+Copy the packaged `.env` file into the cloned project root:
 
 ```bash
 cp /path/to/replication-package/.env /path/to/method-co-evolution/.env
@@ -42,12 +46,21 @@ workspace/experiment/main/method/
 workspace/experiment/main/method-history/
 ```
 
-## 3. Configure `.env`
+## 4. Configure `.env`
 
-Set `PROJECT_DIRECTORY` to the local path of the cloned project. Keep
-## 4. Package Contents
+Open the copied `.env` file and set `PROJECT_DIRECTORY` to the local path of the cloned project. The path configuration should follow this pattern:
 
-The package contains raw input data and selected shareable derived inputs needed to replay the experiment notebooks. Method-history CSV files are included. Method-history JSON files and compressed archives are excluded.
+```bash
+PROJECT_DIRECTORY=/path/to/method-co-evolution
+ME_PROJECT_DIRECTORY=${PROJECT_DIRECTORY}
+ME_WORKSPACE_DIRECTORY=${PROJECT_DIRECTORY}/workspace
+```
+
+The packaged `.env` should not contain private local paths or secret tokens. Keep API token variables blank unless you intentionally run optional regeneration steps that require remote services.
+
+## 5. Package Contents
+
+The package contains raw input data and selected shareable derived inputs needed to replay the experiment notebooks. Method-history CSV files are included. Method-history JSON files and compressed archives are not included.
 
 Main experiment contents:
 
@@ -61,10 +74,8 @@ workspace/experiment/main/project.csv
 workspace/experiment/main/t2p-link/nc
 workspace/experiment/main/t2p-link/omc
 workspace/experiment/main/t2p-link/omc--nc
-workspace/experiment/main/t2p-tech
 workspace/experiment/main/test-smell/jnose/omc--nc
 ```
-
 
 Evaluation experiment contents are included for `tctracer-2020`, `tctracer-2022`, `testlinker`, and `t2plinker`. Each experiment contains:
 
@@ -91,14 +102,33 @@ workspace/experiment/<experiment>/t2p-tech
 workspace/experiment/<experiment>/testlinker/output/codet5/testlinkerv2
 ```
 
+The package does not include:
 
-## 5. Replay the Experiments
+```text
+method-history JSON files or compressed archives
+repository clones
+caches and intermediate generated outputs
+personal or local-only files
+```
 
-Complete the project setup described in the README before running the notebooks. Then run the notebooks in this order from the cloned project:
+## 6. Replay the Experiments
+
+Complete the setup instructions in `README.md` before running the notebooks. Then run the notebooks in this order from the cloned project:
 
 ```text
 co-evolution/src/ptc/run/method_link_run.ipynb
 co-evolution/src/ptc/run/method_history_run.ipynb
 co-evolution/src/ptc/run/method_linker_evaluation.ipynb
 co-evolution/src/ptc/run/rq_plot_run.ipynb
+```
+
+The replay workflow regenerates analysis and reporting outputs from the packaged data. Expected outputs include:
+
+```text
+workspace/experiment/main/aggregate/
+workspace/experiment/main/t2p-change/
+workspace/experiment/main/t2p-test-smell-with-revision/
+workspace/experiment/main/figure/
+workspace/experiment/all/t2p-link-metric/
+workspace/t2p_link_overall_metric.csv
 ```
