@@ -137,6 +137,9 @@ from ptc.plot.t2p_test_smell_size_control_effectplot import (
     SIZE_CONTROL_CI_CAP_LINEWIDTH,
     SIZE_CONTROL_AXIS_LABEL_FONTSIZE,
     SIZE_CONTROL_CI_LINEWIDTH,
+    SIZE_CONTROL_GROUP_SEPARATOR_LINESTYLE,
+    SIZE_CONTROL_GROUP_SEPARATOR_LINEWIDTH,
+    SIZE_CONTROL_LEGEND_ANCHOR_X,
     SIZE_CONTROL_LEGEND_FONTSIZE,
     SIZE_CONTROL_LEGEND_MARKER_SCALE,
     SIZE_CONTROL_MARKER_EDGE_WIDTH,
@@ -2250,6 +2253,8 @@ class TestT2PTestSmell(unittest.TestCase):
                 ylabel_size = figure.axes[0].yaxis.label.get_fontsize()
                 xlabel = figure._supxlabel.get_text()
                 xlabel_size = figure._supxlabel.get_fontsize()
+                xlabel_position = figure._supxlabel.get_position()
+                xlabel_alignment = figure._supxlabel.get_ha()
                 ci_linewidth = figure.axes[0].collections[0].get_linewidths()[0]
                 cap_linewidth = figure.axes[0].collections[1].get_linewidths()[0]
                 cap_segment = figure.axes[0].collections[1].get_segments()[0]
@@ -2260,6 +2265,16 @@ class TestT2PTestSmell(unittest.TestCase):
                 marker_size = marker_collections[-1].get_sizes()[0]
                 marker_edge_width = marker_collections[-1].get_linewidths()[0]
                 legend_fontsize = figure.legends[0].get_texts()[0].get_fontsize()
+                legend_anchor = figure.legends[0].get_bbox_to_anchor().transformed(figure.transFigure.inverted())
+                y_grid_lines = [line for line in figure.axes[0].get_ygridlines() if line.get_visible()]
+                separator_lines = [
+                    line
+                    for line in figure.axes[0].lines
+                    if len(line.get_ydata()) == 2
+                    and len(line.get_xdata()) == 2
+                    and float(line.get_ydata()[0]) == float(line.get_ydata()[1])
+                    and float(line.get_ydata()[0]) in {0.5, 1.5}
+                ]
                 close.assert_called_once()
                 real_close(figure)
 
@@ -2269,10 +2284,21 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertEqual(METHOD_SIZE_LABEL, ylabel)
             self.assertEqual(SIZE_CONTROL_X_AXIS_LABEL, xlabel)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, xlabel_size)
+            self.assertAlmostEqual(0.5, xlabel_position[0])
+            self.assertEqual("center", xlabel_alignment)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, ylabel_size)
             self.assertEqual(SIZE_CONTROL_XTICK_FONTSIZE, xtick_fontsize)
             self.assertEqual(SIZE_CONTROL_YTICK_FONTSIZE, ytick_fontsize)
             self.assertEqual(SIZE_CONTROL_LEGEND_FONTSIZE, legend_fontsize)
+            self.assertAlmostEqual(SIZE_CONTROL_LEGEND_ANCHOR_X, legend_anchor.x0)
+            self.assertFalse(y_grid_lines)
+            self.assertEqual([0.5, 1.5], sorted(float(line.get_ydata()[0]) for line in separator_lines))
+            self.assertTrue(
+                all(line.get_linestyle() == SIZE_CONTROL_GROUP_SEPARATOR_LINESTYLE for line in separator_lines)
+            )
+            self.assertTrue(
+                all(line.get_linewidth() == SIZE_CONTROL_GROUP_SEPARATOR_LINEWIDTH for line in separator_lines)
+            )
             self.assertGreater(legend_marker_size, 6 * SIZE_CONTROL_LEGEND_MARKER_SCALE - 0.1)
             self.assertEqual(-4, int(xlim[0]))
             self.assertTrue(xtick_steps)
@@ -2353,6 +2379,8 @@ class TestT2PTestSmell(unittest.TestCase):
                 grid_lines = axis.get_xgridlines()
                 xlabel = figure._supxlabel.get_text()
                 xlabel_size = figure._supxlabel.get_fontsize()
+                xlabel_position = figure._supxlabel.get_position()
+                xlabel_alignment = figure._supxlabel.get_ha()
                 ylabel_size = axis.yaxis.label.get_fontsize()
                 xtick_fontsize = axis.xaxis.get_ticklabels()[0].get_fontsize()
                 ytick_fontsize = axis.yaxis.get_ticklabels()[0].get_fontsize()
@@ -2367,6 +2395,16 @@ class TestT2PTestSmell(unittest.TestCase):
                 marker_edge_width = marker_collections[-1].get_linewidths()[0]
                 legend_fontsize = figure.legends[0].get_texts()[0].get_fontsize()
                 legend_marker_size = figure.legends[0].legend_handles[0].get_markersize()
+                legend_anchor = figure.legends[0].get_bbox_to_anchor().transformed(figure.transFigure.inverted())
+                y_grid_lines = [line for line in axis.get_ygridlines() if line.get_visible()]
+                separator_lines = [
+                    line
+                    for line in axis.lines
+                    if len(line.get_ydata()) == 2
+                    and len(line.get_xdata()) == 2
+                    and float(line.get_ydata()[0]) == float(line.get_ydata()[1])
+                    and float(line.get_ydata()[0]) in {0.5, 1.5}
+                ]
                 close.assert_called_once()
                 real_close(figure)
 
@@ -2378,10 +2416,21 @@ class TestT2PTestSmell(unittest.TestCase):
             self.assertTrue(any(line.get_visible() for line in grid_lines))
             self.assertEqual(SIZE_CONTROL_ODDS_RATIO_X_AXIS_LABEL, xlabel)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, xlabel_size)
+            self.assertAlmostEqual(0.5, xlabel_position[0])
+            self.assertEqual("center", xlabel_alignment)
             self.assertEqual(SIZE_CONTROL_AXIS_LABEL_FONTSIZE, ylabel_size)
             self.assertEqual(SIZE_CONTROL_XTICK_FONTSIZE, xtick_fontsize)
             self.assertEqual(SIZE_CONTROL_YTICK_FONTSIZE, ytick_fontsize)
             self.assertEqual(SIZE_CONTROL_LEGEND_FONTSIZE, legend_fontsize)
+            self.assertAlmostEqual(SIZE_CONTROL_LEGEND_ANCHOR_X, legend_anchor.x0)
+            self.assertFalse(y_grid_lines)
+            self.assertEqual([0.5, 1.5], sorted(float(line.get_ydata()[0]) for line in separator_lines))
+            self.assertTrue(
+                all(line.get_linestyle() == SIZE_CONTROL_GROUP_SEPARATOR_LINESTYLE for line in separator_lines)
+            )
+            self.assertTrue(
+                all(line.get_linewidth() == SIZE_CONTROL_GROUP_SEPARATOR_LINEWIDTH for line in separator_lines)
+            )
             self.assertGreater(legend_marker_size, 6 * SIZE_CONTROL_LEGEND_MARKER_SCALE - 0.1)
             self.assertEqual(SIZE_CONTROL_CI_LINEWIDTH, ci_linewidth)
             self.assertEqual(SIZE_CONTROL_CI_CAP_LINEWIDTH, cap_linewidth)

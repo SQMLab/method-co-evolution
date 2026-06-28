@@ -55,6 +55,10 @@ METHOD_SIZE_LABEL = "Method Size"
 SIZE_CONTROL_SERIES_STEP = 0.40
 SIZE_CONTROL_ROW_HEIGHT = 1.55
 SIZE_CONTROL_MIN_FIGURE_HEIGHT = 6.2
+SIZE_CONTROL_GROUP_SEPARATOR_ALPHA = 0.75
+SIZE_CONTROL_GROUP_SEPARATOR_LINEWIDTH = 2.0
+SIZE_CONTROL_GROUP_SEPARATOR_LINESTYLE = ":"
+SIZE_CONTROL_LEGEND_ANCHOR_X = 0.58
 
 
 def build_parser():
@@ -146,6 +150,19 @@ def series_style(series: tuple[str, tuple[str, str]]) -> dict[str, str]:
     return comparison_style(pair).copy()
 
 
+def add_method_group_separators(ax, control_groups: list[str]) -> None:
+    ax.set_axisbelow(True)
+    for index in range(len(control_groups) - 1):
+        ax.axhline(
+            index + 0.5,
+            color="0.25",
+            linestyle=SIZE_CONTROL_GROUP_SEPARATOR_LINESTYLE,
+            alpha=SIZE_CONTROL_GROUP_SEPARATOR_ALPHA,
+            linewidth=SIZE_CONTROL_GROUP_SEPARATOR_LINEWIDTH,
+            zorder=0,
+        )
+
+
 def legend_pairs(frame: pd.DataFrame) -> list[tuple[str, str]]:
     pairs = comparison_pairs(frame)
     requested = frame.attrs.get("revision_group_pairs")
@@ -215,6 +232,7 @@ def plot_combined_axis(
     ax.set_yticks(list(range(len(control_groups))))
     ax.set_yticklabels(control_groups, fontsize=SIZE_CONTROL_YTICK_FONTSIZE)
     ax.set_ylabel(METHOD_SIZE_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
+    add_method_group_separators(ax, control_groups)
     ax.invert_yaxis()
     ax.set_ylim(len(control_groups) - 0.5, -0.5)
     ax.set_xlim(*x_limits)
@@ -278,11 +296,12 @@ def plot_size_control_effect(
         frameon=False,
         fontsize=SIZE_CONTROL_LEGEND_FONTSIZE,
         loc="upper center",
+        bbox_to_anchor=(SIZE_CONTROL_LEGEND_ANCHOR_X, 0.99),
         ncol=2,
         markerscale=SIZE_CONTROL_LEGEND_MARKER_SCALE,
         handlelength=2.2,
     )
-    fig.supxlabel(SIZE_CONTROL_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE)
+    fig.supxlabel(SIZE_CONTROL_X_AXIS_LABEL, fontsize=SIZE_CONTROL_AXIS_LABEL_FONTSIZE, x=0.5, ha="center")
     fig.tight_layout(rect=(0, 0, 1, 0.82))
     os.makedirs(output_file.parent, exist_ok=True)
     fig.savefig(output_file, bbox_inches="tight")
