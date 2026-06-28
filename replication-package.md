@@ -17,7 +17,7 @@ After cloning the repository, read `README.md` in the project root and complete 
 Download the replication package from Zenodo:
 
 ```text
-https://zenodo.org/records/0000000
+https://doi.org/10.5281/zenodo.21010738
 ```
 
 The Zenodo URL is a placeholder and should be replaced with the final record URL before publication.
@@ -100,15 +100,6 @@ workspace/experiment/<experiment>/t2p-link/testlinkerv2
 workspace/experiment/<experiment>/t2p-link/tfidf
 workspace/experiment/<experiment>/t2p-tech
 workspace/experiment/<experiment>/testlinker/output/codet5/testlinkerv2
-```
-
-The package does not include:
-
-```text
-method-history JSON files or compressed archives
-repository clones
-caches and intermediate generated outputs
-personal or local-only files
 ```
 
 ## 6. Replay the Experiments
