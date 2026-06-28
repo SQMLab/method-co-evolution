@@ -26,6 +26,8 @@ from ptc.plot.t2p_revision_delta_cdf import (
     PAPER_LINE_WIDTH,
     PAPER_MAX_DISPLAY_DELTA,
     PAPER_SERIES_COLOR,
+    PAPER_THRESHOLD_COLOR,
+    PAPER_THRESHOLD_LINE_WIDTH,
     PAPER_TICK_LABEL_SIZE,
     clipped_delta_cdf,
     delta_cdf,
@@ -148,6 +150,13 @@ class TestT2PRevisionDeltaPlot(unittest.TestCase):
             self.assertGreaterEqual(len(ax.lines), 1)
             self.assertEqual(PAPER_SERIES_COLOR, ax.lines[0].get_color())
             self.assertEqual(PAPER_LINE_WIDTH, ax.lines[0].get_linewidth())
+            threshold_lines = [
+                line
+                for line in ax.lines
+                if line.get_color() == PAPER_THRESHOLD_COLOR
+            ]
+            self.assertEqual(1, len(threshold_lines))
+            self.assertEqual(PAPER_THRESHOLD_LINE_WIDTH, threshold_lines[0].get_linewidth())
             self.assertEqual(PAPER_LABEL_SIZE, ax.xaxis.label.get_fontsize())
             self.assertEqual(PAPER_LABEL_SIZE, ax.yaxis.label.get_fontsize())
             self.assertEqual(PAPER_TICK_LABEL_SIZE, ax.xaxis.get_ticklabels()[0].get_fontsize())

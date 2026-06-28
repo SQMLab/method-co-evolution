@@ -25,6 +25,7 @@ from ptc.plot.artifact_revision_cdf import (
     PAPER_AXIS_LABEL_FONT_SIZE,
     PAPER_CHANGE_AXIS_WIDTH,
     PAPER_LEGEND_ANCHOR,
+    PAPER_LEGEND_FONT_SIZE,
     PAPER_LINE_WIDTH,
     PAPER_MARK_EVERY,
     PAPER_MARKER_SIZE,
@@ -337,6 +338,9 @@ class TestArtifactRevisionCdf(unittest.TestCase):
             self.assertEqual(
                 ["Test Method", "Production Method"],
                 [text.get_text() for text in legend.get_texts()],
+            )
+            self.assertTrue(
+                all(text.get_fontsize() == PAPER_LEGEND_FONT_SIZE for text in legend.get_texts())
             )
             self.assertEqual([0, 1, 4.5], ax.lines[0].get_xdata().tolist())
             self.assertEqual([0, 6], ax.lines[1].get_xdata().tolist())

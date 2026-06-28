@@ -47,14 +47,15 @@ DEFAULT_CHANGE_AXIS_WIDTH = 5.5
 ROW_INFO_AXIS_WIDTH = 1.8
 PAPER_FIGURE_HEIGHT = 4.2
 DEFAULT_ROW_HEIGHT = 3.2
-PAPER_TICK_FONT_SIZE = 22
+PAPER_TICK_FONT_SIZE = 24
 DEFAULT_TICK_FONT_SIZE = 13
-PAPER_AXIS_LABEL_FONT_SIZE = 24
+PAPER_AXIS_LABEL_FONT_SIZE = 26
+PAPER_LEGEND_FONT_SIZE = 18
 PAPER_LINE_WIDTH = 6
 PAPER_MARK_EVERY = 2
 PAPER_MARKER_SIZE = 4.2
 PAPER_MAX_REVISION_TICK = 50
-PAPER_LEGEND_ANCHOR = (0.58, 0.30)
+PAPER_LEGEND_ANCHOR = (0.58, 0.20)
 CHANGE_COLUMN_LABELS = {
     "ch_diff": "ch_diff",
     "ch_all": "All revisions",
@@ -356,7 +357,7 @@ def plot_change_axis(
             loc="center",
             bbox_to_anchor=PAPER_LEGEND_ANCHOR,
             frameon=True,
-            fontsize=10,
+            fontsize=PAPER_LEGEND_FONT_SIZE,
             borderaxespad=0.4,
             handlelength=2.4,
         )

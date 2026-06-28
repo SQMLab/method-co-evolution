@@ -39,8 +39,9 @@ PAPER_MAX_DELTA = 5
 PAPER_MAX_DISPLAY_DELTA = 10
 PAPER_SERIES_COLOR = "#1f77b4"
 PAPER_THRESHOLD_COLOR = "#d62728"
-PAPER_LABEL_SIZE = 24
-PAPER_TICK_LABEL_SIZE = 22
+PAPER_THRESHOLD_LINE_WIDTH = 6
+PAPER_LABEL_SIZE = 26
+PAPER_TICK_LABEL_SIZE = 24
 PAPER_LINE_WIDTH = 6
 PAPER_FIGURE_SIZE = (5.8, 4.2)
 
@@ -264,7 +265,7 @@ def plot_paper_delta_axis(ax, df: pd.DataFrame, change: str, *, show_group_summa
         where="post",
     )
     ax.axvline(0, color="0.2", linewidth=1.0, alpha=0.45)
-    ax.axvline(PAPER_MAX_DELTA, color=PAPER_THRESHOLD_COLOR, linewidth=1.2, linestyle=":", alpha=0.65)
+    ax.axvline(PAPER_MAX_DELTA, color=PAPER_THRESHOLD_COLOR, linewidth=PAPER_THRESHOLD_LINE_WIDTH, linestyle=":", alpha=0.65)
     if show_group_summary:
         draw_revision_group_summary(ax, delta)
 
