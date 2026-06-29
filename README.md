@@ -24,10 +24,8 @@ Ground-truth datasets for RQ1 and RQ2 are documented in [data/ground-truth.md](d
 - Java 21
 - Maven 3.6+
 - Git
-- Optional: A GitHub API token for faster repository checkout.
-- Optional: CUDA-capable environment for local Hugging Face or TestLinker inference
 
-## Repository Layout
+## Project Layout
 
 | Path | Role |
 |------|------|
@@ -41,38 +39,60 @@ Ground-truth datasets for RQ1 and RQ2 are documented in [data/ground-truth.md](d
 
 Each tracked README is a focused reference for its module. Generated cache READMEs, such as `.pytest_cache/README.md`, are not part of the project documentation.
 
-## Environment
+## Workspace Layout
+
+`ME_WORKSPACE_DIRECTORY` stores experimental data and generated artifacts. Multiple experiments can run concurrently under `workspace/experiment/<name>/` by changing `ME_EXPERIMENT_NAME`, which is useful for different project sets, tool configurations, or study runs.
+
+Example workspace layout:
+
+```text
+workspace/
+  jar/
+    method-parser.jar
+  experiment/
+    main/
+      aggregate                      Concatenated individual project csvs or resultant csv across project.
+      project.csv                    Project index and repository metadata for the experiment.
+      method/                        Method index CSVs extracted from each project.
+      method-code/                   Method source and code metadata for downstream linking and filtering.
+      method-history/                Method revision count.
+      method-history-gz/             Compressed method history archives.
+      class/                         Class index CSVs extracted from each project.
+      callgraph/                     Method call graph (fan-out).
+      t2p-candidate-expanded/        Expanded production-to-test mapping candidates.
+      t2p-candidate-filtered/        Filtered production-to-test candidates used by linkers.
+      t2p-tech/                      Per-technique mapping predictions and intermediate technique outputs.
+      t2p-link/                      Final production-to-test links by strategy/technique.
+      t2p-change/                    Linked production/test revision comparison data.
+      t2p-revision-review/           Sampled or review-oriented revision comparison data.
+      test-smell/                    Test smell detector outputs.
+      t2p-test-smell/                Test smells joined with production-to-test links.
+      t2p-test-smell-with-revision/  Linked test smell rows with revision-group information.
+```
 
 The Python packages load `.env` from the repository root. A typical local file contains:
 
 ```bash
+# Repository root used by scripts to resolve project-relative paths.
 ME_PROJECT_DIRECTORY=/path/to/method-co-evolution
+
+# Shared workspace for experimental data and generated artifacts.
 ME_WORKSPACE_DIRECTORY=/path/to/method-co-evolution/workspace
+
+# Active experiment under ME_WORKSPACE_DIRECTORY/experiment/.
 ME_EXPERIMENT_NAME=main
+
+# Optional: faster repository checkout and GitHub API access.
 GITHUB_API_KEY=ghp_...
 
-# Optional
+# Optional: store method histories outside the main workspace.
 ME_HISTORY_DIRECTORY=/scratch/method-co-evolution/history
+
+# Optional: Hugging Face access for local model downloads or gated models.
 HF_TOKEN=hf_...
+
+# Optional: OpenAI access for LLM-based linking experiments.
 OPENAI_API_KEY=sk_...
-```
-
-`ME_WORKSPACE_DIRECTORY` is the shared workspace root. Most experiment outputs live under:
-
-```text
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/
-```
-
-Shared Java artifacts live under:
-
-```text
-WORKSPACE_DIRECTORY/jar/
-```
-
-If `ME_HISTORY_DIRECTORY` is not set and `--history-directory` is not passed, method histories are stored at:
-
-```text
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/history/
 ```
 
 ## Setup
