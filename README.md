@@ -1,17 +1,31 @@
-# method-co-evolution
+# Understanding Method-Level Test Code Evolution
 
-Research pipeline for studying how Java production methods and test methods co-evolve. The repository extracts method and class indexes, builds call graphs, traces method histories with external history tools, links test methods to production methods with heuristic, LLM, and neural techniques, and supports downstream sampling, review, and analysis.
+This repository supports an empirical study of method-level test code evolution. It evaluates test method history tracking, production-to-test mapping, and downstream analyses of revision frequency and test smells.
+
+## Research Questions
+
+**RQ1: Can existing history tracking tools effectively track test method revision histories?**  
+We evaluate state-of-the-art method history tracking tools using a manually constructed oracle of 120 test methods from 40 open-source Java projects.
+
+**RQ2: What is the most accurate approach for method-level production-to-test mapping?**  
+We evaluate static analysis-based mapping techniques using existing benchmarks and a newly created oracle for 20 projects.
+
+**RQ3: Are test methods revised less frequently?**  
+Using the most effective history tracking and mapping approaches, we compare revision frequencies between test methods and the production methods they exercise.
+
+**RQ4: Are test smells associated with high revisions?**  
+We study whether test smells are more common in test methods that accumulate more revisions than their corresponding production methods.
+
+Ground-truth datasets for RQ1 and RQ2 are documented in [data/ground-truth.md](data/ground-truth.md).
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - Java 21
 - Maven 3.6+
 - Git
-- A GitHub API token for repository access and history collection
-- Optional: CUDA-capable environment for local Hugging Face or TestLinker inference
 
-## Repository Layout
+## Project Layout
 
 | Path | Role |
 |------|------|
@@ -25,41 +39,63 @@ Research pipeline for studying how Java production methods and test methods co-e
 
 Each tracked README is a focused reference for its module. Generated cache READMEs, such as `.pytest_cache/README.md`, are not part of the project documentation.
 
-## Environment
+## Workspace Layout
+
+`ME_WORKSPACE_DIRECTORY` stores experimental data and generated artifacts. Multiple experiments can run concurrently under `workspace/experiment/<name>/` by changing `ME_EXPERIMENT_NAME`, which is useful for different project sets, tool configurations, or study runs.
+
+Example workspace layout:
+
+```text
+workspace/
+  jar/
+    method-parser.jar
+  experiment/
+    main/
+      aggregate                      Concatenated individual project csvs or resultant csv across project.
+      project.csv                    Project index and repository metadata for the experiment.
+      method/                        Method index CSVs extracted from each project.
+      method-code/                   Method source and code metadata for downstream linking and filtering.
+      method-history/                Method revision count.
+      method-history-gz/             Compressed method history archives.
+      class/                         Class index CSVs extracted from each project.
+      callgraph/                     Method call graph (fan-out).
+      t2p-candidate-expanded/        Expanded production-to-test mapping candidates.
+      t2p-candidate-filtered/        Filtered production-to-test candidates used by linkers.
+      t2p-tech/                      Per-technique mapping predictions and intermediate technique outputs.
+      t2p-link/                      Final production-to-test links by strategy/technique.
+      t2p-change/                    Linked production/test revision comparison data.
+      t2p-revision-review/           Sampled or review-oriented revision comparison data.
+      test-smell/                    Test smell detector outputs.
+      t2p-test-smell/                Test smells joined with production-to-test links.
+      t2p-test-smell-with-revision/  Linked test smell rows with revision-group information.
+```
 
 The Python packages load `.env` from the repository root. A typical local file contains:
 
 ```bash
+# Repository root used by scripts to resolve project-relative paths.
 ME_PROJECT_DIRECTORY=/path/to/method-co-evolution
+
+# Shared workspace for experimental data and generated artifacts.
 ME_WORKSPACE_DIRECTORY=/path/to/method-co-evolution/workspace
+
+# Active experiment under ME_WORKSPACE_DIRECTORY/experiment/.
 ME_EXPERIMENT_NAME=main
+
+# Optional: faster repository checkout and GitHub API access.
 GITHUB_API_KEY=ghp_...
 
-# Optional
+# Optional: store method histories outside the main workspace.
 ME_HISTORY_DIRECTORY=/scratch/method-co-evolution/history
+
+# Optional: Hugging Face access for local model downloads or gated models.
 HF_TOKEN=hf_...
+
+# Optional: OpenAI access for LLM-based linking experiments.
 OPENAI_API_KEY=sk_...
 ```
 
-`ME_WORKSPACE_DIRECTORY` is the shared workspace root. Most experiment outputs live under:
-
-```text
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/
-```
-
-Shared Java artifacts live under:
-
-```text
-WORKSPACE_DIRECTORY/jar/
-```
-
-If `ME_HISTORY_DIRECTORY` is not set and `--history-directory` is not passed, method histories are stored at:
-
-```text
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/history/
-```
-
-## Setup
+## Python Environment
 
 Run these commands from the repository root:
 
@@ -74,85 +110,20 @@ pip install -e './co-evolution[llm]'
 pip install -e './co-evolution[testlinker]'
 ```
 
-Build the Java parser and copy the executable JAR into `WORKSPACE_DIRECTORY/jar/`:
+## Data Collection
 
-```bash
-scripts/build-method-parser.sh
-```
+If you already have data from the replication package, skip this section and follow [replication-package.md](replication-package.md) for copying data into the workspace experiment. If you are experimenting with a new project set or collecting data from scratch, follow the collection workflow and see [scripts/README.md](scripts/README.md) for local wrapper and Slurm command details.
 
-For the jNose test-smell workflow, also build `jnose-core` and `jnose-adapter`; see [jnose-adapter/README.md](jnose-adapter/README.md).
+## Running Experiment
 
-## First Pipeline Run
-
-Create or confirm the experiment project index:
+Run the code in each notebook cell in order. Before running notebook commands, make sure the required raw data already exists; see [Data Collection](#data-collection) for collecting data from scratch. Each step in the notebooks may depend on intermediate results produced by earlier cells or earlier notebooks.
 
 ```text
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/project.csv
+co-evolution/src/ptc/run/method_link_run.ipynb
+co-evolution/src/ptc/run/method_history_run.ipynb
+co-evolution/src/ptc/run/method_linker_evaluation.ipynb
+co-evolution/src/ptc/run/rq_plot_run.ipynb
 ```
-
-The file must include a `project` column and the repository metadata expected by the collection commands.
-
-Run a minimal extraction for one project:
-
-```bash
-mhc method-scan \
-  --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
-  --experiment-name "$ME_EXPERIMENT_NAME" \
-  --project "checkstyle"
-
-mhc class-scan \
-  --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
-  --experiment-name "$ME_EXPERIMENT_NAME" \
-  --project "checkstyle"
-
-mhc method-callgraph \
-  --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
-  --experiment-name "$ME_EXPERIMENT_NAME" \
-  --tool-name methodParser \
-  --project "checkstyle"
-
-mhc method-code \
-  --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
-  --experiment-name "$ME_EXPERIMENT_NAME" \
-  --project "checkstyle"
-```
-
-Core outputs are written under:
-
-```text
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/method/<project>.csv
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/class/<project>.csv
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/callgraph/<project>.csv
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/fanin/<project>.csv
-WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/method-code/<project>.csv
-```
-
-Then run history collection, candidate generation, LLM linking, or TestLinker depending on the experiment.
-
-To review histories in the local UI, run:
-
-```bash
-scripts/history-viewer.sh
-```
-
-The helper serves `ptc-history-viewer` at `http://127.0.0.1:8765`; see [scripts/README.md](scripts/README.md#history-viewersh) for details.
-
-## Pipeline Overview
-
-```text
-project.csv
-  -> mhc method-scan       -> method/<project>.csv
-  -> mhc class-scan        -> class/<project>.csv
-  -> mhc method-callgraph  -> callgraph/<project>.csv and fanin/<project>.csv
-  -> mhc method-history    -> history/<tool>/<project>/
-  -> mhc method-code       -> method-code/<project>.csv
-  -> generator scripts     -> t2p-candidate-filtered/ and related candidate datasets
-  -> ptc-llm               -> llm/<input-kind>/<model>/
-  -> ptc-testlinker        -> testlinker/output/<model>/
-  -> ptc-history-viewer    -> local browser review UI
-```
-
-Paths in the overview are relative to `WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/` unless noted otherwise.
 
 ## Common Documentation
 
