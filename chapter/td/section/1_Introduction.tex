@@ -1,0 +1,67 @@
+\section{Introduction}
+ %Introduce the problem and the motivation, and highlight your contribution and results (~1 page).
+
+Software maintenance keeps applications reliable and adaptable as they evolve. It involves continuous updates to fix bugs, improve performance, and meet user needs, often demanding more effort than initial development \cite{kafura_use_1987, borstler_role_2016}. As such, to reduce future maintenance burden, researchers have developed methods to identify and manage code components that are more maintenance prone~\cite{pascarella_performance_2020, chowdhury_method-level_2024, romano_using_2011, chowdhury_revisiting_2022, zhou_ability_2010,grund_codeshovel_2021, palomba_exploratory_2017}.
+Previous research on software maintenance, however, has predominantly focused on production code (i.e., source code), with significantly less attention given to test code~\cite{winkler_investigating_2024, tahir_empirical_2016}. This oversight is significant, as the quality and maintainability of test code also play a crucial role in overall software quality and long-term maintainability~\cite{spadini_relation_2018, zaidman_studying_2011, vahabzadeh_empirical_2015}. 
+
+Consider the case of Self-Admitted Technical Debt (SATD)~\cite{potdar_exploratory_2014, wehaibi_examining_2016, seaman_technical_2015, zazworka_investigating_2011, spinola_investigating_2013, guo_tracking_2011,xiao_quantifying_2024,cassee_self-admitted_2022}, where developers explicitly acknowledge the need for improvement or rework through comments in the source code. SATD has been widely recognized as a factor that negatively impacts software maintainability. For example, a recent study by Chowdhury \textit{et al.}~\cite{chowdhury_evidence_2025} found that source code methods containing SATD not only exhibit lower code quality, but are also more change-prone and bug-prone than their non-SATD counterparts. Not surprisingly, considerable research has focused on detecting~\cite{maldonado_detecting_2015, liu_satd_2018, huang_identifying_2018, li_automatic_2023, sheikhaei_empirical_2024, maldonado_using_2017,gama_towards_2024, rantala_prevalence_2020}, classifying~\cite{zhu_detecting_2021, maldonado_detecting_2015, obrien_artifact_2022, bhatia_empirical_2025}, and mitigating SATD~\cite{maldonado_empirical_2017, zampetti_was_2018, zampetti_automatically_2020, iammarino_empirical_2021, liu_exploratory_2021, mastropaolo_towards_2023}. Unfortunately, the subject samples in these studies have been either exclusively source code or overwhelmingly dominated by it.
+
+% , }. Extensive research has focused on detecting \cite{maldonado_detecting_2015, liu_satd_2018, huang_identifying_2018, li_automatic_2022, sheikhaei_empirical_2024, maldonado_using_2017}, classifying \cite{zhu_detecting_2021, maldonado_detecting_2015, obrien_artifact_2022, bhatia_empirical_2024}, and mitigating SATD in source code. Nonetheless, these studies have predominantly focused on production code, often overlooking—or failing to distinguish—SATD occurrences within test code.
+
+% Just as maintaining source code is essential, maintaining test code is equally important. Faulty or poorly maintained test code can compromise the reliability of the testing process, leading to undetected issues in the application code. 
+
+% Recognizing this, researchers have increasingly studied the quality and evolution of test code \cite{spadini_relation_2018, lin_quality_2019, beller_developer_2019, beller_when_2015, zaidman_studying_2011, athanasiou_test_2014}. However, compared to application code, test code maintenance has received relatively limited attention. One particularly notable maintenance concern is Self-Admitted Technical Debt (SATD) \cite{potdar_exploratory_2014}, where developers explicitly acknowledge the need for improvement or rework through comments in the source code. SATD has been widely recognized as a factor that negatively affects software maintainability \cite{chowdhury_evidence_2025, wehaibi_examining_2016, seaman_technical_2015, zazworka_investigating_2011, spinola_investigating_2013, guo_tracking_2011}. Extensive research has focused on detecting \cite{maldonado_detecting_2015, liu_satd_2018, huang_identifying_2018, li_automatic_2022, sheikhaei_empirical_2024, maldonado_using_2017}, classifying \cite{zhu_detecting_2021, maldonado_detecting_2015, obrien_artifact_2022, bhatia_empirical_2024}, and mitigating SATD in source code. Nonetheless, these studies have predominantly focused on production code, often overlooking—or failing to distinguish—SATD occurrences within test code.
+
+
+
+% Talk about importance of test code and 
+% show Research Gap
+%Counsell et al. \cite{counsell_comparing_2016} observed that comments occur less frequently in test code than in production code.
+Relying on findings about SATD in source code to understand SATD in test code may lead to inaccurate conclusions. This is because test code often exhibits characteristics that differ significantly from those of production code. For instance, test code tends to contain test-specific code smells~\cite{bavota_are_2015, tufano_empirical_2016}, a higher prevalence of code cloning~\cite{van_bladel_comparative_2023}, and a lower frequency of comments~\cite{counsell_comparing_2016}. Moreover, developers typically devote less attention to the quality of test code than to production code, which can result in a range of quality issues within test suites~\cite{counsell_comparing_2016, beller_developer_2019, beller_when_2015, zaidman_studying_2011, athanasiou_test_2014, spadini_relation_2018}. These differences highlight the need to study SATD in the test code independently. Motivated by this gap, our work focuses specifically on the detection and classification of SATD in test code.
+
+ To study test code SATD, we collected over 1.6 million test code comments from 1,000 open-source Java projects. From this corpus, 50,000 comments were randomly sampled for manual labeling. We evaluated the performance of existing SATD detection tools on test code comments and investigated the effectiveness of Large Language Models (LLMs) for automated SATD detection. 
+ In general, the contribution of this paper is founded on four research questions.
+
+\textbf{RQ1: What are the different types of SATD in test code?}
+
+After manually analyzing 50,000 comments and applying a filtering approach, we identified 615 SATD comments and classified them into \categoryCount{} distinct categories. While some of these categories—such as code debt and design debt—are consistent with those previously identified in source code SATD~\cite{maldonado_detecting_2015}, four categories are unique to test code. \added{An example is the limited test category, which captures SATD specific to incomplete or low-value test validation.}
+
+\textbf{RQ2: Can existing SATD detection tools detect test code SATD?}
+
+Test code comments exhibit patterns and intentions that differ from those found in source code. As a result, the performance of the existing SATD detection tools remains unknown. In this study, we evaluated \added{seven} existing approaches: pattern-based approach by Potdar et al.~\cite{potdar_exploratory_2014}, Natural Language Processing (NLP)-based approach by Maldonado et al.~\cite{maldonado_using_2017}, Text Mining (TM)-based approaches by Huang et al.~\cite{huang_identifying_2018} and Liu et al.~\cite{liu_satd_2018} (SATD Detector), Matches task Annotation
+Tags (MAT)-based approach by Guo et al.~\cite{guo_how_2021}, a multi-task learning model based on BERT proposed by Gu et al.~\cite{gu_self-admitted_2024}\added{, and DebtHunter by Sala et al.~\cite{sala_debthunter_2021}}. We found that the MAT-based approach exhibits the best performance (0.75 F1-score), but with moderate recall.
+
+\textbf{RQ3: Can open-source LLMs detect SATD in test code?}
+
+Since SATD comments are written in natural language, LLMs may be better suited to detect them, particularly when comments lack recurring SATD keywords. Encouraged by Sheikhaei et al.~\cite{sheikhaei_empirical_2024}, we evaluated the Flan-T5 series (Small to XXL) under 0 to 4-shot settings using five different prompts. Results show that open-source LLMs struggle to reliably detect SATD in test code. While the best F1-scores reached 0.68 under MAT keywords suggested prompt, the recall was only 0.52.
+
+\textbf{RQ4: Can proprietary LLMs detect SATD in test code?}
+
+As proprietary LLMs can outperform open-source models in many scenarios~\cite{mayer_can_2024}, we evaluated two proprietary families—Gemini and GPT—under few-shot settings of 0, 2, and 4 shots. Interestingly, in contrast to the open-source LLMs, the tested proprietary LLMs exhibited very high recall but very low precision. 
+
+In summary, we developed a taxonomy of test code SATD categories, revealing diverse maintenance issues. Additionally, we found that traditional tools, although they do not exhibit very good performance on test code SATD detection, their performance is surprisingly better than both open-source and proprietary LLMs. These findings highlight the need for test-aware SATD detection methods that can improve both precision and recall. 
+
+To facilitate replication and extension, we share our dataset publicly.\footnote{\url{https://github.com/SQMLab/technical-debt}} This dataset can work as a benchmark for evaluating the accuracy of future detection and classification models and tools.  
+
+The remainder of this paper is organized as follows. Section~\ref{sec:related_work} discuss\added{es} related work on SATD. Section~\ref{sec:methodology} describes our data collection and manual SATD labeling process. Section~\ref{sec:approach_results} presents manual SATD classification, detection approaches, and the results for all research questions. Section~\ref{sec:discussion} discusses the implications of our findings, while Section~\ref{sec:threats} outlines threats to validity. Finally, Section~\ref{sec:conclusion} concludes the paper and highlights future directions.
+%https://www.techopedia.com/definition/27913/technical-debt
+
+
+
+% comments in test code is less frequent compared to production code
+% test code clone is more prevalent compared to production code(test code duplicated)
+
+
+
+
+
+% Talk about Source Code Technical Debt
+
+% Talk about Research Gap in Test Code Technical Debt, in Large Scale Project(1K)
+% Highlight Result
+% List out Contributions
+% - Manual detection
+% - Comparing with existing tool
+% - Classification
+
+%TODO: add proof : heavily dominated by production code.

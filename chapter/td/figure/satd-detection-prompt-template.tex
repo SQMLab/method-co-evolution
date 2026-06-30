@@ -1,0 +1,87 @@
+\documentclass[border=2pt]{standalone}
+\usepackage[most]{tcolorbox}
+\usepackage{xcolor}
+\begin{document}
+% \resizebox{\columnwidth}{!}{%
+\centering
+\begin{tcolorbox}[
+  colback=gray!5,
+  colframe=black,
+  % title={\centering SATD Detection Prompt Template},
+  fonttitle=\bfseries,
+  width=0.78\linewidth,
+  boxrule=0.6pt,
+  arc=2mm,
+  outer arc=2mm,
+  coltitle=white, boxsep=2pt,left=1pt,right=1pt,top=2pt,bottom=1pt,
+]
+
+\begin{tcolorbox}[
+  colback=white,
+  colframe=gray!90,
+  arc=1mm,
+  title={\centering Instruction},
+  boxrule=0.0pt, left=3pt,right=3pt,top=3pt,bottom=1.5pt
+]
+
+% Persona Box
+\begin{tcolorbox}[
+  colback=white,
+  colframe=gray!60,
+  arc=1mm,
+  boxrule=0.4pt, left=3pt,right=3pt,top=3pt,bottom=1.5pt
+]
+You are a Code Analysis Expert specialized in detecting Self-Admitted Technical Debt (SATD) in Java test code comments.
+\end{tcolorbox}
+
+% Context Box
+\begin{tcolorbox}[
+  colback=white,
+  colframe=gray!60,
+  arc=1mm,
+  boxrule=0.4pt, left=3pt,right=3pt,top=3pt,bottom=1.5pt
+]
+SATD refers to comments where developers acknowledge that the current test implementation is incomplete, suboptimal, or relies on a compromise that should be addressed in the future. These admissions often appear as markers such as TODO or FIXME, or as notes about unresolved issues, temporary fixes, workarounds, hacks, performance limitations, use of deprecated APIs, unsupported features, poor design choices, skipped tests, or uncertain functionality. However, comments that only describe expected behavior of test code are not SATD unless there is additional information indicating the need for future improvement.
+\end{tcolorbox}
+
+% Instruction Box
+\begin{tcolorbox}[
+  colback=white,
+  colframe=gray!60,
+  arc=1mm,
+  boxrule=0.4pt, left=3pt,right=3pt,top=3pt,bottom=1.5pt
+]
+Think step by step and assign the label of yes or no for each given test code comment.
+\end{tcolorbox}
+
+\end{tcolorbox}
+
+% Output Box
+\begin{tcolorbox}[
+  colback=white,
+  colframe=gray!90,
+  arc=1mm,
+  title={\centering Few-Shot Examples},
+  boxrule=0.4pt, left=3pt,right=3pt,top=3pt,bottom=1.5pt
+]
+Comment: \texttt{<<example comment>>} \\
+Answer: \texttt{<<explanation>> The answer is <<label>>.}\\
+. . .  . . .  . . .
+% Comment: \texttt{<<example comment>>} \\
+% Answer: \texttt{<<explanation>> The answer is <<label>>.}
+\end{tcolorbox}
+
+\begin{tcolorbox}[
+  colback=white,
+  colframe=gray!95,
+  arc=1mm,
+  title={\centering Query},
+  boxrule=0.4pt, left=3pt,right=3pt,top=3pt,bottom=1.5pt
+]
+Comment: \texttt{<<comment for the LLM to detect>>} \\
+Answer: 
+\end{tcolorbox}
+
+\end{tcolorbox}
+% }
+\end{document}

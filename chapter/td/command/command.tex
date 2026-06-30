@@ -1,0 +1,59 @@
+\newcommand{\rev}[1]{\textcolor{blue}{#1}}
+\newcommand{\added}[1]{\textcolor{blue}{#1}}
+\newcommand{\deleted}[1]{\textcolor{red}{\sout{#1}}}
+\definecolor{addedB}{RGB}{255,165,0}\newcommand{\addedB}[1]{\textcolor{addedB}{#1}}
+
+\def\categoryCount{12}
+\def\newCategoryCount{4}
+
+% \def\buildCount{5}
+% \def\compositeCount{78}
+% \def\defectCount{70}
+% \def\dependencyCount{11}
+% \def\designCount{15}
+% \def\documentationCount{19}                 
+% \def\howToCount{67}                         
+% \def\lowInternalQualityCount{32}                            
+% \def\partialTestCount{14}
+% \def\skipTestCount{9}                   
+% \def\superficialTestCount{11}               
+% \def\workaroundCount{59}                  
+
+% \edef\codeCount{\the\numexpr \lowInternalQualityCount+ \workaroundCount \relax}
+% \edef\newTypeCount{\the\numexpr \howToCount  + \skipTestCount + \partialTestCount + \superficialTestCount + \dependencyCount + \compositeCount \relax}
+% \edef\totalSatdCount{\the\numexpr \codeCount+ \buildCount + \designCount + \defectCount + \requirementCount + \documentationCount + \newTypeCount \relax}
+
+\def\buildCount{5}
+\def\defectCount{\added{90}}
+\def\defectCountB{\addedB{90}}
+\def\onHoldCount{\added{47}}
+\def\onHoldCountB{\addedB{47}}
+\def\designCount{\added{16}}
+\def\designCountB{\addedB{16}}
+\def\documentationCount{\added{20}}
+\def\documentationCountB{\addedB{20}}
+\def\uncertaintyCount{\added{69}}
+\def\uncertaintyCountB{\addedB{69}}
+\def\lowInternalQualityCount{\added{49}}
+\def\lowInternalQualityCountB{\addedB{49}}
+\def\partialTestCount{\added{15}}
+\def\partialTestCountB{\addedB{15}}
+\def\otherCount{225}
+\def\skipTestCount{\added{39}}
+\def\skipTestCountB{\addedB{39}}
+\def\superficialTestCount{11}
+\def\workaroundCount{\added{66}}
+\def\workaroundCountB{\addedB{66}}
+
+\def\codeCount{\added{115}}
+\def\codeCountB{\addedB{115}}
+\def\newTypeCount{\added{133}}
+\def\newTypeCountB{\addedB{133}}
+\def\limitedTestCount{\added{26}}
+\def\limitedTestCountB{\addedB{26}}
+
+\def\totalSatdCount{615}
+
+\def\repositoryUrl{https://github.com/SQMLab/TEST-SATD/blob/main}
+\def\replicationPackageUrl{https://doi.org/10.5281/zenodo.17944535}
+

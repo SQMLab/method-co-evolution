@@ -1,0 +1,36 @@
+\begin{table*}[!h]
+\centering
+\caption{Precision (P), Recall (R), F1-score (F1) and Matthews Correlation Coefficient (MCC) for detecting SATD comments using GPT and Gemini across 0-, 2-, and 4-shot settings.}
+\label{table:proprietary_llm_detection_result}
+% \resizebox{\textwidth}{!}{
+\begin{tabular}{cccccccccccccc}
+\toprule
+\multirow{2}{*}{\textbf{Dataset}} & \multirow{2}{*}{\textbf{Model}} 
+& \multicolumn{4}{c}{\textbf{0-shot}} 
+& \multicolumn{4}{c}{\textbf{2-shots}} 
+& \multicolumn{4}{c}{\textbf{4-shots}} \\
+\cmidrule{3-14}
+ &  & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{MCC} 
+ & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{MCC} 
+ & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{MCC}  \\
+\midrule
+
+\multirow{5}{*}{\rotatebox[origin=c]{45}{Original}} & gpt-5-nano  & 0.12 & 0.93 & 0.20 & 0.31  & 0.18 & 0.91 & 0.30 & 0.39  & 0.19 & 0.91 & 0.31 & 0.40  \\
+ & gpt-5-mini  & 0.23 & 0.95 & 0.36 & 0.45  & 0.25 & 0.93 & 0.39 & 0.47  & 0.26 & 0.96 & 0.40 & 0.48  \\
+ & gpt-5  & 0.27 & 0.95 & 0.42 & 0.50  & \textbf{0.34} & 0.93 & \textbf{0.49} & \textbf{0.55}  & 0.32 & 0.94 & 0.47 & 0.54  \\
+\cmidrule(lr){2-2} \cmidrule(lr){3-14}
+ & gemini-2.5-flash  & 0.15 & \textbf{0.99} & 0.26 & 0.36  & 0.17 & \textbf{1.00} & 0.28 & 0.39  & 0.12 & \textbf{0.99} & 0.21 & 0.33  \\
+ & gemini-2.0-flash  & 0.24 & 0.88 & 0.37 & 0.44  & 0.15 & 0.98 & 0.26 & 0.37  & 0.12 & \textbf{0.99} & 0.21 & 0.32  \\
+\midrule
+\multirow{5}{*}{\rotatebox[origin=c]{45}{Deduplicate}} & gpt-5-nano  & 0.11 & 0.92 & 0.20 & 0.30  & 0.19 & 0.91 & 0.31 & 0.39  & 0.17 & 0.89 & 0.29 & 0.38  \\
+ & gpt-5-mini  & 0.22 & 0.94 & 0.35 & 0.44  & 0.24 & 0.94 & 0.39 & 0.47  & 0.24 & 0.96 & 0.38 & 0.46  \\
+ & gpt-5  & 0.27 & 0.96 & 0.42 & 0.49  & \textbf{0.31} & 0.92 & \textbf{0.46} & \textbf{0.52}  & 0.30 & 0.93 & 0.45 & \textbf{0.51}  \\
+\cmidrule(lr){2-2} \cmidrule(lr){3-14}
+ & gemini-2.5-flash  & 0.15 & \textbf{0.99} & 0.26 & 0.36  & 0.17 & \textbf{1.00} & 0.29 & 0.39  & 0.12 & \textbf{0.99} & 0.21 & 0.31  \\
+ & gemini-2.0-flash  & 0.24 & 0.88 & 0.38 & 0.45  & 0.15 & 0.98 & 0.27 & 0.37  & 0.11 & \textbf{0.99} & 0.20 & 0.31  \\
+
+\bottomrule
+
+\end{tabular}
+% }
+\end{table*}

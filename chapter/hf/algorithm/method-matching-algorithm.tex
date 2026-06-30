@@ -1,0 +1,84 @@
+\begin{algorithm}
+\caption{Utility Procedures for Method Matching}
+\label{alg:history-finder-similarity-matching}
+\SetKwFunction{fbsm}{SignatureMatch}
+\SetKwFunction{fbbm}{BodyMatch}
+\SetKwFunction{afm}{AltFileMatch}
+\SetKwProg{Procedure}{procedure}{:}{end procedure}
+\Procedure{\fbsm{$hash,file,tm$}}{%\tcp*[r]{Match target method by exact signature}
+    \KwIn{
+      $hash$: Commit hash\linebreak
+      \Indp
+        $file$: File containing methods\linebreak
+        $tm$: Target method
+      \Indm
+      }
+    \KwOut{Matching method or $\text{NIL}$ if not found}
+    $methods \gets \textsc{ParseMethod}(hash, file)$\;%\tcp*[r]{Parse methods}
+    \ForEach{$m \in methods$}{%\tcp*[r]{Iterate through parsed methods}
+        %\tcp*[h]{Match signature}\;
+        \If{$m.\text{signature} == tm.\text{signature}$}{
+            \Return $m$ \tcp*[r]{Return matching method}
+        }
+    }
+    \Return $\text{NIL}$ \tcp*[r]{No matching method found}
+}
+\BlankLine
+%\tcp*[r]{Match target method by body similarity}
+\Procedure{\fbbm{$hash,file, tm, threshold$}}{% \tcp*[r]{Match target method by body similarity}
+    \KwIn{
+      $hash$: Commit hash\linebreak
+      \Indp
+        $file$: File containing methods\linebreak
+        $tm$: Target method\linebreak
+        $threshold$: Similarity threshold for matching
+      \Indm
+      }
+    \KwOut{
+    $bm$: Best matching method meeting threshold\linebreak
+      \Indp
+        $bs$: Similarity score of the best match
+      \Indm}
+    $methods \gets \textsc{ParseMethod}(hash, file)$\; %\tcp*[r]{Parse methods}
+    $bm \gets \text{NIL}$ \tcp*[r]{Initialize best matching method}
+    $bs \gets 0$ \tcp*[r]{Initialize highest similarity score}
+    \ForEach{$m \in methods$}{% \tcp*[r]{Iterate through all methods}
+        %\tcp{Compute similarity with target method}
+        $score \gets \textsc{Similarity}(m.text,tm.text)$\;
+        \If{$score >= threshold \textbf{ and } score > bs$}{
+            $bm \gets m$ \tcp*[r]{Update best matching method}
+            $bs \gets score$ \tcp*[r]{Update highest similarity}
+        }
+    }
+    \Return $bm,bs$\;
+}
+\BlankLine
+\Procedure{\afm{$hash,parentHash,tm$}}{% \tcp*[r]{Search for target method in other modified files}
+   \KwIn{
+      $hash$: Commit hash\linebreak
+      \Indp
+        $parentHash$: Parent commit hash\linebreak
+        $tm$: Target method
+      \Indm
+      }
+    \KwOut{
+    $bm$: Best matching method\linebreak
+      \Indp
+        $altFile$: File containing the best matching
+      \Indm}
+    %\tcp{Get files changed between commits}
+    $changeFiles \gets \textsc{findChangeFiles}(hash,parentHash)$\;
+    $bm \gets \text{NIL}$ \tcp*[r]{Initialize best matching method}
+    $bs \gets 0$ \tcp*[r]{Initialize highest similarity score}
+    $altFile \gets \textsc{NIL}$ \tcp*[r]{Best method matching file}
+    \ForEach{$file \in changeFiles$}{
+        $m,s \gets \textsc{BodyMatch}(parentHash,file,tm,0.75)$\;
+        \If{$s > bs$}{%\tcp*[r]{Update best match if score improves}
+            $bm \gets m$\;
+            $bs \gets s$\;
+            $altFile \gets file$\;
+        }
+    }
+    \Return $bm,altFile$\;
+}
+\end{algorithm}
