@@ -24,12 +24,12 @@ Relying on findings about SATD in source code to understand SATD in test code ma
 
 \textbf{RQ1: What are the different types of SATD in test code?}
 
-After manually analyzing 50,000 comments and applying a filtering approach, we identified 615 SATD comments and classified them into \categoryCount{} distinct categories. While some of these categories—such as code debt and design debt—are consistent with those previously identified in source code SATD~\cite{maldonado_detecting_2015}, four categories are unique to test code. \added{An example is the limited test category, which captures SATD specific to incomplete or low-value test validation.}
+After manually analyzing 50,000 comments and applying a filtering approach, we identified 615 SATD comments and classified them into \categoryCount{} distinct categories. While some of these categories—such as code debt and design debt—are consistent with those previously identified in source code SATD~\cite{maldonado_detecting_2015}, four categories are unique to test code. An example is the limited test category, which captures SATD specific to incomplete or low-value test validation.
 
 \textbf{RQ2: Can existing SATD detection tools detect test code SATD?}
 
-Test code comments exhibit patterns and intentions that differ from those found in source code. As a result, the performance of the existing SATD detection tools remains unknown. In this study, we evaluated \added{seven} existing approaches: pattern-based approach by Potdar et al.~\cite{potdar_exploratory_2014}, Natural Language Processing (NLP)-based approach by Maldonado et al.~\cite{maldonado_using_2017}, Text Mining (TM)-based approaches by Huang et al.~\cite{huang_identifying_2018} and Liu et al.~\cite{liu_satd_2018} (SATD Detector), Matches task Annotation
-Tags (MAT)-based approach by Guo et al.~\cite{guo_how_2021}, a multi-task learning model based on BERT proposed by Gu et al.~\cite{gu_self-admitted_2024}\added{, and DebtHunter by Sala et al.~\cite{sala_debthunter_2021}}. We found that the MAT-based approach exhibits the best performance (0.75 F1-score), but with moderate recall.
+Test code comments exhibit patterns and intentions that differ from those found in source code. As a result, the performance of the existing SATD detection tools remains unknown. In this study, we evaluated seven existing approaches: pattern-based approach by Potdar et al.~\cite{potdar_exploratory_2014}, Natural Language Processing (NLP)-based approach by Maldonado et al.~\cite{maldonado_using_2017}, Text Mining (TM)-based approaches by Huang et al.~\cite{huang_identifying_2018} and Liu et al.~\cite{liu_satd_2018} (SATD Detector), Matches task Annotation
+Tags (MAT)-based approach by Guo et al.~\cite{guo_how_2021}, a multi-task learning model based on BERT proposed by Gu et al.~\cite{gu_self-admitted_2024}, and DebtHunter by Sala et al.~\cite{sala_debthunter_2021}. We found that the MAT-based approach exhibits the best performance (0.75 F1-score), but with moderate recall.
 
 \textbf{RQ3: Can open-source LLMs detect SATD in test code?}
 
@@ -43,7 +43,7 @@ In summary, we developed a taxonomy of test code SATD categories, revealing dive
 
 To facilitate replication and extension, we share our dataset publicly.\footnote{\url{https://github.com/SQMLab/technical-debt}} This dataset can work as a benchmark for evaluating the accuracy of future detection and classification models and tools.  
 
-The remainder of this paper is organized as follows. Section~\ref{sec:related_work} discuss\added{es} related work on SATD. Section~\ref{sec:methodology} describes our data collection and manual SATD labeling process. Section~\ref{sec:approach_results} presents manual SATD classification, detection approaches, and the results for all research questions. Section~\ref{sec:discussion} discusses the implications of our findings, while Section~\ref{sec:threats} outlines threats to validity. Finally, Section~\ref{sec:conclusion} concludes the paper and highlights future directions.
+The remainder of this paper is organized as follows. Section~\ref{sec:related_work} discusses related work on SATD. Section~\ref{sec:methodology} describes our data collection and manual SATD labeling process. Section~\ref{sec:approach_results} presents manual SATD classification, detection approaches, and the results for all research questions. Section~\ref{sec:discussion} discusses the implications of our findings, while Section~\ref{sec:threats} outlines threats to validity. Finally, Section~\ref{sec:conclusion} concludes the paper and highlights future directions.
 %https://www.techopedia.com/definition/27913/technical-debt
 
 
