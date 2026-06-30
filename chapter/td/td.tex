@@ -1,0 +1,78 @@
+\chapter{A First Look at the Self-Admitted Technical Debt in Test Code: Taxonomy and Detection}
+\label{ch:td}
+
+
+\newcommand{\xmark}{\ding{55}}
+
+%%%Author definitions
+\def\tsc#1{\csdef{#1}{\textsc{\lowercase{#1}}\xspace}}
+\tsc{WGM}
+\tsc{QE}
+\tsc{EP}
+\tsc{PMS}
+\tsc{BEC}
+\tsc{DE}
+%%%
+
+\tikzset{
+  box/.style = {rectangle, draw=black, rounded corners, minimum width=28mm, minimum height=8mm, align=center, font=\sffamily},
+  smallbox/.style = {rectangle, draw=black, rounded corners, minimum width=22mm, minimum height=7mm, align=center, font=\sffamily\footnotesize},
+  arrow/.style = {-{Stealth[length=3mm]}, semithick},
+  grouped/.style = {draw=black,dashed,rounded corners,inner sep=6pt},
+  arrowicon/.style = {font=\small} % icons above arrow
+}
+
+%% for presenting comments
+\lstset{
+  language=Java,
+  basicstyle=\ttfamily\small,
+  commentstyle=\color{black}\itshape,
+  keywordstyle=\color{blue},
+  stringstyle=\color{orange},
+  showstringspaces=false,
+  frame=none,
+  tabsize=2,
+  breaklines=true
+}
+
+\input{command/command}
+
+%%
+% %% \BibTeX command to typeset BibTeX logo in the docs
+% \AtBeginDocument{%
+%   \providecommand\BibTeX{{%
+%     Bib\TeX}}}
+
+%% Rights management information.  This information is sent to you
+%% when you complete the rights form.  These commands have SAMPLE
+%% values in them; it is your responsibility as an author to replace
+%% the commands and values with those provided to you when you
+%% complete the rights form.
+%% These commands are for a PROCEEDINGS abstract or paper.
+%%
+%%  Uncomment \acmBooktitle if the title of the proceedings is different
+%%  from ``Proceedings of ...''!
+%%
+%%\acmBooktitle{Woodstock '18: ACM Symposium on Neural Gaze Detection,
+%%  June 03--05, 2018, Woodstock, NY}
+
+
+
+% \definecolor{commentColor}{RGB}{106,135,89}
+\definecolor{commentColor}{rgb}{0.0, 0.35, 0.0}
+
+
+
+\section*{Abstract}
+Self-admitted technical debt (SATD) refers to comments in which developers explicitly acknowledge code issues, workarounds, or suboptimal solutions. SATD is known to significantly increase software maintenance effort. While extensive research has examined SATD in source code, its presence and impact in test code have received no focused attention, leaving a significant gap in our understanding of how SATD manifests in testing contexts.
+
+This study investigates SATD in test code by manually analyzing 50,000 comments randomly sampled from 1.6 million comments across 1,000 open-source Java projects. From this sample, after manual analysis and filtering, we identified \totalSatdCount{} SATD comments and classified them into \categoryCount{} distinct categories, building a taxonomy of test code SATD. To investigate whether test code SATD can be detected automatically, we evaluated existing SATD detection tools, as well as both open-source and proprietary LLMs. Among the existing tools, MAT performed the best, albeit with moderate recall. To our surprise, both open-source and proprietary LLMs exhibited poor detection accuracy, primarily due to low precision. These results indicate that neither existing approaches nor current LLMs can reliably detect SATD in test code.
+
+Overall, this work provides the results of a large-scale analysis of SATD in test code, a nuanced understanding of its types, and the limitations of current SATD detection methods. Our findings lay the groundwork for future research on test code-specific SATD.
+
+
+\input{section/1_Introduction}
+\input{section/2_Related_Work}
+\input{section/3_Methodology}
+\input{section/4_Approach_and_Results}
+\input{section/5_Discussion_and_Limitation}

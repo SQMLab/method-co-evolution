@@ -1,0 +1,14 @@
+\chapter{HistoryFinder: Advancing Method-Level Source Code History Generation with Accurate Oracles and Enhanced Algorithm}
+\label{ch:hf}
+
+
+\section*{Abstract}
+Reconstructing a method’s change history efficiently and accurately is critical for many software engineering tasks, including maintenance, refactoring, and comprehension. Despite the availability of method history generation tools such as \textit{CodeShovel} and \textit{CodeTracker}, existing evaluations of their effectiveness are limited by inaccuracies in the ground truth oracles used. In this study, we systematically construct two new oracles—the corrected \textit{CodeShovel} oracle and a newly developed \emph{HistoryFinder oracle}—by combining automated analysis with expert-guided manual validation. We also introduce \textit{HistoryFinder}, a new method history generation tool designed to improve not only the accuracy and completeness of method change histories but also to offer competitive runtime performance. Through extensive evaluation across 400 methods from 40 open-source repositories, we show that \textit{HistoryFinder} consistently outperforms \textit{CodeShovel}, \textit{CodeTracker}, \textit{IntelliJ}, and \texttt{Git-based} baselines in terms of precision, recall, and F1 score. Moreover, \textit{HistoryFinder} achieves competitive runtime performance, offering the lowest mean and median execution times among all the research-based tools. While \texttt{Git-based} tools exhibit the fastest runtimes, this efficiency comes at the cost of significantly lower precision and recall—leaving \textit{HistoryFinder} as the best overall choice when both accuracy and efficiency are important. To facilitate adoption, we provide a web interface, CLI, and Java library for flexible usage.
+
+\input{1-introduction}
+\input{2-background-and-related-work}
+\input{3-developing oracle}
+\input{4-history-finder}
+\input{5-evaluation-of-all-tools}
+\input{6-discussion}
+\input{7-conclusion}

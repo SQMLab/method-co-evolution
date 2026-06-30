@@ -1,0 +1,65 @@
+\begin{algorithm}
+\caption{HistoryFinder Algorithm}
+\label{alg:algorithm-history-finder}
+\SetKwFunction{hf}{HistoryFinder}
+\SetKwProg{Procedure}{procedure}{:}{end procedure}
+
+\Procedure{\hf{$hash,file,name,line$}}{ %\tcp*[r]{$name$ and $line$ are the method's name and start line}
+    
+    \KwIn{
+      $hash$: Start commit hash\linebreak
+      \Indp
+        $file$: File containing the method\linebreak
+        $name$: Method name\linebreak
+        $line$: Start line of the method
+      \Indm
+    }
+    \KwOut{Change history of the input method}
+    $G \gets \textsc{GitLog}(hash, file)$\tcp*[r]{Build file-level DAG}
+    $s \gets \textsc{Create}(hash,file,name,line)$\;
+    $Q \gets \{s\}$\tcp*[r]{Initialize queue with start node}
+    
+    $visited \gets \{s\}$\tcp*[r]{Track visited nodes}
+    $H \gets \emptyset$\tcp*[r]{Initialize with empty method history}
+    \While{$Q \neq \emptyset$}{ %\tcp*[r]{Process all discovered commit nodes}
+        $u \gets \textsc{Dequeue}(Q)$\;
+        $um \gets \textsc{Find}(u.hash, u.file, u.name, u.line)$\;
+        $p \gets \textsc{Parent}(G, u)$ \tcp*[r]{Direct parent commit}
+        \BlankLine
+        \tcp{Search method by signature, body in original file, then body in other files}
+        $m \gets \textsc{SignatureMatch}(p,file,um)$\;
+        $altFile \gets \textsc{NIL}$\tcp*[r]{Track method/file move}
+         \If{$m == \text{NIL}$}{ %\tcp*[r]{No match by signature}
+            $m \gets \textsc{BodyMatch}(p,file,um, 0.70)$\;
+            \If{$m == \text{NIL}$}{%\tcp*[r]{No match by body similarity}
+                %\tcp*[r]{Examine other files}
+                $m,altFile \gets \textsc{AltFileMatch}(u.hash,p,um)$;
+            }
+        }
+        \BlankLine
+        \tcp{Method found in original/other file}
+        \If{$m \not= \text{NIL}$}{
+            \If{$um.\text{text} \not= m.\text{text} \textbf{ or } altFile \not= \textsc{NIL}$}{
+                \textsc{Add}$(H, u)$ \tcp*[r]{Record method change}
+            }
+            \tcp{Continue tracking in the new file}
+            \If{$altFile \not= \textsc{NIL}$}{% \tcp*[r]{Method or file moved}
+                $sH \gets \textsc{HistoryFinder}(m.hash,m.file,m.name,m.line)$\;\vspace{-0.35cm}
+                \textsc{AddAll}$(H, sH)$ \tcp*[r]{Append sub-history}
+            }
+        \tcp{Enqueue unvisited ancestor commits}
+        \If{$m \not= \textsc{NIL} \textbf{ and } altFile == \textsc{NIL}$}{ %\tcp*[r]{Method remained in the same file}
+            \ForEach{$v \in G.\text{Adj}[u]$}{
+                \If{$v \notin visited$}{
+                    \textsc{Add}$(visited, v)$\;
+                    $v.name \gets m.name$\;
+                    $v.line \gets m.line$\;
+                    \textsc{Enqueue}$(Q, v)$\;
+                }
+            }
+        }
+        }
+    }    
+    \Return $H$\;
+}
+\end{algorithm}

@@ -1,0 +1,52 @@
+
+\begin{tikzpicture}[node distance=12mm and 14mm, every node/.style={font=\small}]
+
+% row 1
+\node[box] (trending_project) {\faGithub\ 1K GitHub\\Trending Java Projects};
+\node[box,right=1.5cm of trending_project] (comments) {\faComments\ 1.6 millions test\\code comments};
+\node[box,right=2cm of comments] (analyzed_comments) {\faUserCheck\ 50K manually\\analyzed comments};
+\node[box,right=1.8cm of analyzed_comments] (satd_comments) {\faComments\ 615 SATD\\comments};
+\node[box, below=1.1cm of satd_comments] (classified_satd) {\faChartBar\ \categoryCount{} types of SATD};
+
+% RQ branch (final row)
+\node[smallbox, below=22mm of analyzed_comments, xshift=-30mm] (rq2) {\faSearch\ Detect with\\existing tool};
+\node[smallbox, below=22mm of analyzed_comments] (rq3) {\faBrain\ Detect with\\ open-source LLMs};
+\node[smallbox, below=22mm of analyzed_comments, xshift=30mm] (rq4) {\faLock\ Detect with\\proprietary LLMs};
+
+% arrows row1 -> row1 (horizontal)
+\draw[arrow] (trending_project) -- (comments) 
+    node[midway, above, arrowicon]{\faTools} 
+    node[midway, below, align=center]{extract\\comments};
+\draw[arrow] (comments) -- (analyzed_comments) 
+    node[midway, above, arrowicon]{\faRandom}
+    node[midway, below, align=center]{randomly\\select and analyze};
+\draw[arrow] (analyzed_comments) -- (satd_comments)
+    node[midway, above, arrowicon]{\faFilter}
+    node[midway, below, align=center]{filter};
+
+\draw[arrow] (satd_comments) -- (classified_satd)
+    node[midway, left, arrowicon]{\faUsers}
+    node[midway, right, align=center]{RQ1\\manually\\classify};
+
+% vertical drop then horizontal branch
+\coordinate (branch) at ($(analyzed_comments.south)+(0,-1cm)$);
+
+% \draw[arrow] (analyzed_comments.south) -- (branch)
+%     node[midway, left, arrowicon]{\faArrowDown}
+%     node[midway, right]{automated detection};
+\draw[semithick] (analyzed_comments.south) -- (branch)
+    node[midway, left, arrowicon]{\faRobot}
+    node[midway, right, align=center]{automated detection};
+
+% horizontal arrows to RQ boxes
+\draw[arrow] (branch) -| (rq2.north)
+    % node[pos=0.3, above, arrowicon]{\faChartBar}
+    node[pos=0.3, below, align=center]{RQ2};
+\draw[arrow] (branch) -- (rq3.north)
+    % node[midway, left, arrowicon]{\faRobot}
+    node[midway, right]{RQ3};
+\draw[arrow] (branch) -| (rq4.north)
+    % node[pos=0.3, above, arrowicon]{\faUserCheck}
+    node[pos=0.3, below]{RQ4};
+
+\end{tikzpicture}

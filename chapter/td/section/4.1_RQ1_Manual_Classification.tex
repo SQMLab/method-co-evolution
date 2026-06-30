@@ -1,0 +1,203 @@
+\subsection{RQ1: What are the different types of SATD in test code?}
+\textbf{Motivation.} A categorization of SATD will provide a high-level understanding of the types of challenges developers encounter when writing and maintaining tests. This can help reveal which issues are most prevalent or critical in test code, and thus could be prioritized for maintenance and quality improvement efforts. We hypothesize that these categories may differ from those observed in source code, reflecting the unique role and structure of tests within the software development process. 
+
+\textbf{Approach.} Manually categorizing SATD comments at a granular level is challenging for several reasons.
+(i) Prior classifications sometimes distribute the same phenomenon across multiple categories. For instance, Alves et al.~\cite{alves_towards_2014} classify duplicated code as both code debt and design debt, creating ambiguity during assignment.
+(ii) Certain comments can encompass more than one category. For example, the comment, \texttt{// TODO: tweak the tests when FLINK-13604 is fixed}, simultaneously reflects a dependent defect (awaiting a bug fix) and a requirement (a need to revise the tests). In other cases, interpretation may be subjective, such as with \texttt{// An unlikely exception — if this occurs, we can't proceed with the test}, which could reasonably be considered either a defect or a superficial test.
+(iii) Many SATD comments are terse or lack context (e.g., a standalone \texttt{TODO}), making it difficult to infer the underlying issue without examining surrounding code.
+(iv). Some comments describe scenarios or concerns not captured by current taxonomies, necessitating extensions to the existing classification scheme. For example, consider the comment \texttt{// Probably incorrect - comparing Object[] arrays with Arrays.equals}. This comment cannot be confidently classified as defect debt, nor does it closely align with other existing categories, since the developer expresses uncertainty about whether the issue is truly a defect. Given these challenges—including subjectivity, overlapping categories, and ambiguous content—we approached the categorization of the \totalSatdCount{} SATD comments in a structured manner by following established guidelines~\cite{alves_towards_2014,bavota_large-scale_2016} and joint classification sessions to reach consensus on ambiguous cases. Our goal was to preserve diverse categories rather than merge multiple types into broader labels, ensuring subtle distinctions in SATD were captured. 
+
+Initially, the first, second, and last author jointly conducted three online meetings to examine each comment one by one, assessing the nature of the technical debt they represented. This process followed the guidelines proposed by Alves et al.~\cite{alves_towards_2014}, and Bavota and Russo~\cite{bavota_large-scale_2016}, assigning each comment to a specific category based on its characteristics. For each comment, we first attempted to assign it to one of the existing categories, as found from ~\cite{alves_towards_2014,bavota_large-scale_2016}. If a comment did not fit any existing category, we created a new category to reflect its unique characteristics. The first 200 comments were classified collaboratively by the three authors during those three meetings. However, by the time the first 142 comments had been reviewed, \categoryCount{} distinct categories had emerged, and no new category was found after reviewing the remaining 58 samples, possibly indicating that a saturation point was reached. 
+The remaining \the\numexpr \totalSatdCount - 200 \relax{} comments were then categorized by the first author independently. In addition to 10+ years of industry experience, this author was also successful in manual labeling in recent times~\cite{islam2025historyfinder,opu2025understanding}.   
+\input{figure/satd-hierarchy}
+
+\textbf{Results.} Figure~\ref{fig:satd-hierarchy} presents the complete hierarchy of these categories and their corresponding sub-categories found in the test code.  \added{Four} new groups of technical debt were identified, each with unique characteristics, and shown under \textit{\added{Test}}.  
+% Categories displayed in gray rectangles represent those reused from existing literature, while black rectangles under \textit{New types} indicate newly created categories. 
+The number of instances identified in each category is also shown within the respective rectangles. \added{Each example presented in this section is traceable to its original source file, with corresponding links available in our replication package.\footnote{\url{https://github.com/SQMLab/technical-debt/blob/main/data/satd_comment_example.csv}}}
+
+
+
+
+% Among these, \textit{low internal quality} (\lowQualityCount{} instances) and \textit{workaround} (\temporaryFixCount{} instances) were previously identified by Bavota and Russo et al.~\cite{bavota_large-scale_2016}. 
+\textbf{Code debt (\codeCount{}):} \textit{``Problems found in the source code which can negatively affect the legibility of the code, making it more difficult to be maintained''} \cite{alves_towards_2014}. Two sub-categories of this type of technical debt were identified. The first sub-category, \textit{workaround}, describes intentionally written suboptimal temporary fixes that are justified by the need to meet specific functional or non-functional requirements, often representing a trade-off between code quality and project goals~\cite{bavota_large-scale_2016}. Representative examples of this sub-category are provided below:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{//hacky workaround using the toString method to avoid mocking the Ruby runtime}
+    \item \textcolor{commentColor}{// This is an utter hack but is the only way I could}
+    \item \textcolor{commentColor}{// this is just a temporary thing but it's easier to change if it is encapsulated.}
+    \item \textcolor{commentColor}{// Yes, a static variable is a hack.}
+    \item \textcolor{commentColor}{// This should use System.getProperty("os.name") in a real test.}
+\end{itemize}
+
+
+The second sub-category, \textit{low internal quality}, refers to deficiencies in the source code, such as poor readability, misuse of programming constructs, or unnecessary complexity~\cite{bavota_large-scale_2016}. Instance of \textit{low internal quality} are:
+
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// TODO(sdh): Print a better name (https://github.com/\allowbreak google/closure-compiler/issues/2982)}
+    \item \textcolor{commentColor}{// RandomIndexWriter is too slow here:}
+    \item \textcolor{commentColor}{// TODO: b/359688989 - clean this up}
+    \item \textcolor{commentColor}{//Ooooooo this is so ugly}
+\end{itemize}
+% The second sub-category, \textit{refactoring}, indicates the need for structural improvements to the code, such as eliminating dead code or improving design without altering external behavior as mentioned by Bhatia et al. \cite{bhatia_empirical_2024}. Such examples include:
+% \begin{itemize}
+%     \item \textcolor{commentColor}{// TODO refactor getEngine to use dependency injection, so a mock Engine\\
+% // object can be used.}
+%     \item \textcolor{commentColor}{// Todo: Move this test to SegmentReplicationIndexShardTests so that it runs for both node-node \& remote store}
+% \end{itemize}
+
+% \deleted{
+% \textbf{Composite (\compositeCount{}):} Represents instances that indicate multiple types of technical debt. For example, the first instance, shown below, comprises requirement and dependency debt, whereas the second shows requirement and defect debt.}
+%  \begin{itemize}[itemsep=-2pt]
+%      \item \textcolor{commentColor}{\deleted{// TODO: Add gainmap-based tests once Robolectric has sufficient support.}}
+%      \item \textcolor{commentColor}{\deleted{// TODO: tweak the tests when FLINK-13604 is fixed.}}
+%      \item \textcolor{commentColor}{\deleted{// TODO replace once we have real API}}
+%      \item \textcolor{commentColor}{\deleted{// using plain dijkstra instead of bidirectional, because of \#1592}}
+%     \item \textcolor{commentColor}{\deleted{// TODO: remove after SAMZA-2761 fix}}
+% \end{itemize}
+
+
+\textbf{Defect debt (\defectCount{}):} \textit{``Defect debt consists of known defects, usually identified by testing activities or by the user and reported on bug track systems, that the CCB agrees should be fixed, but due to competing priorities, and limited resources have to be deferred to a later time''} \cite{alves_towards_2014}. Known, unfixed or partially fixed defects were identified, totaling \defectCount{} instances. Some examples include:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// known bug: time argument is unsigned 32bit in graphics library}
+    \item \textcolor{commentColor}{// TODO(b/189535612): this is a bug!}
+    \item \textcolor{commentColor}{//FIXME: fix flaky test}
+    \item \textcolor{commentColor}{// This test doesn't work on midnight, January 1, 1970 UTC}
+\end{itemize}
+
+\textbf{\added{Uncertainty} (\uncertaintyCount{}):} Stems from uncertainty or a lack of clarity regarding how to implement, test, or resolve an issue. This type of debt is often marked by open questions, speculative reasoning, or lack of understanding of the expected behavior. Illustrative examples are as follows:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// Probably incorrect - comparing Object[] arrays with Arrays.equals}
+    \item \textcolor{commentColor}{// I don't think doing this will be safe in parallel}
+    \item \textcolor{commentColor}{// TODO: figure out why I need these}
+    \item \textcolor{commentColor}{// TODO: Is it correct?}
+    \item \textcolor{commentColor}{// TODO: This is current behavior, but is it what we want?}
+\end{itemize}
+
+\textbf{On-hold (\onHoldCount{}):} Refers to cases where the test code relies on external components, such as libraries, APIs, or services, that hinder test execution due to incomplete support or limited functionality. Although in a different context, these types of dependency-induced SATD were also observed by Maipradit et al.~\cite{maipradit_wait_2020}. A selection of examples is given below:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{/**
+ * Setting file last access time does not work on JDK-20 on macOS with the hfs file system,
+ * issue JDK-8298187.
+ */}
+    \item \textcolor{commentColor}{// NO list support in JDOQL
+    \newline //        testData.listTests(store.products, otherStore.products, p);}
+    \item \textcolor{commentColor}{// C2ID doesn't have a non JS login page :/, so use their API directly
+    // see https://connect2id.com/products/server/\allowbreak docs/guides/login-page}
+    \item \textcolor{commentColor}{// mostly waiting for https://github.com/testcontainers/\allowbreak testcontainers-java/issues/3537}
+    % \item \textcolor{commentColor}{\deleted{// both exceptions are reported to JUnit:}}
+    
+\end{itemize}
+
+\textbf{Skip test (\skipTestCount{}):} Arises when certain tests are skipped or explicitly disabled, often due to environmental limitations or unresolved issues. A few examples are:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{/**
+    * TODO: enable when window is supported.
+    */}
+    \item \textcolor{commentColor}{// Skip, zstd only supported for Avro 1.9+}
+    \item \textcolor{commentColor}{// Ignore the following tests because taking a lease requires a real
+    // (not mock) file system store. These tests don't work on the mock.}
+    \item \textcolor{commentColor}{// Testcase is disabled, as kernel32 ordinal values are not stable.
+    // a library with a stable function <-> ordinal value is needed.}
+    \item \textcolor{commentColor}{//  CLDR No Longer uses complex currency symbols.
+    //  Skipping this test.}
+  
+\end{itemize}
+
+\textbf{\added{Limited test} (\limitedTestCount{}):} \added{Refers to cases where tests provide incomplete or low-value validation, limiting their ability to establish confidence in the behavior under test. Limited tests appeared in two forms. In the first form,} only a small, representative portion of the input space is tested, usually for the sake of time efficiency or resource constraints. \added{Examples of this form are:}
+% \textbf{Partial test (\partialTestCount{}):} Only a small, representative portion of the input space is tested, usually for the sake of time efficiency or resource constraints. Some examples of \textit{partial test} debt are:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// This only tests for calendar ordering, ignoring the other criteria}
+    \item \textcolor{commentColor}{// Not testing average length and min/max, as this would make the test less reusable and is not that important to test.}
+    \item \textcolor{commentColor}{// we do not check if the offset is in the middle of a code point}
+    \item \textcolor{commentColor}{// FIXME: this test do not cover breaking remark into multiple lines}
+    \item \textcolor{commentColor}{// Theoretically, the HLL algorithm can count very large cardinality with little relative error rate,
+    // which is less than 2\% in Doris. We cost about 5 minutes to test with one billion input numbers here
+    // successfully, but in order to shorten the test time, we chose one million numbers.}
+\end{itemize}
+
+
+\added{In the second form, tests exercise} code without meaningfully validating its functional correctness. In other words, this is testing for the sake of testing. \added{Examples of this form include:}
+
+% \textbf{Superficial test (\superficialTestCount{}):} Exercises code without meaningfully validating its functional correctness. In other words, this is testing for the sake of testing. Such examples include:
+
+\begin{itemize}[itemsep=-2pt]
+     \item \textcolor{commentColor}{// TODO: these tests are too simple since they only replace undefined components}
+    \item \textcolor{commentColor}{/**
+ * Sort of a dummy test, as the conditions are perfect. In a more realistic scenario, below, the algorithm needs luck to climb this high.
+ */}
+ \item \textcolor{commentColor}{// kinda sorta wrong, but for testing's sake...}
+ \item \textcolor{commentColor}{// doesn't make much sense in the context of a list...}
+\end{itemize}
+
+
+\textbf{Documentation debt (\documentationCount{}):} \textit{``Refers to the problems found in software project documentation and can be identified by looking for missing, inadequate, or incomplete documentation of any type''} \cite{alves_towards_2014}. \documentationCount{} instances of \textit{documentation} debt were present. Several examples are presented below:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{/**
+ * No Documentation
+ */}
+ \item \textcolor{commentColor}{// no JavaDoc}
+ \item \textcolor{commentColor}{// TODO: add support for non-existing docs}
+ \item \textcolor{commentColor}{/**
+ * todo: describe ChildInfo
+ *
+ * @author Steve Ebersole
+ */}
+ \item \textcolor{commentColor}{/**
+ * todo: describe Parent
+ *
+ * @author Steve Ebersole
+ */}
+\end{itemize}
+
+\textbf{Design debt (\designCount{}):} \textit{``Refers to debt that can be discovered by analyzing the source code by identifying the use of practices which violated the principles of good object-oriented design (e.g. very large or tightly coupled classes)''} \cite{alves_towards_2014}. \designCount{} instances of design-related technical debt were identified, with representative examples shown below:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// TODO b/300201845 - encapsulate parents and childs private attributes}
+    \item \textcolor{commentColor}{// TODO(b/123102446): We really like to collapse some of these chained assignments.}
+    \item \textcolor{commentColor}{// TODO move to core}
+    \item \textcolor{commentColor}{// Todo: Move this test to SegmentReplicationIndexShardTests so that it runs for both node-node \& remote store}
+    \item \textcolor{commentColor}{/**\\
+ * An implementation of {@code OutputStream} that should serve as the\\
+ * underlying stream for classes to be tested.\\
+ * In particular this implementation allows to have IOExecptions thrown on demand.\\
+ * For simplicity of use and understanding all fields are public.\\
+ */}
+\end{itemize}
+
+
+
+
+
+\textbf{Build debt (\buildCount{}):} \textit{``Refers to build related issues that make this task harder, and more time/processing consuming unnecessarily''} \cite{alves_towards_2014}. \buildCount{} instances of build-related technical debt were identified. Instances of build debt are as follows:
+
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{//Could fail if CI is to slow and will slow down the CI build; test local}
+    \item \textcolor{commentColor}{// Continuous build environment doesn't support non-blocking IO.}
+    \item \textcolor{commentColor}{// see [GEOS-7835] WPS execution time limits test randomly breaks builds}
+    \item \textcolor{commentColor}{// Find the async-reset webapp based on common IDE working directories
+// TODO import webapp as maven artifact}
+\end{itemize}
+
+
+\textbf{\added{Other} debt (\otherCount{}):} This is the most generic form of SATD, and, in general, we labelled an SATD as \added{other} only if the SATD did not fit with any other specific type. A total of \otherCount{} instances of \added{other} debt were identified, with approximately 77\% of them beginning with the \textit{TODO} marker—a pattern that is not very common in other categories. Representative examples of \added{other} debt are shown below:
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// TODO this test needs a lot of work}
+    \item \textcolor{commentColor}{// TODO implement}
+    \item \textcolor{commentColor}{// TODO implement https://github.com/elastic/\newline elasticsearch/issues/25929}
+    \item \textcolor{commentColor}{// not implemented yet}
+\end{itemize}
+
+% \textbf{Impractical case (\impracticalCaseCount{}):} Refers to test cases that test scenarios not practical and not typically anticipated under normal conditions. Some examples are:
+% \begin{itemize}
+%     \item \textcolor{commentColor}{// this is a limitation, we identify config repos by material fingerprint later
+% // so there cannot be one repository parsed by 2 plugins.
+% // This also does not seem like practical use case anyway}
+%     \item \textcolor{commentColor}{/**
+%  * Tests for FingerprintGestureController.
+%  * TODO: These tests aren't really for server code, so this isn't their ideal home.
+%  */}
+
+% \end{itemize}
+
+\begin{tcolorbox}
+\textbf{\underline{RQ1 summary}:} 
+We identified \categoryCount{} SATD types in test code, including \newCategoryCount{} new test-specific categories such as skipped \added{and limited} tests. Also, for the categories that were found in source code SATD, the distributions are significantly different than ours. For example, the percentage of requirement debts was 20\% in \cite{bavota_large-scale_2016}, but in our case, it is 37\%. These findings reveal that test code exhibits unique technical debt patterns not fully captured by existing classifications from application code.
+\end{tcolorbox}

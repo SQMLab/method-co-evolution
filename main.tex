@@ -1,14 +1,130 @@
-\documentclass{article}
-\usepackage{graphicx} % Required for inserting images
+% University of Manitoba grouped manuscript thesis (sandwich thesis) template
+% Upload this folder/zip to Overleaf and compile main.tex.
+% Verify final formatting with your advisor, department, and FGPS before submission.
 
-\title{research-abstract}
-\author{Shahidul Islam}
-\date{May 2026}
+\documentclass[12pt,oneside]{report}
+
+% -------------------------
+% Page setup
+% -------------------------
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{setspace}
+\doublespacing
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath,amssymb}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage{pdfpages} % Optional: include published PDFs in appendices if permitted
+\usepackage[numbers,sort&compress]{natbib} % Change style if your department/journal requires another one
+\usepackage{import}
+
+%------------------
+%  HistoryFinder
+%------------------
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage[ruled,longend,linesnumbered]{algorithm2e}
+\usepackage{enumitem}
+\usepackage{framed}
+
+%--------------------
+% Technical Debt
+%--------------------
+\usepackage{ulem}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage[utf8]{inputenc}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{trees}
+\usepackage[strings]{underscore}
+\usepackage{tikz}
+\usepackage{fontawesome5} % for icons
+\usetikzlibrary{shapes,arrows.meta,positioning,calc,fit}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{framed}
+\usepackage{amssymb}
+\usepackage{pifont}
+
+% -------------------------
+% Thesis metadata: edit these
+% -------------------------
+\newcommand{\ThesisTitle}{Improving Our Understanding of Test Code: Technical Debt and Evolution}
+\newcommand{\AuthorName}{Md Shahidul Islam}
+\newcommand{\DegreeName}{Master of Science}
+\newcommand{\DepartmentName}{Department of Computer Science}
+\newcommand{\UniversityName}{University of Manitoba}
+\newcommand{\CityName}{Winnipeg}
+\newcommand{\CopyrightYear}{2026}
+
+% Optional helper for manuscript chapters
+\newcommand{\manuscriptnote}[4]{%
+\noindent\textbf{Publication status:} #1\\
+\textbf{Authors:} #2\\
+\textbf{Target venue / publication venue:} #3\\
+\textbf{Candidate's role:} #4
+\vspace{1em}
+}
 
 \begin{document}
 
-\maketitle
+% Title page must appear first.
+\pagenumbering{gobble}
+\input{frontmatter/titlepage}
+\clearpage
 
-\section{Introduction}
+% Prefatory pages
+\pagenumbering{roman}
+\setcounter{page}{2}
+\input{frontmatter/abstract}
+\clearpage
+\input{frontmatter/preface}
+\clearpage
+\input{frontmatter/acknowledgements}
+\clearpage
+\input{frontmatter/dedication}
+\clearpage
+
+\tableofcontents
+\clearpage
+\listoftables
+\clearpage
+\listoffigures
+\clearpage
+
+\input{frontmatter/contributions-of-authors}
+\clearpage
+\input{frontmatter/ai-training-statement}
+\clearpage
+
+% Body of thesis
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\subimport{chapter/intro/}{introduction}
+\subimport{chapter/td/}{td}
+\subimport{chapter/hf/}{hf}
+\subimport{chapter/con/}{conclusion}
+
+
+\bibliographystyle{IEEEtranN}
+\bibliography{references, chapter/hf/references, chapter/hf/references_primary, chapter/td/references, chapter/td/references-more}
+
+\appendix
+\include{appendices/appendix-a-additional-material}
+\include{appendices/appendix-b-published-versions}
 
 \end{document}

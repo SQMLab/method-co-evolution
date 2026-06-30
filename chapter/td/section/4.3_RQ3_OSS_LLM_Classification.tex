@@ -1,0 +1,32 @@
+\subsection{RQ3: Can open-source LLM detect SATD in test code?}
+\textbf{Motivation.} Although SATD often contains keywords such as \textit{TODO}, many comments do not follow such patterns. In these cases, even sophisticated pattern-based methods (e.g., TM, NLP) fail to detect SATD, highlighting the need for approaches that capture semantic meaning. Consequently, we investigate Large Language Models (LLMs), given their strong capability in understanding both natural language and source code~\cite{brown_language_2020}. Recent studies have also found promising results with LLMs for detecting source code SATD~\cite{sheikhaei_empirical_2024, lambert_identification_2024}, outperforming conventional approaches.
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{figure/satd-detection-prompt-template.pdf}
+    \caption{LLM prompt template for detecting SATD comment.}
+    \label{fig:satd-detection-prompt-template}
+    % \Description{LLMs template for detecting SATD comment with structured UI-style layout.}
+\end{figure}
+
+\textbf{Approach.} Encouraged by the success of SATD detection~\cite{sheikhaei_empirical_2024} of the Flan-T5 model series, we investigated these models on test code SATD with few-shot configurations of 0, 2, and 4 shots. These models are T5-SMALL, T5-BASE, T5-LARGE, T5-XL, and T5-XXL, with numbers of parameters 60M to 11B. The experiments were run on an HPC cluster with Intel 8570 CPUs (2.1 GHz) and multiple NVIDIA H100 GPUs. We tested four different prompt templates: No Keyword, MAT, Jitterbug, and GPT-4. These were adopted from Sheikhaei et al.~\cite{sheikhaei_empirical_2024} to enable direct comparison with their results. 
+
+Additionally, we added a new prompt template that we mainly developed for RQ4, as illustrated in Figure~\ref{fig:satd-detection-prompt-template}. Existing research highlights that LLMs are highly sensitive to the structure and phrasing of prompts, with their performance varying considerably depending on how tasks, instructions, and examples are articulated~\cite{liu_pre-train_2023}. To ensure greater reliability and adaptability, a modular prompt template was developed, comprising three components, in accordance with established prompt design frameworks~\cite{amatriain_prompt_2024, giray_prompt_2023}. The first, the Instruction, is organized into three parts: (i) a role-based persona that anchors the model’s behavior and enhances response quality~\cite{hu_quantifying_2024}; (ii) a contextual and task-specific description that clarifies the model’s objective~\cite{amatriain_prompt_2024}; and (iii) explicit output formatting guidelines that reduce ambiguity and improve consistency in responses. The second, Few-Shot Examples, varies in number across experiments to assess performance sensitivity. Finally, the third, Query, contains the target comment that the LLM is required to analyze and classify.
+
+
+\input{table/table-oss-llm-detection-result}
+
+\textbf{Results.} Table~\ref{table:oss_llm_detection_result} reports the results for the T5 model family, ranging from T5-SMALL to T5-XXL. The findings indicate that the Flan-T5 series LLMs are unable to consistently detect SATD in test code, with their effectiveness varying depending on the prompting strategy, shots, and model size. In most cases, the smaller models---T5-Small, T5-Base, and T5-Large---failed to detect SATD, resulting in zero recall and, consequently, zero precision.
+
+Between the two largest models, T5-XL consistently achieved higher precision than T5-XXL, often reaching near-perfect precision (e.g., 1.0) with keyword-based prompts (MAT and Jitterbug). However, this high precision generally came at the expense of very low recall. The Ours prompt performed competitively, achieving a maximum F1-score of 0.54. In contrast, the No Keyword and GPT-4 prompts yielded poor results, with many zero-shot and few-shot runs failing to detect any SATD (F1 = 0.0). Meanwhile, the T5-XXL models demonstrated higher recall, frequently exceeding 0.8, but with substantially lower precision (ranging from 0.10 to 0.42). 
+
+When comparing the F1-scores of T5-XXL across different prompt variations with those reported by Sheikhaei et al.~\cite{sheikhaei_empirical_2024}, we observe similar overall trends; however, the scores in our evaluation are approximately 30\% lower. Overall, the MAT-based keyword prompts achieved the highest F1-score (0.68). This strong performance is largely due to the high prevalence of MAT-suggested keywords—particularly \textit{TODO}—in SATD comments and their absence in non-SATD comments within our test dataset. For instance, using the MAT approach, the model correctly identified 71 SATD comments out of 137 with the Flan-T5-XL (zero-shot) setup but failed to detect the remaining 66, even when other obvious indicators (e.g., yuck, workaround) were present. A clear example of a missed case is the comment \textit{“// kinda sorta wrong, but for testing’s sake...”}, which expresses technical debt but lacks any MAT-suggested keywords.
+
+These findings indicate that the choice of prompt has a substantial impact on model performance. Increasing the number of shots (0→2→4), however, did not consistently improve results; this trend was also observed by Sheikhaei et al.~\cite{sheikhaei_empirical_2024}. In both studies, the best performance was achieved under zero-shot settings, as demonstrated by T5-XL with MAT-based prompts in our experiments. 
+% Increasing the number of shots tended to improve recall (e.g., for T5-XL) but often led to a decrease in precision, resulting in marginal or even negative changes in F1-scores.
+
+
+
+\begin{tcolorbox}
+\textbf{\underline{RQ3 summary}:} 
+The results indicate that open-source LLMs (Flan-T5 series) struggle to reliably detect SATD in test code across different prompt types and shot settings. Although the best F1-score reached 0.68 using the MAT prompt, the overall performance remains inconsistent and relatively poor compared to the existing tools (RQ2), suggesting that these models have a limited ability to understand and generalize SATD patterns in test code.
+\end{tcolorbox}

@@ -1,0 +1,56 @@
+
+\section{Discussion}\label{sec:discussion}
+SATD can significantly hinder software maintenance activities. Understanding the nature of SATD and its detection is, therefore, critical for effective mitigation. This study aimed to investigate the landscape of SATD in test code—an area largely overlooked by previous research, despite the critical role of testing in software development and the well-documented impact of SATD on software maintainability. In this paper, we examined the types of SATD that appear in test code (RQ1) and found \categoryCount{} types, where \newCategoryCount{} of them were new---not found in other source code-based studies. We then investigated the effectiveness of the existing tools (RQ2), open-source LLMs (RQ3), and proprietary LLMs (RQ4) in identifying these SATD comments. Our evaluation revealed that existing tools, particularly MAT, are able to detect SATD with high precision (0.95), but their recall ($\leq 0.61$) remains limited. Meanwhile, open-source LLMs exhibited inconsistent and, in some cases, unexpectedly poor performance across model sizes and prompt variations. In the best cases, such as Flan-T5-XL with the MAT prompt, high precision but low recall was observed. In contrast, proprietary LLMs exhibited very high recall but very low precision.
+% These findings underscore a clear trade-off: traditional approaches excel in achieving high-precision detection, whereas proprietary LLMs provide broader coverage but necessitate human verification to mitigate false positives. Overall, our results suggest that SATD in test code often differs from that in source code, both in its types and in how it is expressed. Detecting SATD in test code therefore remains an open research problem.
+
+While we leave a complete systematic qualitative analysis of the inaccurate detection of test code SATD by all studied tools and approaches as future work, we still sought to gain an initial understanding of the root causes of these failures. To this end, the first author, who has over 10 years of industry experience, manually analyzed the best-performing configuration in each of the three approach families: MAT among existing tools, Flan-T5-XL with the MAT prompt in the zero-shot setting among open-source LLMs, and GPT-5 in the 2-shot setting among proprietary LLMs. For the best-performing existing approach, MAT, the first author manually analyzed all 50 missed SATD comments in the deduplicated test set. They found that, although many of these false negatives do express technical debt, they do so through test-specific wording rather than the source-code SATD cues that existing approaches were largely designed around. Representative examples include the following:
+
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// inline function cannot be recursive
+// note: mutual recursion is not supported either, but it is not tested due to the forward declaration limitation above}
+    \item \textcolor{commentColor}{// Disabled until replace supports external destinations. To be enabled after that point.}
+    \item \textcolor{commentColor}{// Not testing average length and min/max, as this would make the test less reusable and is not that important to test.}
+\end{itemize}
+
+These examples indicate that lower recall is concentrated in test-specific wordings or expressions that are common in test SATD comments. Even when comments contain words such as \texttt{disabled}, \texttt{deactivated}, or \texttt{skip}, these expressions function as test-specific cues rather than canonical source-code SATD markers such as \texttt{TODO} or \texttt{FIXME}. As a result, keyword- and pattern-dependent approaches can preserve high precision while still missing a large portion of genuine SATD comments.
+
+For open-source LLMs, the same author manually analyzed all 61 SATD comments missed by Flan-T5-XL in the MAT-based zero-shot setting. Again, many missed comments relied on test-specific phrasing rather than conventional SATD keywords. Although these models are more flexible than strict rule-based techniques, their strongest results still come from keyword-oriented prompts such as MAT and Jitterbug, suggesting that they remain strongly anchored to lexical cues inherited from source-code SATD. Examples include:
+
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{// this test has been disabled because of timeout issues.
+// see JDK-8006746}
+    \item \textcolor{commentColor}{// Deactivated due to https://github.com/bazelbuild\\/bazel/issues/9380.}
+    \item \textcolor{commentColor}{// skip test, as it needs historical time zone info}
+\end{itemize}
+
+
+To our surprise, the proprietary LLMs exhibited the opposite behavior: very high recall but very low precision. To understand their lower precision, we randomly sampled 146 of the 233 non-SATD comments misclassified as SATD (95\% confidence level) by GPT-5 in the 2-shot setting and manually analyzed their characteristics. In these cases, the model often overinterpreted generic task-oriented, cautionary, or context-setting comments as technical debt. Representative false positives include:
+
+
+\begin{itemize}[itemsep=-2pt]
+    \item \textcolor{commentColor}{//Finish pending tasks}
+    \item \textcolor{commentColor}{// Load it dynamically because Hibernate won't be on the classpath when we're testing with Eclipselink}
+    \item \textcolor{commentColor}{// Wait for a second so that the auth is synced, to avoid flakiness}
+\end{itemize}
+
+
+These examples help explain why proprietary LLMs achieve high recall but low precision. Such models appear to use broader semantic reasoning, which allows them to recover SATD comments that keyword-dependent approaches miss. However, the same behavior can cause them to overinterpret ordinary explanatory comments as debt. In the first example, the phrase \texttt{pending tasks} can be read as unresolved work, even though the comment merely describes the purpose of the following statement. In the second example, the model may interpret the dependency-related wording as evidence of an architectural limitation or workaround, although the comment only explains a test setup decision under a specific classpath condition. In the third example, the phrasing resembles a temporary workaround for unstable behavior, which can sound like admitted debt, but the comment is still describing test synchronization logic rather than explicitly admitting postponed maintenance. Taken together, these cases show that broader semantic reasoning improves recall, but it can also weaken discrimination between SATD and non-SATD comments when operational, dependency-related, or test-stabilization comments resemble debt-related language. More generally, the quantitative and qualitative results indicate that SATD in test code differs from source-code SATD not only in category but also in how they are generally expressed. Reliable detection of SATD in test comments will therefore likely require models that learn test-specific cues in context, rather than relying only on source-code SATD keywords or on overly broad semantic interpretations.
+
+Future work can explore additional open-source models, incorporate richer contextual information (e.g., surrounding code), and train or fine-tune models to improve detection accuracy. In particular, future training data and prompts should explicitly capture test-specific SATD expressions and keywords such as \texttt{disabled}, \texttt{deactivated}, and \texttt{skip}, rather than relying mainly on source-code-oriented cues such as \texttt{TODO} and \texttt{FIXME}. Including such test-specific cues, together with hard negative examples that use similar operational language without actually admitting debt, may improve both recall and precision. When such accurate detection is possible, we can investigate the evolution of test methods with SATD~\cite{grund_codeshovel_2021, chowdhury_evidence_2025} to understand their long-term maintenance impact (e.g., change- and bug-proneness of SATD test methods compared to non-SATD test methods). We hope that our manually curated dataset of test code SATD will encourage many future research projects focusing on automated test code SATD detection, classification, and the impact of test code SATD in long-term software maintenance.
+
+% A practical strategy, therefore, could involve a semi-automatic pipeline, where proprietary LLMs are first used to identify candidate SATD comments, followed by targeted manual analysis to refine the results. Although this approach would significantly reduce human effort, improving the precision of automated detection—particularly through advancements in open-source models—remains an important direction for future work.
+
+
+
+\section{Threats to Validity}\label{sec:threats}
+
+\textbf{Construct validity.} Our SATD detection and classification were completely based on manual analysis. Since manual interpretation is inherently susceptible to personal bias and subjectivity, we involved multiple reviewers to mitigate this risk.
+
+\textbf{Internal validity.} Internal validity is hampered by our selection of LLMs. However, the open-source LLMs were selected based on their excellent performance in a similar task. While selecting the proprietary LLMs, we focused on the prominent Gemini and GPT models that exhibited good performance in many software engineering tasks~\cite{batista2024code, bruni2025benchmarking, simoes2024evaluating}. 
+
+
+\textbf{External validity.} To enhance the generalizability of our findings, we analyzed 1,000 open-source projects spanning a variety of domains. However, all selected projects were written in Java. As a result, the findings may not generalize to closed-source projects or software developed in other programming languages. Also, despite analyzing a large number of comments (50K), the relatively low number of SATD comments in the manually reviewed dataset remains a limitation; expanding this dataset could enhance the robustness of our findings.
+
+\textbf{Conclusion validity} of this study is hampered by all the aforementioned threats. 
+\section{Conclusion}\label{sec:conclusion}
+This study presents a large-scale empirical investigation of Self-Admitted Technical Debt (SATD) in test code. Through manual analysis of 50,000 comments from 1,000 open-source Java projects, we identified \totalSatdCount{} SATD instances, which were further categorized into \categoryCount{} types, including \added{four} newly proposed ones. The findings reveal that SATD in test code exhibits distinct characteristics compared to SATD in source code. Our evaluation of SATD detection approaches further demonstrates that existing tools achieve high precision but suffer from low recall, open-source LLMs display inconsistent performance across models and prompt configurations, and proprietary LLMs attain higher recall at the expense of precision. We anticipate that these insights will inspire future research and facilitate the development of more robust, and accurate techniques for the automated detection and classification of SATD. Ultimately, such advancements have the potential to support practical adoption in industry, enabling developers to better manage technical debt and reduce long-term maintenance overhead.
