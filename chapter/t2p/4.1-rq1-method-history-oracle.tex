@@ -39,13 +39,13 @@ Similar to \emph{HistoryFinder}~\cite{islam_historyfinder_2025}, we assessed too
 \begin{table*}[htbp]
 \centering
 \caption{Accuracy of the method-history tracking tools. \textbf{TP} denotes correctly identified change commits, \textbf{FP} denotes incorrectly included commits, and \textbf{FN} denotes missed change commits.}
-\label{tab:method-tracking-score}
+\label{tab:t2p-method-tracking-score}
 \input{figure/method-revision-metric}
 
 \end{table*}
 
 
-Table~\ref{tab:method-tracking-score} shows that all three research-based tools substantially outperform the \emph{IntelliJ} and \emph{Git-based} baselines. At the commit level, \emph{HistoryFinder} achieves the best overall accuracy, attaining the highest recall (99.86\%) and F1 score (99.59\%). \emph{CodeShovel} achieves the highest precision (99.54\%) and also performs strongly overall, with an F1 score of 98.55\%. \emph{CodeTracker} follows closely with an F1 score of 97.87\%. The method-level results exhibit a similar trend.
+Table~\ref{tab:t2p-method-tracking-score} shows that all three research-based tools substantially outperform the \emph{IntelliJ} and \emph{Git-based} baselines. At the commit level, \emph{HistoryFinder} achieves the best overall accuracy, attaining the highest recall (99.86\%) and F1 score (99.59\%). \emph{CodeShovel} achieves the highest precision (99.54\%) and also performs strongly overall, with an F1 score of 98.55\%. \emph{CodeTracker} follows closely with an F1 score of 97.87\%. The method-level results exhibit a similar trend.
 
 Table~\ref{tab:method-history-runtime} and Figure~\ref{fig:method-history-runtime-boxplot} compare the runtime performance of these tools. The \emph{Git-based} approaches achieve the lowest runtimes; however, this advantage largely stems from terminating history tracing much earlier than the other tools, resulting in substantially lower recall. Among the research-based approaches, \emph{HistoryFinder} is the most efficient, with the lowest mean (1.47 seconds) and median (0.63 seconds) runtimes. \emph{CodeTracker} exhibits the greatest runtime variability and the highest maximum runtime (943.93 seconds), primarily due to its reliance on \emph{RefactoringMiner}~\cite{tsantalis2020refactoringminer} for tracking refactorings. In contrast, both \emph{HistoryFinder} and \emph{CodeShovel} rely on lightweight string-based similarity techniques, resulting in lower and more stable runtimes.
 
