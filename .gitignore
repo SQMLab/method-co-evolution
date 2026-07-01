@@ -1,0 +1,15 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+/*.pdf
+*.abs
+
+# macOS
+.DS_Store
+others/
+.idea/
