@@ -5,7 +5,7 @@
 \node[box] (trending_project) {\faGithub\ 1K GitHub\\Trending Java Projects};
 \node[box,right=1.5cm of trending_project] (comments) {\faComments\ 1.6 millions test\\code comments};
 \node[box,right=2cm of comments] (analyzed_comments) {\faUserCheck\ 50K manually\\analyzed comments};
-\node[box,right=1.8cm of analyzed_comments] (satd_comments) {\faComments\ 615 SATD\\comments};
+\node[box,right=1.9cm of analyzed_comments] (satd_comments) {\faComments\ 615 SATD\\comments};
 \node[box, below=1.1cm of satd_comments] (classified_satd) {\faChartBar\ \categoryCount{} types of SATD};
 
 % RQ branch (final row)
@@ -26,7 +26,8 @@
 
 \draw[arrow] (satd_comments) -- (classified_satd)
     node[midway, left, arrowicon]{\faUsers}
-    node[midway, right, align=center]{RQ1\\manually\\classify};
+    node[midway, right, align=center]{RQ1\\manually classify};
+    % node[midway, right, align=center]{RQ1\\manually\\classify};
 
 % vertical drop then horizontal branch
 \coordinate (branch) at ($(analyzed_comments.south)+(0,-1cm)$);

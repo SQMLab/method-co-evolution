@@ -29,21 +29,6 @@
 @article{bhatia_empirical_2025,
 	title = {An {Empirical} {Study} of {Self}-{Admitted} {Technical} {Debt} in {Machine} {Learning} {Software}},
 	issn = {1049-331X, 1557-7392},
-	url = {https://dl.acm.org/doi/10.1145/3785001},
-	doi = {10.1145/3785001},
-	abstract = {The emergence of open-source ML libraries such as TensorFlow and Google Auto ML has enabled developers to harness state-of-the-art ML algorithms with minimal overhead. However, during this accelerated ML development process, said developers may often make sub-optimal design and implementation decisions, leading to the introduction of technical debt that, if not addressed promptly, can significantly impact on the quality of ML-based software. Developers frequently acknowledge these sub-optimal design and development choices through code comments written during development. These comments, which often highlight areas requiring additional work or refinement in the future are known as 
-              self-admitted technical debt (SATD) 
-              . While prior research has demonstrated that SATD can serve as a reliable indicator of technical debt and has extensively studied SATD in traditional (non-ML) software, little attention has been given to this issue in the context of ML. This paper aims to investigate the occurrence of SATD in ML code by analyzing 318 open-source ML projects across five domains, along with 318 non-ML projects. We detected SATD in source code comments in various snapshots of the studied projects, conducted a manual analysis of a sample of the identified SATD to comprehend the nature of technical debt in the ML code, and performed a survival analysis of the SATD to understand the evolution dynamics of such debts. Our analyses yielded the following observations: (i) Machine learning projects have a median percentage of SATD that is twice that of non-machine learning projects. (ii) ML pipeline stages for 
-              data preprocessing 
-              and 
-              model generation logic 
-              are more susceptible to debt than 
-              model validation 
-              and 
-              deployment 
-              stages. (iii) SATDs appear in ML projects earlier in the development process compared to non-ML projects. (iv) Long-lasting SATDs are typically introduced during extensive code changes that span multiple files, which exhibit low complexity. 
-             
-            Our research contributes to the understanding of technical debt in an ML context and underscores the need for targeted debt management strategies. This contribution is particularly relevant for developers and stakeholders in ML projects by aiding them in identifying and addressing technical debt proactively and paving the way for future research in developing automated tools and methodologies for managing SATD in an ML environment.},
 	language = {en},
 	urldate = {2025-12-17},
 	journal = {ACM Transactions on Software Engineering and Methodology},
@@ -57,7 +42,6 @@
 	title = {Quantifying and characterizing clones of self-admitted technical debt in build systems},
 	volume = {29},
 	issn = {1382-3256, 1573-7616},
-	url = {https://link.springer.com/10.1007/s10664-024-10449-5},
 	doi = {10.1007/s10664-024-10449-5},
 	language = {en},
 	number = {2},
@@ -74,10 +58,6 @@
 	volume = {25},
 	issn = {1382-3256, 1573-7616},
 	shorttitle = {Wait for it},
-	url = {https://link.springer.com/10.1007/s10664-020-09854-3},
-	doi = {10.1007/s10664-020-09854-3},
-	abstract = {Abstract 
-            Self-admitted technical debt refers to situations where a software developer knows that their current implementation is not optimal and indicates this using a source code comment. In this work, we hypothesize that it is possible to develop automated techniques to understand a subset of these comments in more detail, and to propose tool support that can help developers manage self-admitted technical debt more effectively. Based on a qualitative study of 333 comments indicating self-admitted technical debt, we first identify one particular class of debt amenable to automated management: on-hold self-admitted technical debt (on-hold SATD), i.e., debt which contains a condition to indicate that a developer is waiting for a certain event or an updated functionality having been implemented elsewhere. We then design and evaluate an automated classifier which can identify these on-hold instances with an area under the receiver operating characteristic curve (AUC) of 0.98 as well as detect the specific conditions that developers are waiting for. Our work presents a first step towards automated tool support that is able to indicate when certain instances of self-admitted technical debt are ready to be addressed.},
 	language = {en},
 	number = {5},
 	urldate = {2025-12-12},
@@ -93,8 +73,6 @@
 	title = {Towards {Realistic} {SATD} {Identification} through {Machine} {Learning} {Models}: {Ongoing} {Research} and {Preliminary} {Results}},
 	isbn = {9798400706585},
 	shorttitle = {Towards {Realistic} {SATD} {Identification} through {Machine} {Learning} {Models}},
-	url = {https://dl.acm.org/doi/10.1145/3663529.3663876},
-	doi = {10.1145/3663529.3663876},
 	language = {en},
 	urldate = {2025-12-12},
 	booktitle = {Companion {Proceedings} of the 32nd {ACM} {International} {Conference} on the {Foundations} of {Software} {Engineering}},
@@ -110,29 +88,6 @@
 	volume = {27},
 	issn = {1382-3256, 1573-7616},
 	shorttitle = {Self-{Admitted} {Technical} {Debt} and comments’ polarity},
-	url = {https://link.springer.com/10.1007/s10664-022-10183-w},
-	doi = {10.1007/s10664-022-10183-w},
-	abstract = {Abstract 
-             
-              Self-Admitted Technical Debt (SATD) consists of annotations—typically, but not only, source code comments—pointing out incomplete features, maintainability problems, or, in general, portions of a program not-ready yet. The way a SATD comment is written, and specifically its polarity, may be a proxy indicator of the severity of the problem and, to some extent, of the priority with which it should be addressed. In this paper, we study the relationship between different types of SATD comments in source code and their polarity, to understand in which circumstances (and why) developers use negative or rather neutral comments to highlight an SATD. To address this goal, we combine a manual analysis of 1038 SATD comments from a curated dataset with a survey involving 46 professional developers. First of all, we categorize SATD content into its types. Then, we study the extent to which developers express negative sentiment in different types of SATD as a proxy for priority, and whether they believe this can be considered as an acceptable practice. Finally, we look at whether such annotations contain additional details such as bug references and developers’ names/initials. Results of the study indicate that SATD comments are mainly used for annotating poor implementation choices ( 
-               
-                 
-                  \${\textbackslash}simeq \$ 
-                   
-                    ≃ 
-                   
-                 
-               
-              41\%) and partially implemented functionality ( 
-               
-                 
-                  \${\textbackslash}simeq \$ 
-                   
-                    ≃ 
-                   
-                 
-               
-              22\%). The latter may depend from “waiting” for other features being implemented, and this makes SATD comments more negatives than in other cases. Around 30\% of the survey respondents agree on using/interpreting negative sentiment as a proxy for priority, while 50\% of them indicate that it would be better to discuss SATD on issue trackers and not in the source code. However, while our study indicates that open-source developers use links to external systems, such as bug identifiers, to annotate high-priority SATD, better tool support is required for SATD management.},
 	language = {en},
 	number = {6},
 	urldate = {2025-12-12},
@@ -148,8 +103,6 @@
 	title = {Timing is {Everything}! {A} {Test} and {Production} {Class} {View} of {Self}-{Admitted} {Technical} {Debt}},
 	copyright = {https://doi.org/10.15223/policy-029},
 	isbn = {9781665461528},
-	url = {https://ieeexplore.ieee.org/document/10011510/},
-	doi = {10.1109/SEAA56994.2022.00056},
 	urldate = {2025-12-12},
 	booktitle = {2022 48th {Euromicro} {Conference} on {Software} {Engineering} and {Advanced} {Applications} ({SEAA})},
 	publisher = {IEEE},
@@ -164,8 +117,6 @@
 	volume = {146},
 	issn = {01641212},
 	shorttitle = {What’s in a {GitHub} {Star}?},
-	url = {https://linkinghub.elsevier.com/retrieve/pii/S0164121218301961},
-	doi = {10.1016/j.jss.2018.09.016},
 	language = {en},
 	urldate = {2025-12-09},
 	journal = {Journal of Systems and Software},
@@ -180,26 +131,18 @@
 	volume = {48},
 	issn = {1939-3520},
 	shorttitle = {Identifying {Self}-{Admitted} {Technical} {Debts} {With} {Jitterbug}},
-	url = {https://ieeexplore.ieee.org/document/9226105/},
-	doi = {10.1109/TSE.2020.3031401},
-	abstract = {Keeping track of and managing Self-Admitted Technical Debts (SATDs) are important to maintaining a healthy software project. This requires much time and effort from human experts to identify the SATDs manually. The current automated solutions do not have satisfactory precision and recall in identifying SATDs to fully automate the process. To solve the above problems, we propose a two-step framework called Jitterbug for identifying SATDs. Jitterbug first identifies the “easy to find” SATDs automatically with close to 100 percent precision using a novel pattern recognition technique. Subsequently, machine learning techniques are applied to assist human experts in manually identifying the remaining “hard to find” SATDs with reduced human effort. Our simulation studies on ten software projects show that Jitterbug can identify SATDs more efficiently (with less human effort) than the prior state-of-the-art methods.},
 	number = {5},
 	urldate = {2025-12-09},
 	journal = {IEEE Transactions on Software Engineering},
 	author = {Yu, Zhe and Fahid, Fahmid Morshed and Tu, Huy and Menzies, Tim},
 	month = may,
 	year = {2022},
-	keywords = {Computer hacking, Estimation, Machine learning, Machine learning algorithms, Pattern recognition, Software, Technical debt, Training, machine learning, pattern recognition, software engineering},
 	pages = {1676--1691},
 }
 
 @article{dp_cohen_coefficient_1960,
 	title = {A {Coefficient} of {Agreement} for {Nominal} {Scales}},
 	volume = {20},
-	copyright = {https://journals.sagepub.com/page/policies/text-and-data-mining-license},
-	issn = {0013-1644, 1552-3888},
-	url = {https://journals.sagepub.com/doi/10.1177/001316446002000104},
-	doi = {10.1177/001316446002000104},
 	language = {en},
 	number = {1},
 	urldate = {2025-10-24},
@@ -212,29 +155,20 @@
 
 @inproceedings{njeru_hybrid_2025,
 	title = {Hybrid {BERT}, {CNN}-{BILSTM} {Model} for {Detecting} {Self}-{Admitted} {Technical} {Debt} in {Software} {Development}},
-	url = {https://ieeexplore.ieee.org/document/11011073/},
-	doi = {10.1109/ICCA65395.2025.11011073},
-	abstract = {Software developers frequently take shortcuts during the software development process, which they document as self-admitted technical debt (SATD) through source code comments. While SATD enhances transparency since developers acknowledge its presence through source code comments, it significantly increases software maintenance costs, elevates defect rates, degrades software quality and poses security vulnerabilities. To address these issues, we propose a state-of-the-art hybrid machine learning model that integrates BERT, CNN and BiLSTM architectures with attention for the automated detection of self-admitted technical debt. We use BERT for contextual embeddings, BiLSTM for capturing sequential dependencies and CNN to capture local patterns. Employing an experimental approach, our model achieved an average F1-score of 0.78 with attention, an improvement when compared with our baseline models. The contribution of this paper is a high-performing hybrid machine learning model for the automatic detection of technical debt leading to better software quality and low maintenance cost.},
 	urldate = {2025-10-23},
 	booktitle = {2025 {IEEE} {Conference} on {Computer} {Applications} ({ICCA})},
 	author = {Njeru, Victor Karani and Kuria, Jane and Kituku, Benson},
 	month = mar,
 	year = {2025},
-	keywords = {BERT, Bidirectional long short term memory, Computational modeling, Costs, Machine learning, Maintenance, Security, Self-admitted technical debt, Software development management, Software maintenance, Software quality, Source coding, software maintenance, technical debt},
 	pages = {1--6},
 }
 
 @misc{haroon_how_2025,
 	title = {How {Accurately} {Do} {Large} {Language} {Models} {Understand} {Code}?},
-	copyright = {Creative Commons Attribution 4.0 International},
-	url = {https://arxiv.org/abs/2504.04372},
-	doi = {10.48550/ARXIV.2504.04372},
-	abstract = {Large Language Models (LLMs) are increasingly used in post-development tasks such as code repair and testing. A key factor in these tasks' success is the model's deep understanding of code. However, the extent to which LLMs truly understand code remains largely unevaluated. Quantifying code comprehension is challenging due to its abstract nature and the lack of a standardized metric. Previously, this was assessed through developer surveys, which are not feasible for evaluating LLMs. Existing LLM benchmarks focus primarily on code generation, fundamentally different from code comprehension. Additionally, fixed benchmarks quickly become obsolete as they become part of the training data. This paper presents the first large-scale empirical investigation into LLMs' ability to understand code. Inspired by mutation testing, we use an LLM's fault-finding ability as a proxy for its deep code understanding. This approach is based on the insight that a model capable of identifying subtle functional discrepancies must understand the code well. We inject faults in real-world programs and ask the LLM to localize them, ensuring the specifications suffice for fault localization. Next, we apply semantic-preserving code mutations (SPMs) to the faulty programs and test whether the LLMs still locate the faults, verifying their confidence in code understanding. We evaluate nine popular LLMs on 600,010 debugging tasks from 670 Java and 637 Python programs. We find that LLMs lose the ability to debug the same bug in 78\% of faulty programs when SPMs are applied, indicating a shallow understanding of code and reliance on features irrelevant to semantics. We also find that LLMs understand code earlier in the program better than later. This suggests that LLMs' code comprehension remains tied to lexical and syntactic features due to tokenization designed for natural languages, which overlooks code semantics.},
 	urldate = {2025-10-23},
 	publisher = {arXiv},
 	author = {Haroon, Sabaat and Khan, Ahmad Faraz and Humayun, Ahmad and Gill, Waris and Amjad, Abdul Haddi and Butt, Ali R. and Khan, Mohammad Taha and Gulzar, Muhammad Ali},
 	year = {2025},
-	keywords = {Artificial Intelligence (cs.AI), FOS: Computer and information sciences, Machine Learning (cs.LG), Software Engineering (cs.SE)},
 }
 
 @article{bae_enhancing_2024,
@@ -242,9 +176,6 @@
 	volume = {13},
 	issn = {2079-9292},
 	shorttitle = {Enhancing {Software} {Code} {Vulnerability} {Detection} {Using} {GPT}-4o and {Claude}-3.5 {Sonnet}},
-	url = {https://www.mdpi.com/2079-9292/13/13/2657},
-	doi = {10.3390/electronics13132657},
-	abstract = {This study investigates the efficacy of advanced large language models, specifically GPT-4o, Claude-3.5 Sonnet, and GPT-3.5 Turbo, in detecting software vulnerabilities. Our experiment utilized vulnerable and secure code samples from the NIST Software Assurance Reference Dataset (SARD), focusing on C++, Java, and Python. We employed three distinct prompting techniques as follows: Concise, Tip Setting, and Step-by-Step. The results demonstrate that GPT-4o and Claude-3.5 Sonnet significantly outperform GPT-3.5 Turbo in vulnerability detection. GPT-4o showed the highest improvement with the Step-by-Step prompt, achieving an F1 score of 0.9072. Claude-3.5 Sonnet exhibited consistent high performance across all prompt types, with its Step-by-Step prompt yielding the best overall results (F1 score: 0.8933, AUC: 0.74). In contrast, GPT-3.5 Turbo showed minimal performance changes across prompts, with the Tip Setting prompt performing best (AUC: 0.65, F1 score: 0.6772), yet significantly lower than the other models. Our findings highlight the potential of advanced models in enhancing software security and underscore the importance of prompt engineering in optimizing their performance.},
 	language = {en},
 	number = {13},
 	urldate = {2025-10-23},
@@ -257,23 +188,16 @@
 
 @misc{islam_evaluating_2025,
 	title = {Evaluating the {Energy}-{Efficiency} of the {Code} {Generated} by {LLMs}},
-	copyright = {Creative Commons Attribution 4.0 International},
-	url = {https://arxiv.org/abs/2505.20324},
-	doi = {10.48550/ARXIV.2505.20324},
-	abstract = {As the quality of code generated by Large Language Models (LLMs) improves, their adoption in the software industry for automated code generation continues to grow. Researchers primarily focus on enhancing the functional correctness of the generated code while commonly overlooking its energy efficiency and environmental impact. This paper investigates the energy efficiency of the code generated by 20 popular LLMs for 878 programming problems of varying difficulty levels and diverse algorithmic categories selected from the LeetCode platform by comparing them against canonical human-written solutions. Although LLMs can produce functionally correct results in most cases, our findings show that the performance and energy efficiency of LLM-produced solutions are often far below those of human-written solutions. Among the studied LLMs, DeepSeek-v3 and GPT-4o generate the most energy-efficient code, whereas Grok-2 and Gemini-1.5-Pro are among the least energy-efficient models. On average, human-generated canonical solutions are approximately 1.17 times more energy efficient than DeepSeek-v3, 1.21 times more energy efficient than GPT-4o, and over 2 times more energy efficient than Grok-2 and Gemini-1.5-Pro. For specific algorithmic groups such as dynamic programming, backtracking, and bit manipulation, LLM-generated code can consume up to 450 times more energy than human-generated canonical solutions.},
 	urldate = {2025-10-23},
 	publisher = {arXiv},
 	author = {Islam, Md Arman and Jonnala, Devi Varaprasad and Rekhi, Ritika and Pokharel, Pratik and Cilamkoti, Siddharth and Imran, Asif and Kosar, Tevfik and Turkkan, Bekir},
 	year = {2025},
-	keywords = {Artificial Intelligence (cs.AI), FOS: Computer and information sciences, Software Engineering (cs.SE)},
 }
 
 @article{liu_exploratory_2021,
 	title = {An exploratory study on the introduction and removal of different types of technical debt in deep learning frameworks},
 	volume = {26},
 	issn = {1382-3256, 1573-7616},
-	url = {http://link.springer.com/10.1007/s10664-020-09917-5},
-	doi = {10.1007/s10664-020-09917-5},
 	language = {en},
 	number = {2},
 	urldate = {2025-10-21},
@@ -287,12 +211,6 @@
 @inproceedings{mastropaolo_towards_2023,
 	address = {Luxembourg, Luxembourg},
 	title = {Towards {Automatically} {Addressing} {Self}-{Admitted} {Technical} {Debt}: {How} {Far} {Are} {We}?},
-	copyright = {https://doi.org/10.15223/policy-029},
-	isbn = {9798350329964},
-	shorttitle = {Towards {Automatically} {Addressing} {Self}-{Admitted} {Technical} {Debt}},
-	url = {https://ieeexplore.ieee.org/document/10298547/},
-	doi = {10.1109/ASE56229.2023.00103},
-	urldate = {2025-10-21},
 	booktitle = {2023 38th {IEEE}/{ACM} {International} {Conference} on {Automated} {Software} {Engineering} ({ASE})},
 	publisher = {IEEE},
 	author = {Mastropaolo, Antonio and Di Penta, Massimiliano and Bavota, Gabriele},
@@ -304,9 +222,6 @@
 @article{iammarino_empirical_2021,
 	title = {An empirical study on the co-occurrence between refactoring actions and {Self}-{Admitted} {Technical} {Debt} removal},
 	volume = {178},
-	issn = {01641212},
-	url = {https://linkinghub.elsevier.com/retrieve/pii/S016412122100073X},
-	doi = {10.1016/j.jss.2021.110976},
 	language = {en},
 	urldate = {2025-10-21},
 	journal = {Journal of Systems and Software},
@@ -319,11 +234,6 @@
 @inproceedings{zampetti_automatically_2020,
 	address = {London, ON, Canada},
 	title = {Automatically {Learning} {Patterns} for {Self}-{Admitted} {Technical} {Debt} {Removal}},
-	copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
-	isbn = {9781728151434},
-	url = {https://ieeexplore.ieee.org/document/9054868/},
-	doi = {10.1109/SANER48275.2020.9054868},
-	urldate = {2025-10-21},
 	booktitle = {2020 {IEEE} 27th {International} {Conference} on {Software} {Analysis}, {Evolution} and {Reengineering} ({SANER})},
 	publisher = {IEEE},
 	author = {Zampetti, Fiorella and Serebrenik, Alexander and Di Penta, Massimiliano},
@@ -337,8 +247,6 @@
 	title = {Was self-admitted technical debt removal a real removal?: an in-depth perspective},
 	isbn = {9781450357166},
 	shorttitle = {Was self-admitted technical debt removal a real removal?},
-	url = {https://dl.acm.org/doi/10.1145/3196398.3196423},
-	doi = {10.1145/3196398.3196423},
 	language = {en},
 	urldate = {2025-10-21},
 	booktitle = {Proceedings of the 15th {International} {Conference} on {Mining} {Software} {Repositories}},
@@ -352,10 +260,6 @@
 @inproceedings{maldonado_empirical_2017,
 	address = {Shanghai},
 	title = {An {Empirical} {Study} on the {Removal} of {Self}-{Admitted} {Technical} {Debt}},
-	isbn = {9781538609927},
-	url = {http://ieeexplore.ieee.org/document/8094425/},
-	doi = {10.1109/ICSME.2017.8},
-	urldate = {2025-10-21},
 	booktitle = {2017 {IEEE} {International} {Conference} on {Software} {Maintenance} and {Evolution} ({ICSME})},
 	publisher = {IEEE},
 	author = {Maldonado, Everton Da S. and Abdalkareem, Rabe and Shihab, Emad and Serebrenik, Alexander},
@@ -367,9 +271,6 @@
 @inproceedings{tahir_empirical_2016,
 	address = {Hamilton, New Zealand},
 	title = {An {Empirical} {Study} into the {Relationship} {Between} {Class} {Features} and {Test} {Smells}},
-	isbn = {9781509055753},
-	url = {http://ieeexplore.ieee.org/document/7890581/},
-	doi = {10.1109/APSEC.2016.029},
 	urldate = {2025-10-21},
 	booktitle = {2016 23rd {Asia}-{Pacific} {Software} {Engineering} {Conference} ({APSEC})},
 	publisher = {IEEE},
@@ -382,9 +283,6 @@
 	address = {Bremen, Germany},
 	title = {An empirical study of bugs in test code},
 	isbn = {9781467375320},
-	url = {http://ieeexplore.ieee.org/document/7332456/},
-	doi = {10.1109/ICSM.2015.7332456},
-	urldate = {2025-10-21},
 	booktitle = {2015 {IEEE} {International} {Conference} on {Software} {Maintenance} and {Evolution} ({ICSME})},
 	publisher = {IEEE},
 	author = {Vahabzadeh, Arash and Fard, Amin Milani and Mesbah, Ali},
@@ -396,35 +294,6 @@
 @article{winkler_investigating_2024,
 	title = {Investigating the readability of test code},
 	volume = {29},
-	issn = {1382-3256, 1573-7616},
-	url = {https://link.springer.com/10.1007/s10664-023-10390-z},
-	doi = {10.1007/s10664-023-10390-z},
-	abstract = {Abstract 
-             
-              Context 
-              The readability of source code is key for understanding and maintaining software systems and tests. Although several studies investigate the readability of source code, there is limited research specifically on the readability of test code and related influence factors. 
-             
-             
-              Objective 
-              In this paper, we aim at investigating the factors that influence the readability of test code from an academic perspective based on scientific literature sources and complemented by practical views, as discussed in grey literature. 
-             
-             
-              Methods 
-              First, we perform a Systematic Mapping Study (SMS) with a focus on scientific literature. Second, we extend this study by reviewing grey literature sources for practical aspects on test code readability and understandability. Finally, we conduct a controlled experiment on the readability of a selected set of test cases to collect additional knowledge on influence factors discussed in practice. 
-             
-             
-              Results 
-               
-                The result set of the SMS includes 19 primary studies from the scientific literature for further analysis. The grey literature search reveals 62 sources for information on test code readability. Based on an analysis of these sources, we identified a combined set of 14 factors that influence the readability of test code. 7 of these factors were found in scientific 
-                and 
-                grey literature, while some factors were mainly discussed in academia (2) 
-                or 
-                industry (5) with only limited overlap. The controlled experiment on practically relevant influence factors showed that the investigated factors have a significant impact on readability for half of the selected test cases. 
-               
-             
-             
-              Conclusion 
-              Our review of scientific and grey literature showed that test code readability is of interest for academia and industry with a consensus on key influence factors. However, we also found factors only discussed by practitioners. For some of these factors we were able to confirm an impact on readability in a first experiment. Therefore, we see the need to bring together academic and industry viewpoints to achieve a common view on the readability of software test code.},
 	language = {en},
 	number = {2},
 	urldate = {2025-10-21},
@@ -439,10 +308,6 @@
 	title = {Can {OpenSource} beat {ChatGPT}? -- {A} {Comparative} {Study} of {Large} {Language} {Models} for {Text}-to-{Code} {Generation}},
 	copyright = {arXiv.org perpetual, non-exclusive license},
 	shorttitle = {Can {OpenSource} beat {ChatGPT}?},
-	url = {https://arxiv.org/abs/2409.04164},
-	doi = {10.48550/ARXIV.2409.04164},
-	abstract = {In recent years, large language models (LLMs) have emerged as powerful tools with potential applications in various fields, including software engineering. Within the scope of this research, we evaluate five different state-of-the-art LLMs - Bard, BingChat, ChatGPT, Llama2, and Code Llama - concerning their capabilities for text-to-code generation. In an empirical study, we feed prompts with textual descriptions of coding problems sourced from the programming website LeetCode to the models with the task of creating solutions in Python. Subsequently, the quality of the generated outputs is assessed using the testing functionalities of LeetCode. The results indicate large differences in performance between the investigated models. ChatGPT can handle these typical programming challenges by far the most effectively, surpassing even code-specialized models like Code Llama. To gain further insights, we measure the runtime as well as the memory usage of the generated outputs and compared them to the other code submissions on Leetcode. A detailed error analysis, encompassing a comparison of the differences concerning correct indentation and form of the generated code as well as an assignment of the incorrectly solved tasks to certain error categories allows us to obtain a more nuanced picture of the results and potential for improvement. The results also show a clear pattern of increasingly incorrect produced code when the models are facing a lot of context in the form of longer prompts.},
-	urldate = {2025-10-21},
 	publisher = {arXiv},
 	author = {Mayer, Luis and Heumann, Christian and Aßenmacher, Matthias},
 	year = {2024},
@@ -452,10 +317,6 @@
 @article{chidamber_metrics_1994,
 	title = {A metrics suite for object oriented design},
 	volume = {20},
-	copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
-	issn = {0098-5589, 1939-3520, 2326-3881},
-	url = {https://ieeexplore.ieee.org/document/295895/},
-	doi = {10.1109/32.295895},
 	number = {6},
 	urldate = {2025-10-21},
 	journal = {IEEE Transactions on Software Engineering},
@@ -468,10 +329,6 @@
 @inproceedings{mo_decoupling_2016,
 	address = {Austin Texas},
 	title = {Decoupling level: a new metric for architectural maintenance complexity},
-	isbn = {9781450339001},
-	shorttitle = {Decoupling level},
-	url = {https://dl.acm.org/doi/10.1145/2884781.2884825},
-	doi = {10.1145/2884781.2884825},
 	language = {en},
 	urldate = {2025-10-21},
 	booktitle = {Proceedings of the 38th {International} {Conference} on {Software} {Engineering}},
@@ -485,10 +342,6 @@
 @article{khomh_exploratory_2012,
 	title = {An exploratory study of the impact of antipatterns on class change- and fault-proneness},
 	volume = {17},
-	copyright = {http://www.springer.com/tdm},
-	issn = {1382-3256, 1573-7616},
-	url = {http://link.springer.com/10.1007/s10664-011-9171-y},
-	doi = {10.1007/s10664-011-9171-y},
 	language = {en},
 	number = {3},
 	urldate = {2025-10-21},
@@ -502,10 +355,6 @@
 @article{mccabe_complexity_1976,
 	title = {A {Complexity} {Measure}},
 	volume = {SE-2},
-	copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
-	issn = {0098-5589, 1939-3520, 2326-3881},
-	url = {https://ieeexplore.ieee.org/document/1702388/},
-	doi = {10.1109/TSE.1976.233837},
 	number = {4},
 	urldate = {2025-10-21},
 	journal = {IEEE Transactions on Software Engineering},
@@ -518,9 +367,6 @@
 @inproceedings{dp_giger_method-level_2012,
 	address = {Lund Sweden},
 	title = {Method-level bug prediction},
-	isbn = {9781450310567},
-	url = {https://dl.acm.org/doi/10.1145/2372251.2372285},
-	doi = {10.1145/2372251.2372285},
 	language = {en},
 	urldate = {2025-10-21},
 	booktitle = {Proceedings of the {ACM}-{IEEE} international symposium on {Empirical} software engineering and measurement},
@@ -534,10 +380,6 @@
 @article{buse_learning_2010,
 	title = {Learning a {Metric} for {Code} {Readability}},
 	volume = {36},
-	copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
-	issn = {0098-5589},
-	url = {http://ieeexplore.ieee.org/document/5332232/},
-	doi = {10.1109/TSE.2009.70},
 	number = {4},
 	urldate = {2025-10-21},
 	journal = {IEEE Transactions on Software Engineering},
@@ -550,9 +392,6 @@
 @inproceedings{posnett_simpler_2011,
 	address = {Waikiki, Honolulu HI USA},
 	title = {A simpler model of software readability},
-	isbn = {9781450305747},
-	url = {https://dl.acm.org/doi/10.1145/1985441.1985454},
-	doi = {10.1145/1985441.1985454},
 	language = {en},
 	urldate = {2025-10-21},
 	booktitle = {Proceedings of the 8th {Working} {Conference} on {Mining} {Software} {Repositories}},
@@ -568,9 +407,6 @@
 	title = {Automatically assessing code understandability: {How} far are we?},
 	isbn = {9781538626849},
 	shorttitle = {Automatically assessing code understandability},
-	url = {http://ieeexplore.ieee.org/document/8115654/},
-	doi = {10.1109/ASE.2017.8115654},
-	urldate = {2025-10-21},
 	booktitle = {2017 32nd {IEEE}/{ACM} {International} {Conference} on {Automated} {Software} {Engineering} ({ASE})},
 	publisher = {IEEE},
 	author = {Scalabrino, Simone and Bavota, Gabriele and Vendome, Christopher and Linares-Vasquez, Mario and Poshyvanyk, Denys and Oliveto, Rocco},
@@ -582,9 +418,6 @@
 @inproceedings{dp_kalliamvakou_promises_2014,
 	address = {Hyderabad India},
 	title = {The promises and perils of mining {GitHub}},
-	isbn = {9781450328630},
-	url = {https://dl.acm.org/doi/10.1145/2597073.2597074},
-	doi = {10.1145/2597073.2597074},
 	language = {en},
 	urldate = {2025-10-21},
 	booktitle = {Proceedings of the 11th {Working} {Conference} on {Mining} {Software} {Repositories}},
@@ -598,10 +431,6 @@
 @inproceedings{palomba_exploratory_2017,
 	address = {Buenos Aires, Argentina},
 	title = {An {Exploratory} {Study} on the {Relationship} between {Changes} and {Refactoring}},
-	isbn = {9781538605356},
-	url = {http://ieeexplore.ieee.org/document/7961515/},
-	doi = {10.1109/ICPC.2017.38},
-	urldate = {2025-10-21},
 	booktitle = {2017 {IEEE}/{ACM} 25th {International} {Conference} on {Program} {Comprehension} ({ICPC})},
 	publisher = {IEEE},
 	author = {Palomba, Fabio and Zaidman, Andy and Oliveto, Rocco and De Lucia, Andrea},
@@ -613,10 +442,6 @@
 @article{dp_pascarella_performance_2020,
 	title = {On the performance of method-level bug prediction: {A} negative result},
 	volume = {161},
-	issn = {01641212},
-	shorttitle = {On the performance of method-level bug prediction},
-	url = {https://linkinghub.elsevier.com/retrieve/pii/S0164121219302675},
-	doi = {10.1016/j.jss.2019.110493},
 	language = {en},
 	urldate = {2025-10-21},
 	journal = {Journal of Systems and Software},
@@ -631,50 +456,6 @@
 	volume = {55},
 	issn = {0360-0300, 1557-7341},
 	shorttitle = {Pre-train, {Prompt}, and {Predict}},
-	url = {https://dl.acm.org/doi/10.1145/3560815},
-	doi = {10.1145/3560815},
-	abstract = {This article surveys and organizes research works in a new paradigm in natural language processing, which we dub “prompt-based learning.” Unlike traditional supervised learning, which trains a model to take in an input 
-               
-                x 
-               
-              and predict an output 
-               
-                y 
-               
-              as 
-              P 
-              ( 
-               
-                y{\textbar}x 
-               
-              ), prompt-based learning is based on language models that model the probability of text directly. To use these models to perform prediction tasks, the original input 
-               
-                x 
-               
-              is modified using a 
-              template 
-              into a textual string 
-              prompt 
-               
-                x′ 
-               
-              that has some unfilled slots, and then the language model is used to probabilistically fill the unfilled information to obtain a final string 
-               
-                x̂ 
-               
-              , from which the final output 
-               
-                y 
-               
-              can be derived. This framework is powerful and attractive for a number of reasons: It allows the language model to be 
-              pre-trained 
-              on massive amounts of raw text, and by defining a new prompting function the model is able to perform 
-              few-shot 
-              or even 
-              zero-shot 
-              learning, adapting to new scenarios with few or no labeled data. In this article, we introduce the basics of this promising paradigm, describe a unified set of mathematical notations that can cover a wide variety of existing work, and organize existing work along several dimensions, e.g., the choice of pre-trained language models, prompts, and tuning strategies. To make the field more accessible to interested beginners, we not only make a systematic review of existing works and a highly structured typology of prompt-based concepts but also release other resources, e.g., a website 
-              NLPedia–Pretrain 
-              including constantly updated survey and paperlist.},
 	language = {en},
 	number = {9},
 	urldate = {2025-10-21},
@@ -689,14 +470,9 @@
 	title = {Prompt {Design} and {Engineering}: {Introduction} and {Advanced} {Methods}},
 	copyright = {Creative Commons Attribution 4.0 International},
 	shorttitle = {Prompt {Design} and {Engineering}},
-	url = {https://arxiv.org/abs/2401.14423},
-	doi = {10.48550/ARXIV.2401.14423},
-	abstract = {Prompt design and engineering has rapidly become essential for maximizing the potential of large language models. In this paper, we introduce core concepts, advanced techniques like Chain-of-Thought and Reflection, and the principles behind building LLM-based agents. Finally, we provide a survey of tools for prompt engineers.},
-	urldate = {2025-10-21},
 	publisher = {arXiv},
 	author = {Amatriain, Xavier},
 	year = {2024},
-	keywords = {FOS: Computer and information sciences, Machine Learning (cs.LG), Software Engineering (cs.SE)},
 }
 
 @article{giray_prompt_2023,
@@ -704,8 +480,6 @@
 	volume = {51},
 	issn = {0090-6964, 1573-9686},
 	shorttitle = {Prompt {Engineering} with {ChatGPT}},
-	url = {https://link.springer.com/10.1007/s10439-023-03272-4},
-	doi = {10.1007/s10439-023-03272-4},
 	language = {en},
 	number = {12},
 	urldate = {2025-10-21},
@@ -719,14 +493,10 @@
 @misc{hu_quantifying_2024,
 	title = {Quantifying the {Persona} {Effect} in {LLM} {Simulations}},
 	copyright = {arXiv.org perpetual, non-exclusive license},
-	url = {https://arxiv.org/abs/2402.10811},
-	doi = {10.48550/ARXIV.2402.10811},
-	abstract = {Large language models (LLMs) have shown remarkable promise in simulating human language and behavior. This study investigates how integrating persona variables-demographic, social, and behavioral factors-impacts LLMs' ability to simulate diverse perspectives. We find that persona variables account for \&lt;10\% variance in annotations in existing subjective NLP datasets. Nonetheless, incorporating persona variables via prompting in LLMs provides modest but statistically significant improvements. Persona prompting is most effective in samples where many annotators disagree, but their disagreements are relatively minor. Notably, we find a linear relationship in our setting: the stronger the correlation between persona variables and human annotations, the more accurate the LLM predictions are using persona prompting. In a zero-shot setting, a powerful 70b model with persona prompting captures 81\% of the annotation variance achievable by linear regression trained on ground truth annotations. However, for most subjective NLP datasets, where persona variables have limited explanatory power, the benefits of persona prompting are limited.},
 	urldate = {2025-10-21},
 	publisher = {arXiv},
 	author = {Hu, Tiancheng and Collier, Nigel},
 	year = {2024},
-	keywords = {Computation and Language (cs.CL), Computers and Society (cs.CY), FOS: Computer and information sciences},
 }
 
 @article{arcelli_fontana_binary_2025,
@@ -734,8 +504,6 @@
 	volume = {187},
 	issn = {09505849},
 	shorttitle = {Binary and multi-class classification of {Self}-{Admitted} {Technical} {Debt}},
-	url = {https://linkinghub.elsevier.com/retrieve/pii/S0950584925002010},
-	doi = {10.1016/j.infsof.2025.107862},
 	language = {en},
 	urldate = {2025-10-20},
 	journal = {Information and Software Technology},
@@ -748,16 +516,6 @@
 @article{li_automatic_2023,
 	title = {Automatic identification of self-admitted technical debt from four different sources},
 	volume = {28},
-	issn = {1382-3256, 1573-7616},
-	url = {https://link.springer.com/10.1007/s10664-023-10297-9},
-	doi = {10.1007/s10664-023-10297-9},
-	abstract = {Abstract 
-             
-              Technical debt refers to taking shortcuts to achieve short-term goals while sacrificing the long-term maintainability and evolvability of software systems. A large part of technical debt is explicitly reported by the developers themselves; this is commonly referred to as 
-              Self-Admitted Technical Debt 
-              or 
-              SATD 
-              . Previous work has focused on identifying SATD from source code comments and issue trackers. However, there are no approaches available for automatically identifying SATD from other sources such as commit messages and pull requests, or by combining multiple sources. Therefore, we propose and evaluate an approach for automated SATD identification that integrates four sources: source code comments, commit messages, pull requests, and issue tracking systems. Our findings show that our approach outperforms baseline approaches and achieves an average F1-score of 0.611 when detecting four types of SATD (i.e., code/design debt, requirement debt, documentation debt, and test debt) from the four aforementioned sources. Thereafter, we analyze 23.6M code comments, 1.3M commit messages, 3.7M issue sections, and 1.7M pull request sections to characterize SATD in 103 open-source projects. Furthermore, we investigate the SATD keywords and relations between SATD in different sources. The findings indicate, among others, that: 1) SATD is evenly spread among all sources; 2) issues and pull requests are the two most similar sources regarding the number of shared SATD keywords, followed by commit messages, and then followed by code comments; 3) there are four kinds of relations between SATD items in the different sources.},
 	language = {en},
 	number = {3},
 	urldate = {2025-10-15},
@@ -770,25 +528,15 @@
 
 @inproceedings{wilder_exploratory_2023,
 	title = {An {Exploratory} {Study} on the {Occurrence} of {Self}-{Admitted} {Technical} {Debt} in {Android} {Apps}},
-	url = {https://ieeexplore.ieee.org/document/10207081/},
-	doi = {10.1109/TechDebt59074.2023.00007},
-	abstract = {Technical debt describes situations where developers write less-than-optimal code to meet project milestones. However, this debt accumulation often results in future developer effort to live with or fix these quality issues. To better manage this debt, developers may document their sub-optimal code as comments in the code (i.e., self-admitted technical debt or SATD). While prior research has investigated the occurrence and characteristics of SATD, this research has primarily focused on non-mobile systems. With millions of mobile applications (apps) in multiple genres available for end-users, there is a lack of research on sub-optimal code developers intentionally implement in mobile apps.In this study, we examine the occurrence and characteristics of SATD in 15,614 open-source Android apps. Our findings show that even though such apps contain occurrences of SATD, the volume per app (a median of 4) is lower than in non-mobile systems, with most debt categorized as Code Debt. Additionally, we identify typical elements in an app that are prone to intentional sub-optimal implementations. We envision our findings supporting researchers and tool vendors with building tools and techniques to support app developers with app maintenance.},
-	urldate = {2025-10-15},
-	booktitle = {2023 {ACM}/{IEEE} {International} {Conference} on {Technical} {Debt} ({TechDebt})},
 	author = {Wilder, Gregory and Miyamoto, Riley and Watson, Samuel and Kazman, Rick and Peruma, Anthony},
 	month = may,
 	year = {2023},
-	keywords = {Android Apps, Buildings, Codes, Empirical Study, Maintenance engineering, Mining Software Repository, Mobile applications, Self-Admitted Technical Debt, Software},
 	pages = {1--10},
 }
 
 @inproceedings{dp_chowdhury_evidence_2025,
 	title = {Evidence is {All} {We} {Need}: {Do} {Self}-{Admitted} {Technical} {Debts} {Impact} {Method}-{Level} {Maintenance}?},
 	shorttitle = {Evidence is {All} {We} {Need}},
-	url = {https://ieeexplore.ieee.org/document/11025748/},
-	doi = {10.1109/MSR66628.2025.00118},
-	abstract = {Self-Admitted Technical Debt (SATD) refers to the phenomenon where developers explicitly acknowledge technical debt through comments in the source code. While considerable research has focused on detecting and addressing SATD, its true impact on software maintenance remains underexplored. The few studies that have examined this critical aspect have not provided concrete evidence linking SATD to negative effects on software maintenance. These studies, however, focused only on file- or class-level code granularity. This paper aims to empirically investigate the influence of SATD on various facets of software maintenance at the method level. We assess SATD’s effects on code quality, bug susceptibility, change frequency, and the time practitioners typically take to resolve SATD.By analyzing a dataset of 774,051 methods from 49 opensource projects, we discovered that methods containing SATD are not only larger and more complex but also exhibit lower readability and a higher tendency for bugs and changes. We also found that SATD often remains unresolved for extended periods, adversely affecting code quality and maintainability. Our results provide empirical evidence highlighting the necessity of early identification, resource allocation, and proactive management of SATD to mitigate its long-term impacts on software quality and maintenance costs.},
-	urldate = {2025-10-15},
 	booktitle = {2025 {IEEE}/{ACM} 22nd {International} {Conference} on {Mining} {Software} {Repositories} ({MSR})},
 	author = {Chowdhury, Shaiful and Kidwai, Hisham and Asaduzzaman, Muhammad},
 	month = apr,

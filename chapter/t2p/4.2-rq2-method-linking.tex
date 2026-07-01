@@ -1,0 +1,211 @@
+\subsection{RQ2: Production-to-test linking}
+To support large-scale MSR studies on test maintenance~\cite{tufano2022methods2test}, we investigate which static production-to-test mapping approach provides the highest accuracy. We do so by reevaluating existing approaches on both prior and newly constructed benchmarks and by introducing two additional heuristic-based techniques.
+
+\subsubsection{Approach}
+
+To improve evaluation reliability, we constructed a new benchmark using the 20 projects employed in previous method-history tracking studies~\cite{grund:2021,jodavi_accurate_2022,islam_historyfinder_2025}. We did not include more projects to keep the manual annotation manageable. For each project, we parsed the Java source code using the JavaParser Symbol Solver\footnote{\href{https://github.com/javaparser/javaparser/tree/master/javaparser-symbol-solver-core}{https://github.com/javaparser/javaparser/tree/master/javaparser-symbol-solver-core last accessed: June 28, 2026}} to construct a static call graph. For every test method, all unique production methods reachable through direct calls formed the candidate set. We then randomly selected 20 test methods per project, yielding 400 test methods for manual annotation.
+
+The first and second authors independently mapped production methods to their corresponding test methods. This process required $\approx$100 person-hours in total.  Disagreements on 46 test methods were resolved through discussion. During annotation, we considered a production method to be a positive link only if it represented the behavior being tested. Setup calls preceding the tested behavior and verification calls used solely to inspect results were not labeled as positive links. This distinction is not always reflected in existing benchmarks. For example, in the \emph{Commons Lang} project, \texttt{testSetSizeStartText} exercises \texttt{setSizeStartText(null)} and verifies the outcome using \texttt{getSizeStartText()}.\footnote{\href{https://github.com/apache/commons-lang/blob/425d8085cfcaab5a78bf0632f9ae77b7e9127cf8/src/test/java/org/apache/commons/lang3/builder/ToStringStyleTest.java\#L91}{https://github.com/apache/commons-lang/blob/\allowbreak425d8085cfcaab5a78bf0632f9ae77b7e9127cf8/src/test/java/org/apache/commons\allowbreak/lang3/builder/ToStringStyleTest.java\#L91 last accessed: June 28, 2026}} Therefore, the getter should not be considered the production method under test, although it is labeled as such in early datasets~\cite{white_tctracer_2022}. However, we indeed observed some test methods that intentionally tested multiple production methods. In such cases, all relevant production methods were labeled as positive links. Consequently, the benchmark contains 451 confirmed production--test links rather than exactly 400, in addition to 3,816 non-links. The non-links refer to methods that were invoked by the 400 test methods but were not actually tested. 
+
+At the tool level, we found that previous approaches relied on different call-graph construction techniques and generally did not leverage the recent JavaParser Symbol Solver. Therefore, using the original replication packages and author support (e.g., via email communication for \emph{TestLinker}~\cite{sun_method-level_2024}), we modified existing approaches~\cite{white_establishing_2020,sun_method-level_2024} to use JavaParser Symbol Solver. As shown later, this modification substantially improves the performance of all existing techniques.
+
+\begin{table*}[htbp]
+\centering
+\caption{Production-to-test link prediction performance by dataset for all approaches.}
+\label{tab:t2p-link-metric}
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{0.95}
+
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.92\textheight, keepaspectratio}
+\input{figure/t2p-link-metric-table}
+\end{adjustbox}
+\end{table*}
+
+Besides reevaluating prior approaches, we also introduce two simple techniques: \emph{One Method Call (OMC)} and \emph{OMC+NC}. \emph{OMC} removes helper methods and irrelevant external calls (e.g., Java standard-library calls) from the candidate set and links a test method to a production method only when a single candidate remains. The intuition is that if only one production method is exercised, it is likely the method under test. While this strategy favors high precision, its recall may be limited. To improve coverage, \emph{OMC+NC} takes the union of links identified by \emph{OMC} and the Naming Conventions (\emph{NC}) heuristic, combining structural and naming evidence.
+
+% For each benchmark, we restrict candidate links to test methods included in the corresponding ground truth to avoid penalizing approaches for predictions on unlabeled tests. Across all evaluated benchmarks, this yields 4,256 labeled candidate links, comprising 442 confirmed links and 3,814 non-links.
+
+Following prior production-to-test mapping studies~\cite{white_establishing_2020,white_tctracer_2022,sun_method-level_2024}, we evaluate approaches at the level of unique production-test method pairs. A correctly predicted link is counted as a true positive ($TP$), an incorrect prediction as a false positive ($FP$), and a missed confirmed link as a false negative ($FN$). We report precision, recall, and F1 score, and additionally evaluate ranking performance using MAP and AUC. MAP computes the average precision of ranked candidate production methods for each test and then macro-averages across tests. AUC summarizes the overall precision-recall tradeoff of scoring-based approaches and is not applicable to binary-only techniques such as \emph{NC}.
+
+% To help MSR research-based on test code maintenance, in this section, we investigate which static analysis-based approach offers the best accuracynewly
+% in linking production and test methods. We do so by using both existing and new developed benchmarks and by evaluating new simple heuristic-based approaches in addtion to existing mapping approaches.  
+
+% \subsubsection{Approach}
+% To increase the reliability of evaluation, we constructed a new ground truth
+% using the 20 projects used in previous method tracking studies~\cite{grund:2021,jodavi_accurate_2022,islam_historyfinder_2025}. Although Islam \textit{et al.}~\cite{islam_historyfinder_2025} used 20 additional projects, we did not include them to reduce the excessive manual annotation required for this dataset construction. For each project, we parsed the Java source code using the JavaParser
+% Symbol Solver\footnote{\url{https://github.com/javaparser/javaparser/tree/master/javaparser-symbol-solver-core}}
+% to resolve method invocations and constructed a static call graph. All the unique calls from a test method found inside a test method form the set of candidate proudction methods. We randomly selected 20 test methods per
+% project building a mapping dataset of 400 test methods.
+
+% The first and second authors---two graduate students in software engineering with 10+ and 1+ years of industry experience as software engineers, respectively---independently mapped production methods with their corresponding test methods. Out of the 400, disagreement in \textcolor{red}{labelling was found for Y test methods}, which was resolved after in-person discussion. While labelling, we agreed that a candidate production method should be labeled as positive only when it represents the production behavior exercised by the test; setup calls made
+% before that behavior and verification calls made afterward should not be labeled
+% as positive links.  Unfortunately, this distinction is not always reflected in the prior ground truths. For example, in the TCTracer benchmark~\cite{white_establishing_2020}. For example, in the \emph{Commons Lang} project, \texttt{testSetSizeStartText} exercises
+% \texttt{setSizeStartText(null)} and checks the result with \texttt{getSizeStartText()}, so the getter should not be marked as the
+% production method under test, as was done in \textcolor{red}{mention which benchmark}.\footnote{\url{https://github.com/apache/commons-lang/blob/425d8085cfcaab5a78bf0632f9ae77b7e9127cf8/src/test/java/org/apache/commons/lang3/builder/ToStringStyleTest.java\#L91}}
+% It is important to note that we indeed found some test methods that test multiple different source methods, going against standard software engineering practice. For those test methods, we included all the correct production methods.  \textcolor{red}{{As a result, instead of exactly 400 ground truth links, we have 421 ground truth links in our dataset.} 
+
+
+% At the tool level, we observed that previous mapping approaches used different implementation techniques and did not take advantage of the recent JavaSymbolSolver, which is accurate in construction call graph. We, therefore, by using the shared replication packages and contacting the authors when necessary (e.g., for the TestLinker tool~\cite{sun_method-level_2024}) modified the previous tools~\cite{white_establishing_2020, sun_method-level_2024} by adding JavaSymbolSolver when appropriate. This little tweak has improved the existing tools' performance significantly (shown later).  
+% In addition to evaluating the existing approaches, we also introduce two new heuristic-based approaches: \emph{One Method Call (OMC)} and \emph{OMC + NC}. \emph{OMC}, a conservative static call graph-based strategy, first filters helper methods and irrelevant external
+% calls, such as Java standard-library calls, and then links a test method to a production method if there is only one candiate production method. Our hypothesis is that it is likely that the only production method must be the method that the test method is truly testing. Of course, \emph{OMC} would suffer from recall as there may not be many such scenarios; we also evaluate the performance of \emph{OMC+NC}, the union of
+% OMC and NC links, to test whether combining structural and naming evidence
+% improves coverage while preserving high precision.
+
+% \textcolor{red}{For each evaluated ground truth, we restrict candidates to the test methods
+% represented in that ground truth.  This ensures that an approach is not
+% penalized for predicting links for tests that were never labeled. The resulting ground truth contains 4,256 labeled candidate
+% links, comprising 442 confirmed links and 3,814 non-links.}
+% Following prior test-to-production linking studies
+% \cite{white_establishing_2020,white_tctracer_2022,sun_method-level_2024}, we
+% evaluate each approach at the level of a unique test--production method pair. A confirmed link predicted by an approach is counted as a true positive
+% ($TP$), a predicted pair that is not confirmed is counted as a false positive
+% ($FP$), and a confirmed link missed by the approach is counted as a false
+% negative ($FN$). In addition to reporting precision, recall, and F1 score, we
+% also report MAP and PR-AUC to evaluate ranking behavior. MAP ranks each
+% test's candidate production methods and macro-averages average precision
+% across tests.  PR-AUC summarizes the pooled precision--recall behavior of
+% scored techniques; however, it is not applicable to binary-only approaches, such as NC.
+
+% , in the \emph{Commons IO} project, a test method sets
+% up file content with \texttt{writeStringToFile(...)}, exercises \texttt{writeLines(...)}, and verifies the result with
+% \texttt{readFileToString(...)}; the setup and verification calls should not be
+% marked as the production methods under test.\footnote{\url{https://github.com/apache/commons-io/blob/4077158829de92987367d3149e4ba71356bb5390/src/test/java/org/apache/commons/io/FileUtilsTestCase.java\#L2186}}
+% Likewise, C
+
+
+% from 20 CodeShovel projects.   The resulting ground truth contains 4,256 labeled candidate
+% links, comprising 442 confirmed links and 3,814 non-links.
+% Table~\ref{tab:t2plinker-ground-truth-statistics} summarizes its project-level
+% statistics.
+
+
+% To build the new For each project revision, we parse the Java source code and use JavaParser
+% Symbol Solver\footnote{\url{https://github.com/javaparser/javaparser/tree/master/javaparser-symbol-solver-core}}
+% to resolve method invocations and construct a static call graph.
+% Each direct call from a test method forms an initial candidate.
+% \begin{table*}[t]
+% \centering
+% \caption{T2PLinker ground-truth dataset statistics. Method calls exclude
+% non-candidates and implicit production methods. \textcolor{red}{if you have 20 methods per project, there should be at least 20 links per project. Why do we see 18 and 19 for some projects?}}
+% \label{tab:t2plinker-ground-truth-statistics}
+% \resizebox{\textwidth}{!}{%
+% \input{figure/t2plinker-ground-truth-statistics-table}
+% }
+% \end{table*}
+
+
+% While reviewing the previous ground truths, 
+% Existing linking approaches have primarily been evaluated using ground truths
+% that cover a small number of projects and that were incrementally extended
+% across studies~\cite{white_establishing_2020,white_tctracer_2022,sun_method-level_2024}.
+% During our review, we also encountered missing and questionable links. 
+% These coverage and labeling limitations make reported results based on the
+% prior ground truths questionable.  We therefore evaluate existing approaches against both the
+% previously published ground truths and a new independently labeled ground
+% truth.
+
+
+% We first construct the candidate method links on which all approaches operate.
+% For each project revision, we parse the Java source code and use JavaParser
+% Symbol Solver\footnote{\url{https://github.com/javaparser/javaparser/tree/master/javaparser-symbol-solver-core}}
+% to resolve method invocations and construct a static call graph.
+% Each direct call from a test method forms an initial candidate.  Tests often
+% delegate their behavior to fixtures or test-helper methods, so considering
+% only direct calls can omit the production methods exercised by a test case.
+% We therefore transitively expand calls through utility methods up to a maximum depth of five. For each call path, expansion stops when either a production method is reached or the maximum depth is exceeded.
+
+
+% We evaluate prior method-level linking strategies from TCTracer, TestLinker, and OMC~\cite{van_rompaey_establishing_2009,white_establishing_2020,white_tctracer_2022,sun_method-level_2024}.
+% All strategies operate on the same Java Symbol Solver resolved candidate
+% test--production method pairs constructed above. Binary strategies directly mark
+% a candidate pair as linked or not linked, whereas scored strategies assign a
+% confidence score that we use for both thresholded link prediction and
+% ranking-based evaluation.
+
+% Naming Conventions (NC) links a test method to a production method when their
+% simple method names match after removing \texttt{test} from the test name.
+% Naming Conventions Contains (NCC) relaxes NC by linking a pair when the
+% production method name appears as a substring of the test method name. Last Call
+% Before Assert (LCBA) uses assertion proximity: it links a candidate production
+% method when the call is the last relevant production call before an assertion in
+% the test.
+
+% The lexical similarity strategies score similarity between the test and
+% production method names. Longest Common Subsequence using both names (LCS-B)
+% computes the longest ordered character overlap between the stripped test name
+% and the production method name, then divides that overlap by the longer of the
+% two names. Longest Common Subsequence using the unit under test (LCS-U) uses the
+% same ordered overlap but divides by the production method name length, allowing
+% a production name contained in a longer scenario-style test name to receive a
+% high score. Levenshtein distance (Leven) scores normalized edit-distance
+% similarity, giving higher scores to names that require fewer edits to match.
+
+% The statistical call-based strategies use how candidate methods are distributed
+% across tests. Tarantula adapts spectrum-based fault-localization intuition by
+% scoring a production method higher when it is more distinctive to the current
+% test than to other tests. TFIDF treats called production methods like terms in a
+% document: a method receives a higher score when it is associated with the
+% current test but is uncommon across other tests. For LCS-B, LCS-U, Leven,
+% Tarantula, and TFIDF, we apply TCTracer's call-depth discounting so deeper
+% transitive calls receive lower scores. We then normalize each strategy within a
+% test by dividing each candidate score by the maximum score among that test's
+% candidates. The Combined score averages the base TCTracer signals and normalizes
+% the resulting per-test score.
+
+% TestLinker is the learned semantic baseline. We use its fine-tuned CodeT5 model
+% to score semantic correlation between each test and candidate focal method.
+% However, instead of using TestLinker's heuristic mapping rules to map an
+% inferred method name to a declaration, we evaluate the ranked candidates using
+% our Java Symbol Solver resolved test--production method pairs.
+
+
+% To increase the breadth of the evaluation, we constructed a new ground truth
+% from 20 CodeShovel projects.  We randomly selected 20 test-case methods per
+% project from tests having generated candidates and manually reviewed each
+% candidate pair.  The resulting ground truth contains 4,256 labeled candidate
+% links, comprising 442 confirmed links and 3,814 non-links.
+% Table~\ref{tab:t2plinker-ground-truth-statistics} summarizes its project-level
+% statistics.
+
+
+% We report results for the original TCTracer ground truth, its cumulative
+% TCTracer extension, the cumulative TestLinker extension, our new ground truth,
+% and the union of the published and new ground truths.  This design shows how
+% the approaches behave as independently constructed evidence and project
+% coverage increase.
+
+\subsubsection{Result}
+
+Table~\ref{tab:t2p-link-metric} summarizes the results for all approaches across all benchmarks. The TestLinker dataset~\cite{sun_method-level_2024} extends the earlier datasets~\cite{white_establishing_2020,white_tctracer_2022} by adding two projects, yielding a total of six projects. Our new benchmark contains 20 projects, while the \emph{All} benchmark combines both datasets.
+
+Comparing our results on the \emph{TestLinker} benchmark with those originally reported by Sun \textit{et al.} (Table III, static-analysis approaches~\cite{sun_method-level_2024}), we observe substantial improvements across all baselines (e.g., \emph{NC}, \emph{NCC}, \emph{LCBA}, and \emph{LCS-B}). For example, the F1 score of \emph{LCS-U} increased from 0.37 to 0.70, while the F1 score of \emph{TFIDF} increased from 0.33 to 0.65.
+These gains are attributable to our use of JavaParser Symbol Solver for accurate call graph construction. 
+We also observe that most approaches perform worse on the new benchmark than on the \emph{TestLinker} benchmark. This decline is likely due to the larger and more diverse set of projects, which increases the probability of having more cases where developers do not consistently follow naming conventions—a key signal leveraged by most static-analysis-based mapping techniques.
+
+Overall, no single approach consistently performs best across all benchmarks and evaluation metrics. Instead, the approaches fall into three broad categories: high-precision approaches, recall-oriented approaches, and approaches that maintain balance between precision and recall. For example, the \emph{NC} and \emph{OMC} achieve very high precision but suffer from low recall. In contrast, \emph{Tarantula} consistently achieves high recall at the cost of substantially lower precision. Approaches such as \emph{Combined} and \emph{TestLinker} provide the best balance between precision and recall and consequently achieve the highest F1 scores across benchmarks.
+% Table~\ref{tab:t2p-link-metric} shows the results for all the tools and benchmarks. The TestLinker dataset~\cite{sun_method-level_2024} includes the previous datasets~\cite{white_establishing_2020, white_tctracer_2022} and enlarges it by adding just two more projects---a total of six projects. The new dataset is the one we constructed with 20 projects, and the all dataset is the merged one. By comparing the results for the TestLinker dataset with previously reported results (Table III, static-based approach~\cite{sun_method-level_2024}), we found that the accuracy of all the previous approaches (e.g., NC, NCC, LCBA, LCS-B, etc.) improved remarkably just due to our inclusion of the Java Symbol Solver for accurate call graph construction. For example, the F1 score of \emph{LCS-U} is now 0.70 whereas it was only 0.37 in the original study. Likewise, \emph{TFIDF}'s F1 score is now 0.65, much higher than the original 33.75.  
+
+% We also observed a decline in accuracy for most of the tools when compared between the old and new benchmarks. This is because with the increase in the number of projects, we now have more examples where practitioners did not follow naming conventions, which is fully or partly utilized by the static-analysis-based mapping approaches.  In general, considering all the benchmarks, our results suggest that no single approach performs best in all evaluation objectives or ground truths. Instead, the results reveal three broad groups of behavior: approaches with high precision, recall-oriented approaches with broader coverage, and balanced or ranking-based approaches that trade off precision and recall.  \emph{NC}, \emph{OMC} produce offers very high precision, but low recall. \emph{Tarantula} exhibits consistently high recall, but significantly low precision. By balancing both precision and recall, \emph{Combined}, and \emph{TestLinker} generally outperform others in F1 score. 
+
+These findings indicate that the choice of linking approach should depend on the downstream analysis. Conservative approaches such as NC are preferable when false positives are costly. \emph{OMC} and \emph{OMC+NC} provide a middle option for increasing coverage while remaining precision-oriented. \emph{TestLinker} and Combined are preferable when a stronger balance between precision and recall is needed. \emph{Tarantula} and \emph{TFIDF} are appropriate only when maximizing link recovery is more important than avoiding incorrect links.
+
+
+% The results also show that performance differs substantially between previously published ground truths and our independently constructed ground truth.
+
+% Conservative approaches, particularly  NC is the most conservative method but its recall is very low. OMC follows a similar precision-oriented pattern but recovers more links than NC. Combined OMC and NC further improve coverage while still remaining more conservative than most similarity and ranking-based techniques. NCC also improves recall compared with NC, but this broader matching comes with a larger precision loss.
+
+% The similarity-based approaches show a clear dependence on naming quality. LCS-B, LCS-U, and Levenshtein generally provide stronger recall than NC because they can match test and production methods even when exact naming conventions are not followed. Among them, LCS-B often provides the strongest balance on the published datasets, while LCS-U and Levenshtein tend to be more conservative. However, their lower precision on our ground truth suggests that name similarity alone is not equally reliable. In particular, when projects use less consistent naming schemes or when several production methods have similar names, similarity-based techniques are more likely to introduce incorrect links.
+
+% The recall-oriented approaches, Tarantula and TFIDF, recover many confirmed links but introduce many false positives. This pattern is visible across all ground truths, but it becomes more pronounced on our dataset, where their precision drops substantially. Tarantula consistently achieves the highest recall, indicating that it is effective at finding many possible links, but this comes at the cost of link correctness. TFIDF shows a similar pattern, although it is usually less recall-heavy than Tarantula. These approaches may therefore be useful when coverage is the primary objective, but they are less suitable for downstream analyzes that are sensitive to false-positive links.
+
+% TESTLINKER and the Combined score provide the strongest overall trade-offs. TESTLINKER performs especially well on our new ground truth and on the combined dataset, suggesting that it generalizes better than many individual heuristics when both precision and recall are considered. The Combined score performs particularly well for ranking-based evaluation, achieving the strongest PR-AUC and competitive MAP values. This suggests that combining multiple sources of evidence is useful when the goal is to rank candidate production methods rather than make only binary link decisions.
+
+% Comparing the ground truths presents an important challenge in generalization. The  TCTracer and TestLinker datasets tend to favor approaches based on naming similarity, combined heuristics, and ranking signals. In contrast, our new ground truth exposes more false positives for several of these approaches, especially Tarantula, TFIDF, LCS-B, and LCS-U. NC remains more stable across ground truths, but its consistently low recall limits its coverage. OMC and OMC+NC improve coverage over NC, but their precision also varies more on our dataset than on the published datasets. Overall, the combined results show that conclusions drawn from a single ground truth can be misleading: approaches that appear strong on published datasets may not generalize equally well to broader independently labeled project sets.
+
+
+\begin{framed}
+\noindent\textbf{\underline{RQ2 summary}:}
+There is no single best approach for linking production and test methods. The choice of linking technique should be guided by the requirements of the downstream analysis. 
+Approaches such as \emph{NC} and \emph{OMC+NC} are preferable when high precision is critical, whereas \emph{Tarantula} is better suited for scenarios that prioritize high recall and can tolerate lower precision.
+\end{framed}

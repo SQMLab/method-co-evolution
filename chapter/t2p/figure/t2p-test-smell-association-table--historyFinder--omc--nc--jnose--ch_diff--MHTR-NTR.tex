@@ -1,0 +1,34 @@
+\begin{tabular}{lrrrrrrr}
+\toprule
+\textbf{Test smell} & \textbf{NTR \%} & \textbf{MTR \%} & \textbf{$\Delta$ pp} &
+\textbf{OR [95\% CI]} & \textbf{$p_{BH}$} & \textbf{MH OR} & \textbf{MH $p_{BH}$} \\
+\midrule
+Assertion Roulette & 13.5 & 20.1 & +6.6 & 1.61 [1.55, 1.68] & $<.05$ & 1.48 & $<.05$ \\
+Verbose Test & 2.4 & 6.2 & +3.8 & 2.67 [2.49, 2.86] & $<.05$ & 2.30 & $<.05$ \\
+Magic Number Test & 7.0 & 10.4 & +3.3 & 1.52 [1.45, 1.60] & $<.05$ & 1.48 & $<.05$ \\
+Exception Handling & 3.0 & 4.9 & +1.9 & 1.69 [1.57, 1.82] & $<.05$ & 1.70 & $<.05$ \\
+Conditional Test Logic & 2.8 & 4.7 & +1.9 & 1.72 [1.59, 1.85] & $<.05$ & 1.71 & $<.05$ \\
+Eager Test & 4.5 & 6.3 & +1.9 & 1.44 [1.36, 1.54] & $<.05$ & 1.51 & $<.05$ \\
+Duplicate Assert & 2.8 & 4.5 & +1.7 & 1.64 [1.52, 1.77] & $<.05$ & 1.45 & $<.05$ \\
+Unknown Test & 5.2 & 5.6 & +0.4 & 1.09 [1.02, 1.16] & $<.05$ & 0.93 & 0.057 \\
+Mystery Guest & 0.5 & 0.9 & +0.4 & 1.73 [1.46, 2.06] & $<.05$ & 1.63 & $<.05$ \\
+Sensitive Equality & 1.1 & 1.5 & +0.4 & 1.32 [1.17, 1.50] & $<.05$ & 1.46 & $<.05$ \\
+Resource Optimism & 0.4 & 0.7 & +0.3 & 1.71 [1.40, 2.07] & $<.05$ & 1.61 & $<.05$ \\
+Sleepy Test & 0.2 & 0.5 & +0.3 & 2.31 [1.78, 2.98] & $<.05$ & 2.76 & $<.05$ \\
+Print Statement & 0.3 & 0.4 & +0.1 & 1.19 [0.92, 1.51] & 0.173 & 2.65 & $<.05$ \\
+Redundant Assertion & 0.2 & 0.2 & +0.1 & 1.34 [0.97, 1.83] & 0.084 & 1.96 & $<.05$ \\
+Empty Test & 0.1 & 0.1 & +0.0 & 1.31 [0.67, 2.45] & 0.420 & 2.03 & 0.072 \\
+Lazy Test & 9.2 & 8.9 & -0.3 & 0.96 [0.91, 1.01] & 0.106 & 0.96 & 0.106 \\
+Ignored Test & 2.0 & 1.1 & -0.9 & 0.54 [0.47, 0.61] & $<.05$ & 0.40 & $<.05$ \\%\hline\hline\\
+\toprule
+\textbf{Test smell} & \textbf{NTR \%} & \textbf{HTR \%} & \textbf{$\Delta$ pp} &
+\textbf{OR [95\% CI]} & \textbf{$p_{BH}$} & \textbf{MH OR} & \textbf{MH $p_{BH}$} \\
+\midrule
+Assertion Roulette & 13.5 & 30.0 & +16.5 & 2.75 [2.53, 2.98] & $<.05$ & 2.42 & $<.05$ \\
+Verbose Test & 2.5 & 14.3 & +11.9 & 6.66 [5.94, 7.46] & $<.05$ & 5.47 & $<.05$ \\
+Exception Handling & 3.0 & 8.4 & +5.5 & 3.01 [2.62, 3.45] & $<.05$ & 3.08 & $<.05$ \\
+Conditional Test Logic & 2.8 & 8.3 & +5.5 & 3.15 [2.74, 3.61] & $<.05$ & 2.78 & $<.05$ \\
+Duplicate Assert & 2.8 & 7.6 & +4.8 & 2.86 [2.47, 3.29] & $<.05$ & 2.44 & $<.05$ \\
+Sleepy Test & 0.2 & 1.4 & +1.2 & 6.97 [4.78, 9.96] & $<.05$ & 9.57 & $<.05$ \\
+\bottomrule
+\end{tabular}

@@ -2,6 +2,9 @@
 \centering
 \caption{SATD detection performance with/without retraining. The unsupervised MAT approach achieved the highest F1-score. Pattern-based methods had high precision but very low recall, and the Text Mining (TM) Method showed low precision but relatively higher recall. We also show the minimum, maximum, and average of all the scores across all the tools and approaches.}
 \label{table:non_llm_satd_detection_result}
+% \small
+% \setlength{\tabcolsep}{3pt}
+\begin{adjustbox}{max width=\textwidth, max height=\textheight}
 \begin{tabular}{cccccccc}
 \toprule
 \textbf{Dataset} & \textbf{Method} & \textbf{Retrained?} & \textbf{Cross-Validation?} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{MCC}\\
@@ -46,11 +49,11 @@
   & MT-BERT~\cite{gu_self-admitted_2024} & \checkmark & \checkmark    &   0.60 & 0.41 & 0.49 & 0.49\\
   & DebtHunter~\cite{sala_debthunter_2021} & \xmark & \xmark    &   0.34 & 0.53 & 0.41 & 0.41\\
   & DebtHunter~\cite{sala_debthunter_2021} & \checkmark & \xmark    &   0.21 & 0.65 & 0.32 & 0.35\\
-  & DebtHunter~\cite{sala_debthunter_2021} & \checkmark & \checkmark    &   0.47 & \textbf{0.69} & 0.54 & \added{0.55}\\
+  & DebtHunter~\cite{sala_debthunter_2021} & \checkmark & \checkmark    &   0.47 & \textbf{0.69} & 0.54 & 0.55\\
   & \textit{Minimum} & -- & -- & 0.14 & 0.04 & 0.07 & 0.17\\
   & \textit{Maximum} & -- & -- & 0.95 & 0.69 & 0.70 & 0.73\\
   & \textit{Average} & -- & -- & 0.50 & 0.54 & 0.46 & 0.48\\
 \bottomrule
 \end{tabular}
-
+\end{adjustbox}
 \end{table*}

@@ -1,10 +1,15 @@
 \begin{table*}[ht!]
-\centering
-\caption{ Precision (P), Recall (R), F1-score (F1), and Matthews Correlation Coefficient (MCC) for detecting SATD comments using Flan-T5 series open-source LLMs across 0-, 2-, and 4-shot settings. Keyword-based prompts (e.g., MAT, Jitterbug) generally achieve higher F1-scores, whereas smaller models and No Keyword/GPT-4–suggested prompts often fail to identify SATD.}
+% \centering
+% \caption{Precision (P), Recall (R), F1-score (F1), and Matthews Correlation Coefficient (MCC) for detecting SATD comments using Flan-T5 series open-source LLMs across 0-, 2-, and 4-shot settings. Keyword-based prompts (e.g., MAT, Jitterbug) generally achieve higher F1-scores, whereas smaller models and No Keyword/GPT-4–suggested prompts often fail to identify SATD.}
+\caption{Precision (P), Recall (R), F1-score (F1), and Matthews Correlation Coefficient (MCC) for detecting SATD comments using Flan-T5 series open-source LLMs across 0-, 2-, and 4-shot settings.}
 \label{table:oss_llm_detection_result}
 
 % \resizebox{\textwidth}{!}{
-\begin{tabular}{p{0.8cm}cccccccccccccc}
+% \small
+% \setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.9}
+\begin{adjustbox}{max width=\textwidth, max height=\textheight}
+\begin{tabular}{ccccccccccccccc}
 \toprule
 \multirow{2}{*}{\textbf{Dataset}} & \multirow{2}{*}{\textbf{Prompt}} & \multirow{2}{*}{\textbf{Model}} 
 & \multicolumn{4}{c}{\textbf{0-shot}} 
@@ -79,4 +84,5 @@
 
 \end{tabular}%
 % }
+\end{adjustbox}
 \end{table*}

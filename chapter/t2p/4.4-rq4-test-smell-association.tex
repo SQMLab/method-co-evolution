@@ -1,0 +1,241 @@
+\subsection{RQ4: Test smells and revisions}
+Our previous analysis shows that revisions to test methods are not necessarily driven solely by changes in the production methods they exercise. Test methods may also evolve because of internal maintainability issues. Test smells provide a useful lens for examining this possibility, as they capture potentially problematic characteristics of test code~\cite{bavota2015test,Spadini:2018,panichella2022test}. Prior work has shown that test smells are most often introduced in the initial version of a test method~\cite{tufano2016empirical}. Therefore, we investigate whether the presence of test smells in the first version of a test method is associated with a high number of future revisions.
+
+\subsubsection{Approach}
+For smell detections, we used \emph{JNose}~\cite{virginio2020jnose}. Using rule-based detectors derived from established test-smell definitions and detection rules from prior work~\cite{tufano2016empirical,garousi2018smells}, \emph{JNose} detects different types of test smells and provides method-level smell locations, making it appropriate for our study. To understand the association of test smells with method evolution, we divide the test methods into three groups and label them for easy reference for subsequent analysis. 
+\begin{itemize}
+    \item \textbf{NTR}: These are methods that were not revised more than their corresponding production methods (normal test revision).
+    \item \textbf{MTR}: These methods were revised more than their production methods (more test revisions). 
+    \item \textbf{HTR}: A subset of \emph{MTR}, these methods were revised at least five more times than their production methods (high test revisions). 
+\end{itemize}
+
+A test method may exercise multiple production methods and, as a result, may
+receive different group assignments depending on which linked production method
+is used. To reduce ambiguity, we filtered such methods out for this RQ. Also, to ensure
+sufficient project-level coverage, we included projects for which the strategy establishes at least 30 links. After applying this threshold, the analysis includes 71,231 \emph{NTR} methods from 90 projects, 23,494 \emph{MTR} methods from 88 projects, and 3,274 HTR methods from 74 projects. 
+
+We used the following metrics for comparing these three groups of methods. 
+\begin{itemize}
+    \item \textbf{Percent (\%):} For each individual smell, we calculated its prevalence in our three groups of methods. We also calculated the difference in percent (\textbf{$\Delta$ pp}). 
+    \item \textbf{Odds ratio (OR):} Suppose, we are calculating the odds ratio by using \emph{NTR} and \emph{HTR} groups. Let $a$ be the number of HTR methods with a smell, $b$ the
+number of HTR methods without the smell, $c$ the number of NTR methods with the
+smell, and $d$ the number of NTR methods without the smell. The odds ratio is
+computed as $\mathrm{OR} = (a/b)/(c/d) = ad/bc$, so values above one indicate
+that the smell is more prevalent among HTR methods. We report the conditional
+maximum likelihood estimate of the odds ratio and its exact 95\% confidence
+interval. 
+\item  \textbf{Fisher's
+exact tests ($p_{BH}$)~\cite{fisher1922interpretation}:} We also used two-sided Fisher's
+exact tests because the group sizes are unequal and several smells are rare. We also applied the
+Benjamini--Hochberg~\cite{benjamini1995controlling} procedure across the individual-smell comparisons to
+control the false discovery rate at 0.05.
+\item \textbf{Mantel-Haenszel (\textbf{MH OR}} and \textbf{MH $p_{BH}$})~\cite{mantel1959statistical}: Projects may differ in their testing practices and baseline smell prevalence.
+As a sensitivity analysis, we additionally estimated a Mantel-Haenszel odds
+ratio for each smell while treating projects as strata, and applied the same
+multiple-comparison correction. 
+% \textcolor{red}{Agreement between the pooled and
+% project-stratified results indicates that an association is not explained
+% solely by differences among projects.}
+
+
+\end{itemize}
+% , and the odds ratio
+% with a 95\% confidence interval. For each smell, we form a $2 \times 2$
+% contingency table.  We use two-sided Fisher's
+% exact tests because the group sizes are unequal and several smells are rare. We apply the
+% Benjamini--Hochberg procedure across the individual-smell comparisons to
+% control the false discovery rate at 0.05.
+
+% Projects may differ in their testing practices and baseline smell prevalence.
+% As a sensitivity analysis, we additionally estimate a Mantel--Haenszel odds
+% ratio for each smell while treating projects as strata, and apply the same
+% multiple-comparison correction.  Agreement between the pooled and
+% project-stratified results indicates that an association is not explained
+% solely by differences among projects.
+
+% We also visualize the distribution of test-method revision counts for NTR and
+% HTR methods using boxplots. In addition, we summarize the count-based
+% comparison in prose rather than displaying the full generated table. To examine
+% whether the observed smell--revision associations are sensitive to method size,
+% we also repeat the top-five-smell comparison within LOC-based control groups.
+% Following the size-control grouping used in prior test-smell
+% work~\cite{Spadini:2018}, we classify test methods as small, medium, or large
+% based on the LOC of the introduced version analyzed by JNose. Specifically,
+% small methods have fewer than $30$ LOC, medium methods have $30$--$60$ LOC, and
+% large methods have more than $60$ LOC. These fixed ranges allow us to compare
+% HTR--NTR and MTR--NTR differences within methods of comparable size.
+
+\subsubsection{Result}
+% \begin{figure}[ht]
+%     \centering
+%     \includegraphics[width=\linewidth]{figure/t2p-test-smell-effectplot--historyFinder--omc--nc--jnose--ch_diff.pdf}
+% \caption{Initial test-smell prevalence differences for HTR--NTR and MTR--NTR comparisons. The x-axis reports differences in percentage points; positive values indicate higher smell prevalence in HTR or MTR than in NTR, respectively. Overall, at least one test smell is more prevalent in HTR than NTR by 20.8 percentage points and in MTR than NTR by 6.3 percentage points. Diamonds with solid intervals denote HTR--NTR, whereas squares with dashed intervals denote MTR--NTR. Filled markers indicate Benjamini--Hochberg-significant smells; open markers indicate non-significant smells. Error bars show 95\% confidence intervals.}
+% \label{fig:rq4-test-smell-effect}
+% \end{figure}
+
+
+% \begin{figure}[ht]
+%     \centering
+%     \includegraphics[width=\linewidth, keepaspectratio]{figure/t2p-test-smell-size-control-effectplot--historyFinder--omc--nc--jnose--ch_diff.pdf}
+%     \caption{Difference in initial top-five test-smell prevalence by method
+%     size. The plot compares HTR--NTR and MTR--NTR within each LOC control
+%     group, where TOP5 means that a method contains at least one of Assertion
+%     Roulette, Verbose Test, Magic Number Test, Conditional Test Logic, or
+%     Exception Handling. Positive values indicate higher prevalence in HTR or
+%     MTR than in NTR; intervals show 95\% confidence intervals.
+%     The correlation analysis shows a positive association between method size and
+% the number of selected top smells. Spearman's correlation is $\rho = 0.34$
+% ($p < .001$; medium effect), Kendall's correlation is $\tau = 0.28$
+% ($p < .001$; small effect), and Pearson's correlation is $r = 0.36$
+% ($p < .001$; medium effect).
+% }
+%     \label{fig:rq2-test-smell-size-control-effect}
+% \end{figure}
+
+% \begin{figure}[ht]
+%   \caption{LOC-controlled difference in initial robust-smell prevalence.
+%     Each row is a method-size control group. The plotted outcome is whether a
+%     method contains at least one smell that is significant in both the pooled and
+%     project-adjusted association analyses for the corresponding comparison.
+%     Positive values indicate higher prevalence in HTR or MTR than in NTR;
+%     intervals show 95\% confidence intervals.}
+%     \centering
+%     \includegraphics[width=\linewidth]{figure/t2p-test-smell-size-control-effectplot--historyFinder--omc--nc--jnose--ch_diff--HTR-NTR-MTR-NTR}
+% \end{figure}
+% \begin{figure}[ht]
+%  \caption{LOC-controlled odds ratios for initial robust-smell prevalence.
+%     Each point estimates the odds that a method in HTR or MTR contains at
+%     least one robust-significant smell compared with NTR methods in the same
+%     size group. Values above one indicate greater odds in the revision-prone
+%     group; intervals show 95\% confidence intervals.}
+%     \centering
+%     \includegraphics[width=\linewidth]{figure/t2p-test-smell-size-control-odds-ratio-effectplot--historyFinder--omc--nc--jnose--ch_diff--HTR-NTR-MTR-NTR}
+% \end{figure}
+
+% \begin{table*}[ht]
+% \centering
+% \caption{The top part of the table shows results for comparison between the \emph{NTR} and \emph{MTR} methods. For example, \textbf{NTR \%} reports the percent of methods in the \emph{NTR} group with a particular smell. The bottom part shows the comparisons between the \emph{NTR} and \emph{HTR} methods for a few smells. The full table for the bottom part is available (\texttt{/data/rqs/rq4/test-smell-difference.pdf}).} 
+% %\protect footnotemark}
+% \label{tab:rq4-ntr-mtr}
+
+% \small
+% \input{figure/t2p-test-smell-association-table--historyFinder--omc--nc--jnose--ch_diff--MHTR-NTR}
+% \end{table*}
+
+
+% \begin{figure*}[htbp]
+% \centering
+% \mbox{
+% \subfigure[]{\includegraphics[width=0.38\textwidth,keepaspectratio]{figure/t2p-test-smell-size-control-effectplot--historyFinder--omc--nc--jnose--ch_diff--HTR-NTR-MTR-NTR}}
+% \subfigure[]{\includegraphics[width=0.38\textwidth,keepaspectratio]{figure/t2p-test-smell-size-control-odds-ratio-effectplot--historyFinder--omc--nc--jnose--ch_diff--HTR-NTR-MTR-NTR}
+% }
+% }
+% \caption{Size-based analysis. Figure (a) shows the difference in percent with 95\% confidence interval, and Figure (b) shows the odds ratio (OR). The comparison is for \emph{MTR} and \emph{NTR} methods, as well as \emph{HTR} and \emph{NTR} methods. The selected 11 types of smells are joined together and considered as one smell.}
+% % Figure a label should be Test smell difference, Figure b label should be Odds ratio difference. Both figures are currently unreadable. 
+% \label{fig:size}
+% \end{figure*}
+
+
+\begin{figure*}[htbp]
+\centering
+
+\begin{subfigure}[t]{0.44\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,keepaspectratio]{figure/t2p-test-smell-size-control-effectplot--historyFinder--omc--nc--jnose--ch_diff--HTR-NTR-MTR-NTR}
+    \caption{}
+    \label{fig:size-a}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.44\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,keepaspectratio]{figure/t2p-test-smell-size-control-odds-ratio-effectplot--historyFinder--omc--nc--jnose--ch_diff--HTR-NTR-MTR-NTR}
+    \caption{}
+    \label{fig:size-b}
+\end{subfigure}
+
+\caption{Size-based analysis. Figure (a) shows the difference in percent with 95\% confidence interval, and Figure (b) shows the odds ratio (OR). The comparison is for \emph{MTR} and \emph{NTR} methods, as well as \emph{HTR} and \emph{NTR} methods. The selected 11 types of smells are joined together and considered as one smell.}
+\label{fig:size}
+\end{figure*}
+
+
+
+% \begin{table*}[ht]
+% \centering
+% \caption{Results for smell comparison among multiple test groups. For example, NTR \% reports the percentage of methods in the NTR group with a smell. }
+% \label{tab:rq4-ntr-htr}
+% \small
+% \input{figure/t2p-test-smell-association-table--historyFinder--omc--nc--jnose--ch_diff}
+% \end{table*}
+
+
+% \begin{figure*}[ht]
+%     \centering
+%     \includegraphics[width=\textwidth]{figure/t2p-test-smell-boxplot--historyFinder--omc--nc--jnose--ch_diff.pdf}
+%     \caption{Distribution of the number of unique initial test smells per test method, summarized independently by revision group (NTR and HTR) and by LOC group (S, M, L, and XL). Each box is annotated with the number of methods ($n$) and the number of extreme points outside the boxplot whiskers.}
+%     \label{fig:rq4-test-smell-boxplot}
+% \end{figure*}
+
+The top part of Table~\ref{tab:rq4-ntr-mtr} shows that, with the exception of a few smell types, such as \emph{Redundant Assertion} and \emph{Lazy Test}, \emph{MTR} methods are more associated with smells than \emph{NTR} methods. For example, 20.1\% of \emph{MTR} methods contain the \emph{Assertion Roulette} smell, compared to 13.5\% of \emph{NTR} methods. The odds ratio (\textbf{OR}) indicates that \emph{MTR} methods are 1.6 times more likely to contain this smell than \emph{NTR} methods. These differences are also statistically significant, as both \textbf{$p_{BH}$} and \textbf{MH $p_{BH}$} are below 0.05.
+
+This trend becomes even more pronounced (bottom part of the table) when comparing \emph{HTR} methods—those revised at least five more times than their corresponding production methods—with \emph{NTR} methods. For most smell types, both the odds ratio and the difference in percent (\textbf{$\Delta$ pp}) increase substantially. In particular, the odds ratios for the \emph{Verbose Test} and \emph{Sleepy Test} smells indicate that these smells are more than six times as likely to occur in \emph{HTR} methods as in \emph{NTR} methods. Overall, Table~\ref{tab:rq4-ntr-mtr} suggests that test methods that evolve more frequently than their corresponding production methods tend to contain more test smells than less change-prone methods.
+
+We also examined the potential confounding effect of method size when interpreting the relationship between test smells and method evolution. Prior studies have shown that many code metrics and smells lose their predictive power for software quality and maintainability once size is controlled for, as size is often strongly correlated with these metrics~\cite{Emam:2001,Gil:2017,TSE:2013}. For this analysis, we minimized noise by excluding smell types that did not exhibit a consistent statistically significant difference in Table~\ref{tab:rq4-ntr-mtr}. Specifically, we excluded \emph{Unknown Test}, \emph{Print Statement}, \emph{Redundant Assertion}, \emph{Lazy Test}, \emph{Empty Test}, and \emph{Ignored Test}. Using the remaining 11 smell types, we computed Kendall's $\tau$ correlation coefficient between size and the number of test smells per method. The resulting coefficient of 0.28 suggests that method size alone does not explain the observed relationship between test smells and method evolution. This apparent discrepancy with previous studies~\cite{Emam:2001,Gil:2017,TSE:2013} is unsurprising, as those studies primarily reported strong correlations between size and software metrics at the class or file level. In contrast, subsequent work has shown that such correlations are considerably weaker at the method level~\cite{Landman:2014,chowdhury:2022}, which is the granularity of our study.
+
+To further investigate the impact of method size, following the methodology of Spadini \textit{et al.}~\cite{Spadini:2018}, we categorized test methods into three size groups: small ($size < 30$), medium ($30 \leq size \leq 60$), and large ($size > 60$). Figure~\ref{fig:size} presents the results of this size-stratified analysis. Consistent with our earlier findings, both the difference in percent (\textbf{$\Delta$ pp}) and the odds ratio are larger when comparing \emph{HTR} methods with \emph{NTR} methods than when comparing \emph{MTR} methods with \emph{NTR} methods. More importantly, the association between test smells and method evolution is strongest for small methods: both the percent difference and the odds ratios are considerably larger for small methods than for medium or large methods. This observation contradicts earlier findings~\cite{Spadini:2018} that test smells in large methods are more harmful than smells in smaller methods. 
+
+
+% that test smells present at
+% method introduction are more common among HTR methods than among NTR methods.
+% The overall difference is substantial: at least one smell is present in
+% 49.6\% of HTR methods and 28.8\% of NTR methods. The individual-smell results
+% show that this pattern is not uniform across all smell types. Instead, the
+% strongest and most stable associations are concentrated in a smaller set of
+% smells. Assertion Roulette shows the largest gap, followed by Verbose Test and
+% Magic Number Test; Exception Handling and Duplicate Assert also show clear
+% increases for HTR methods.
+
+% The project-stratified sensitivity analysis generally supports the main pooled
+% results for the strongest smells, indicating that these associations are not
+% explained only by differences among projects. However, Eager Test and Lazy Test
+% are significant in the pooled analysis but weaken after project adjustment.
+% This suggests that these two smell--revision associations are more
+% project-dependent and should be interpreted more cautiously.
+
+% Figure~\ref{fig:rq4-test-smell-boxplot} complements the prevalence analysis by
+% showing the revision-count distributions of NTR and HTR methods within each
+% initial smell category. Because HTR is defined using revision counts, the
+% between-group separation is expected; the more informative pattern is which
+% smell categories are associated with higher revision counts within the groups.
+% Resource Optimism, Mystery Guest, Conditional Test Logic, Print Statement, and
+% Exception Handling are among the categories with the highest median revision
+% counts in both NTR and HTR. For these smells, the median NTR revision count is
+% around two to three revisions, while the corresponding HTR medians are roughly
+% nineteen to twenty-two revisions.
+% \footnotetext{\href{https://anonymous.4open.science/r/test-evolution/data/rqs/rq4/test-smell-difference.pdf}{/data/rqs/rq4/test-smell-difference.pdf}}
+\begin{framed}
+\noindent\textbf{\underline{RQ4 summary}:}
+Smells are more associated with test methods that evolve more than their corresponding production methods. This association becomes even stronger for test methods that are revised at least five more times than their production methods. Furthermore, smells in small test methods show more predictive power than smells in large methods, contradicting earlier findings.
+\end{framed}
+
+% RQ4 uses the NTR, MTR, and HTR revision groups defined in RQ3.  The primary
+% inferential comparison contrasts NTR and HTR methods because these groups
+% separate tests whose revisions do not exceed production revisions from tests
+% that accumulate substantially more revisions than their linked production
+% methods.  We additionally show the MTR-minus-NTR prevalence difference in the
+% effect plot as context for the intermediate revision-prone group, while keeping
+% the association table focused on the clearest excess-maintenance contrast. 
+
+%  because our unit of analysis
+% is the unique test method rather than the test-to-production link. Therefore,
+% we omit test methods with conflicting group assignments. Because not all
+% projects consistently follow naming conventions when naming test methods after
+% their corresponding production methods, the linked-pair strategy identifies
+% only a small number of test-production links in some projects.
+
+
+% For each test method, we identify its introduction commit from the method
+% history generated by HistoryFinder. The introduction commit is the earliest
+% commit in which the test method appears in the repository. We analyze this
+% initial version so that smells are measured before the later revisions used to
+% classify recurrent revision-proneness, avoiding the risk of counting smells
+% introduced during subsequent maintenance. 

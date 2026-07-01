@@ -1,6 +1,7 @@
 \begin{algorithm}
 \caption{HistoryFinder Algorithm}
 \label{alg:algorithm-history-finder}
+\footnotesize
 \SetKwFunction{hf}{HistoryFinder}
 \SetKwProg{Procedure}{procedure}{:}{end procedure}
 
@@ -44,7 +45,8 @@
             }
             \tcp{Continue tracking in the new file}
             \If{$altFile \not= \textsc{NIL}$}{% \tcp*[r]{Method or file moved}
-                $sH \gets \textsc{HistoryFinder}(m.hash,m.file,m.name,m.line)$\;\vspace{-0.35cm}
+                $sH \gets \textsc{HistoryFinder}(m.hash,m.file,m.name,m.line)$\;
+                %\vspace{-0.35cm}
                 \textsc{AddAll}$(H, sH)$ \tcp*[r]{Append sub-history}
             }
         \tcp{Enqueue unvisited ancestor commits}

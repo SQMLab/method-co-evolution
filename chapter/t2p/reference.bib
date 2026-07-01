@@ -1,0 +1,388 @@
+
+@article{palomba_diffuseness_2018,
+	title = {On the diffuseness and the impact on maintainability of code smells: a large scale empirical investigation},
+	volume = {23},
+	issn = {1382-3256, 1573-7616},
+	shorttitle = {On the diffuseness and the impact on maintainability of code smells},
+	url = {http://link.springer.com/10.1007/s10664-017-9535-z},
+	doi = {10.1007/s10664-017-9535-z},
+	language = {en},
+	number = {3},
+	urldate = {2026-06-12},
+	journal = {Empirical Software Engineering},
+	author = {Palomba, Fabio and Bavota, Gabriele and Penta, Massimiliano Di and Fasano, Fausto and Oliveto, Rocco and Lucia, Andrea De},
+	month = jun,
+	year = {2018},
+	pages = {1188--1221},
+}
+
+@article{bavota_experimental_2015,
+	title = {An experimental investigation on the innate relationship between quality and refactoring},
+	volume = {107},
+	issn = {01641212},
+	url = {https://linkinghub.elsevier.com/retrieve/pii/S0164121215001053},
+	doi = {10.1016/j.jss.2015.05.024},
+	language = {en},
+	urldate = {2026-06-12},
+	journal = {Journal of Systems and Software},
+	author = {Bavota, Gabriele and De Lucia, Andrea and Di Penta, Massimiliano and Oliveto, Rocco and Palomba, Fabio},
+	month = sep,
+	year = {2015},
+	pages = {1--14},
+}
+
+@article{sun_revisiting_2023,
+	title = {Revisiting the {Identification} of the {Co}-evolution of {Production} and {Test} {Code}},
+	volume = {32},
+	issn = {1049-331X, 1557-7392},
+	url = {https://dl.acm.org/doi/10.1145/3607183},
+	doi = {10.1145/3607183},
+	abstract = {Many software processes advocate that the test code should 
+              co-evolve 
+              with the production code. Prior work usually studies such co-evolution based on 
+              production-test co-evolution samples 
+              mined from software repositories. A production-test co-evolution sample refers to a pair of a test code change and a production code change where the test code change triggers or is triggered by the production code change. The quality of the mined samples is critical to the reliability of research conclusions. Existing studies mined production-test co-evolution samples based on the following assumption: 
+               
+                if a test class and its associated production class change together in one commit, or a test class changes immediately after the changes of the associated production class within a short time interval, this 
+                change pair 
+                should be a 
+                production-test co-evolution sample 
+               
+              . However, the validity of this assumption has never been investigated. 
+             
+             
+              To fill this gap, we present an empirical study, investigating the reasons for test code updates occurring after the associated production code changes, and revealing the pervasive existence of noise in the production-test co-evolution samples identified based on the aforementioned assumption by existing works. We define a taxonomy of such noise, including six categories (i.e., adaptive maintenance, perfective maintenance, corrective maintenance, indirectly related production code update, indirectly related test code update, and other reasons). Guided by the empirical findings, we propose 
+              CHOSEN 
+              (an identifi 
+               
+                C 
+               
+              ation met 
+               
+                H 
+               
+              od 
+               
+                O 
+               
+              f production-te 
+               
+                S 
+               
+              t co- 
+               
+                E 
+               
+              volutio 
+               
+                N 
+               
+              ) based on a two-stage strategy. 
+              CHOSEN 
+              takes a test code change and its associated production code change as input, aiming to determine whether the production-test change pair is a production-test co-evolution sample. Such identified samples are the basis of or are useful for various downstream tasks. We conduct a series of experiments to evaluate our method. Results show that (1) 
+              CHOSEN 
+              achieves an AUC of 0.931 and an F1-score of 0.928, significantly outperforming existing identification methods, and (2) 
+              CHOSEN 
+              can help researchers and practitioners draw more accurate conclusions on studies related to the co-evolution of production and test code. For the task of Just-In-Time (JIT) obsolete test code detection, which can help detect whether a piece of test code should be updated when developers modify the production code, the test set constructed by 
+              CHOSEN 
+              can help measure the detection method’s performance more accurately, only leading to 0.76\% of average error compared with ground truth. In addition, the dataset constructed by 
+              CHOSEN 
+              can be used to train a better obsolete test code detection model, of which the average improvements on accuracy, precision, recall, and F1-score are 12.00\%, 17.35\%, 8.75\%, and 13.50\% respectively.},
+	language = {en},
+	number = {6},
+	urldate = {2026-06-10},
+	journal = {ACM Transactions on Software Engineering and Methodology},
+	author = {Sun, Weifeng and Yan, Meng and Liu, Zhongxin and Xia, Xin and Lei, Yan and Lo, David},
+	month = nov,
+	year = {2023},
+	pages = {1--37},
+}
+
+@misc{islam_historyfinder_2025,
+	title = {{HistoryFinder}: {Advancing} {Method}-{Level} {Source} {Code} {History} {Generation} with {Accurate} {Oracles} and {Enhanced} {Algorithm}},
+	shorttitle = {{HistoryFinder}},
+	url = {http://arxiv.org/abs/2507.14716},
+	doi = {10.48550/arXiv.2507.14716},
+	abstract = {Reconstructing a method's change history efficiently and accurately is critical for many software engineering tasks, including maintenance, refactoring, and comprehension. Despite the availability of method history generation tools such as CodeShovel and CodeTracker, existing evaluations of their effectiveness are limited by inaccuracies in the ground truth oracles used. In this study, we systematically construct two new oracles -- the corrected CodeShovel oracle and a newly developed HistoryFinder oracle -- by combining automated analysis with expert-guided manual validation. We also introduce HistoryFinder, a new method history generation tool designed to improve not only the accuracy and completeness of method change histories but also to offer competitive runtime performance. Through extensive evaluation across 400 methods from 40 open-source repositories, we show that HistoryFinder consistently outperforms CodeShovel, CodeTracker, IntelliJ, and Git-based baselines in terms of precision, recall, and F1 score. Moreover, HistoryFinder achieves competitive runtime performance, offering the lowest mean and median execution times among all the research-based tools. While Git-based tools exhibit the fastest runtimes, this efficiency comes at the cost of significantly lower precision and recall -- leaving HistoryFinder as the best overall choice when both accuracy and efficiency are important. To facilitate adoption, we provide a web interface, CLI, and Java library for flexible usage.},
+	urldate = {2026-06-09},
+	publisher = {arXiv},
+	author = {Islam, Shahidul and Aowal, Ashik and Uddin, Md Sharif and Chowdhury, Shaiful},
+	month = oct,
+	year = {2025},
+	note = {arXiv:2507.14716 
+version: 2},
+	keywords = {Computer Science - Software Engineering},
+}
+
+@inproceedings{chowdhury_empirical_2022,
+	address = {Pittsburgh Pennsylvania},
+	title = {An empirical study on maintainable method size in {Java}},
+	isbn = {9781450393034},
+	url = {https://dl.acm.org/doi/10.1145/3524842.3527975},
+	doi = {10.1145/3524842.3527975},
+	language = {en},
+	urldate = {2026-06-09},
+	booktitle = {Proceedings of the 19th {International} {Conference} on {Mining} {Software} {Repositories}},
+	publisher = {ACM},
+	author = {Chowdhury, Shaiful Alam and Uddin, Gias and Holmes, Reid},
+	month = may,
+	year = {2022},
+	pages = {252--264},
+}
+
+@inproceedings{chowdhury_evidence_2025,
+	address = {Ottawa, ON, Canada},
+	title = {Evidence is {All} {We} {Need}: {Do} {Self}-{Admitted} {Technical} {Debts} {Impact} {Method}-{Level} {Maintenance}?},
+	copyright = {https://doi.org/10.15223/policy-029},
+	isbn = {9798331501839},
+	shorttitle = {Evidence is {All} {We} {Need}},
+	url = {https://ieeexplore.ieee.org/document/11025748/},
+	doi = {10.1109/MSR66628.2025.00118},
+	urldate = {2026-06-09},
+	booktitle = {2025 {IEEE}/{ACM} 22nd {International} {Conference} on {Mining} {Software} {Repositories} ({MSR})},
+	publisher = {IEEE},
+	author = {Chowdhury, Shaiful and Kidwai, Hisham and Asaduzzaman, Muhammad},
+	month = apr,
+	year = {2025},
+	pages = {813--825},
+}
+
+@misc{friesen_repeat_2025,
+	title = {The {Repeat} {Offenders}: {Characterizing} and {Predicting} {Extremely} {Bug}-{Prone} {Source} {Methods}},
+	copyright = {Creative Commons Attribution 4.0 International},
+	shorttitle = {The {Repeat} {Offenders}},
+	url = {https://arxiv.org/abs/2511.22726},
+	doi = {10.48550/ARXIV.2511.22726},
+	abstract = {Bug prediction has long been considered the "prince" of empirical software engineering research, and accordingly, a substantial body of work has focused on predicting bugs to enable early preventive actions. However, most existing studies operate at the class or file level, which practitioners have found to be of limited practical value. As a result, method-level bug prediction has gained increasing attention in recent years. Despite this shift, current method-level prediction models typically treat all buggy methods as equally fault-prone, regardless of whether a method has been associated with a bug once or repeatedly. We argue that methods involved in bugs multiple times-hereafter referred to as ExtremelyBuggy methods-are more harmful than methods that are buggy only once. In this study, we investigate the prevalence of ExtremelyBuggy methods, analyze their code quality metrics, and assess whether they can be predicted at the time of their introduction. In addition, we conduct a thematic analysis of 287 ExtremelyBuggy methods to gain deeper insights into their characteristics.
+ Using a dataset of over 1.25 million methods extracted from 98 open-source Java projects, we find that only a small proportion of methods can be classified as ExtremelyBuggy, yet these methods account for a disproportionately large share of bugs within a project. Although we observe statistically significant differences between ExtremelyBuggy and other methods, ExtremelyBuggy methods remain difficult to predict at their inception. Nevertheless, our manual analysis reveals recurring characteristics among these methods. These findings can help practitioners avoid harmful patterns in practice and guide future research toward developing features and models that better capture the unique properties of such methods.},
+	urldate = {2026-06-09},
+	publisher = {arXiv},
+	author = {Friesen, Ethan and Morton-Salmon, Sasha and Opu, Md Nahidul Islam and Islam, Shahidul and Chowdhury, Shaiful},
+	year = {2025},
+	keywords = {FOS: Computer and information sciences, Software Engineering (cs.SE)},
+}
+
+@inproceedings{jodavi_accurate_2022,
+	address = {Singapore Singapore},
+	title = {Accurate method and variable tracking in commit history},
+	isbn = {9781450394130},
+	url = {https://dl.acm.org/doi/10.1145/3540250.3549079},
+	doi = {10.1145/3540250.3549079},
+	language = {en},
+	urldate = {2026-06-09},
+	booktitle = {Proceedings of the 30th {ACM} {Joint} {European} {Software} {Engineering} {Conference} and {Symposium} on the {Foundations} of {Software} {Engineering}},
+	publisher = {ACM},
+	author = {Jodavi, Mehran and Tsantalis, Nikolaos},
+	month = nov,
+	year = {2022},
+	pages = {183--195},
+}
+
+@inproceedings{grund_codeshovel_2021,
+	address = {Madrid, ES},
+	title = {{CodeShovel}: {Constructing} {Method}-{Level} {Source} {Code} {Histories}},
+	isbn = {9781665402965},
+	shorttitle = {{CodeShovel}},
+	url = {https://ieeexplore.ieee.org/document/9402063/},
+	doi = {10.1109/ICSE43902.2021.00135},
+	urldate = {2026-06-09},
+	booktitle = {2021 {IEEE}/{ACM} 43rd {International} {Conference} on {Software} {Engineering} ({ICSE})},
+	publisher = {IEEE},
+	author = {Grund, Felix and Chowdhury, Shaiful Alam and Bradley, Nick C. and Hall, Braxton and Holmes, Reid},
+	month = may,
+	year = {2021},
+	pages = {1510--1522},
+}
+
+@article{miranda_test_2025,
+	title = {Test {Co}‐{Evolution} in {Software} {Projects}: {A} {Large}‐{Scale} {Empirical} {Study}},
+	volume = {37},
+	issn = {2047-7473, 2047-7481},
+	shorttitle = {Test {Co}‐{Evolution} in {Software} {Projects}},
+	url = {https://onlinelibrary.wiley.com/doi/10.1002/smr.70035},
+	doi = {10.1002/smr.70035},
+	abstract = {ABSTRACT 
+            The asynchronous evolution of tests and code can compromise software quality and project longevity. To investigate the impact of test and production code co‐evolution, this study analyzes a large‐scale dataset of 526 GitHub repositories written in six programming languages: JavaScript, TypeScript, Java, Python, PHP, and C\#. We focus on understanding how tests evolve throughout the software lifecycle and the frequency with which production and test code evolve in sync. By applying clustering algorithms and Pearson's correlation coefficient, we identify different patterns of test co‐evolution between projects. We found a significant correlation between high test co‐evolution and smaller development teams but no significant relationship with the frequency of different maintenance activities (corrective, adaptive, perfective, or multi). Despite this, we identified five distinct test evolution patterns, highlighting diverse approaches to integrating testing practices. This work provides valuable insights into the dynamics of test co‐evolution and its correlation in software maintainability.},
+	language = {en},
+	number = {7},
+	urldate = {2026-01-28},
+	journal = {Journal of Software: Evolution and Process},
+	author = {Miranda, Charles and Avelino, Guilherme and Santos Neto, Pedro},
+	month = jul,
+	year = {2025},
+	pages = {e70035},
+}
+
+@article{chen_using_2025,
+	title = {Using {Dynamic} and {Static} {Techniques} to {Establish} {Traceability} {Links} {Between} {Production} {Code} and {Test} {Code} on {Python} {Projects}: {A} {Replication} {Study}},
+	volume = {37},
+	issn = {2047-7473, 2047-7481},
+	shorttitle = {Using {Dynamic} and {Static} {Techniques} to {Establish} {Traceability} {Links} {Between} {Production} {Code} and {Test} {Code} on {Python} {Projects}},
+	url = {https://onlinelibrary.wiley.com/doi/10.1002/smr.70011},
+	doi = {10.1002/smr.70011},
+	abstract = {ABSTRACT 
+            The relationship between test code and production code, that is, test‐to‐code traceability, plays an essential role in the verification, reliability, and certification of software systems. Prior work on test‐to‐code traceability focuses mainly on Java. However, as Python allows more flexible testing styles, it is still unknown whether existing traceability approaches work well on Python projects. In order to address this gap in knowledge, this paper evaluates whether existing traceability approaches can accurately identify test‐to‐code links in Python projects. We collected seven popular Python projects and carried out an exploratory study at both the method and module levels (involving a total of 3198 test cases). On these projects, we evaluated 15 individual traceability techniques along with cross‐level information propagation and four combining resolution strategies. The results reveal that the performance of test‐to‐code traceability approaches on Python has many differences with Java: (1) most of the existing techniques have poor effectiveness for Python; (2) after augmenting with cross‐level information, the recall surprisingly drops; and (3) machine learning based combination approach achieves the best recall but the worst precision. These findings shed light on the best traceability approaches for Python projects, and also provide guidelines for researchers and the Python community.},
+	language = {en},
+	number = {3},
+	urldate = {2025-12-04},
+	journal = {Journal of Software: Evolution and Process},
+	author = {Chen, Zhifei and Jia, Chiheng and Li, Yanhui and Chen, Lin},
+	month = mar,
+	year = {2025},
+	pages = {e70011},
+}
+
+@article{white_tctracer_2022,
+	title = {{TCTracer}: {Establishing} test-to-code traceability links using dynamic and static techniques},
+	volume = {27},
+	issn = {1382-3256, 1573-7616},
+	shorttitle = {{TCTracer}},
+	url = {https://link.springer.com/10.1007/s10664-021-10079-1},
+	doi = {10.1007/s10664-021-10079-1},
+	abstract = {Abstract 
+             
+              Test-to-code traceability links model the relationships between test artefacts and code artefacts. When utilised during the development process, these links help developers to keep test code in sync with tested code, reducing the rate of test failures and missed faults. Test-to-code traceability links can also help developers to maintain an accurate mental model of the system, reducing the risk of architectural degradation when making changes. However, establishing and maintaining these links manually places an extra burden on developers and is error-prone. This paper presents 
+              TCTracer 
+              , an approach and implementation for the automatic establishment of test-to-code traceability links. Unlike existing work, 
+              TCTracer 
+              operates at both the method level and the class level, allowing us to establish links between tests and functions, as well as between test classes and tested classes. We improve over existing techniques by combining an ensemble of new and existing techniques that utilise both dynamic and static information and exploiting a synergistic flow of information between the method and class levels. An evaluation of 
+              TCTracer 
+              using five large, well-studied open source systems demonstrates that, on average, we can establish test-to-function links with a mean average precision (MAP) of 85\% and test-class-to-class links with an MAP of 92\%.},
+	language = {en},
+	number = {3},
+	urldate = {2025-12-04},
+	journal = {Empirical Software Engineering},
+	author = {White, Robert and Krinke, Jens},
+	month = may,
+	year = {2022},
+	pages = {67},
+}
+
+@inproceedings{bhrugumalla_trec_2024,
+	title = {{TREC}: {A} {Regression} {Test} {Recommender} for {Java} {Projects}},
+	shorttitle = {{TREC}},
+	url = {https://ieeexplore.ieee.org/document/10795115/},
+	doi = {10.1109/ICSME58944.2024.00100},
+	abstract = {Regression testing is critical for maintaining software quality. Therefore, developers must maintain efficient and effective regression test suites. However, the task can be tedious and challenging, especially in Continuous Integration (CI) where developers frequently change code. With each code change, developers may need first to identify all relevant tests for the code change and then identify specific tests among the relevant tests that need to be modified. This process can reduce developers' productivity if they do this manually. Developers may also not modify test suites due to time constraints, resulting in inefficient and ineffective test suites. In this paper, we propose a technique and tool, TREC, that identifies relevant tests for code changes in CI and recommends tests to developers for modifications. TREC performs method and test co-evolution and method call analysis to identify and recommend tests for code changes. We evaluate the effectiveness of TREC by recommending tests for 1,699 developers' modified methods in 437 commits from three open-source Java projects. We find TREC's recommended tests include 2,886 (84.39\%) of the 3,420 developers' modified tests for the 1,699 methods, indicating TREC's capability to successfully identify and recommend the majority of tests that need to be modified for the methods. Demo: https://www.youtube.com/watch?v=WgIveZuPDBU},
+	urldate = {2025-12-04},
+	booktitle = {2024 {IEEE} {International} {Conference} on {Software} {Maintenance} and {Evolution} ({ICSME})},
+	author = {Bhrugumalla, Sai Kiran and Jha, Ajay Kumar},
+	month = oct,
+	year = {2024},
+	note = {ISSN: 2576-3148},
+	keywords = {Codes, Continuous integration, Java, Productivity, Software maintenance, Software quality, Test-to-code traceability, Testing, Time factors, regression testing, test maintenance, test recommendation},
+	pages = {903--907},
+}
+
+@inproceedings{jin_tracets4j_2025,
+	title = {{Tracets4J}: {A} {Traceable} {Unit} {Test} {Generation} {Dataset}},
+	shorttitle = {{Tracets4J}},
+	url = {https://ieeexplore.ieee.org/document/10992478/},
+	doi = {10.1109/SANER64311.2025.00077},
+	abstract = {Automated test case generation enhances the efficiency and quality of software testing. Learning-based test case generation methods require an understanding of the relationships between test cases and focal methods. Accurate traceability links between test cases and focal methods provide a clear relational model, facilitating more effective training of test case generation models. However, existing techniques frequently struggle to provide precise traceability links. We conduct an empirical study on the Methods2Test dataset, which includes a wide range of test cases and corresponding focal methods, to identify the limitations of current techniques. The causes of inaccurate traceability links are divided into two categories: incorrect extraction and missed extraction. The incorrect extraction category includes method overloading errors, name matching failures, and constructor ignorance. The missed extraction category involves constructor ignorance, similar but non-identical names, and difficulties in locating test classes involving subclasses. Based on the insights from this study, we propose Coach(Combine trACe Heuristics), an automated approach for establishing test-to-code traceability links. Coach establishes file-level and class-level links as a foundation, integrates multiple heuristics, and defines their scopes to build method-level links, improving both applicability and precision. We evaluate Coach against the M2T method (used in Methods2Test), the NC and LCBA baselines. Experimental results show that Coach outperforms other methods in terms of precision, coverage, and efficiency. In addition, we apply Coach to 19,518 real-world Java projects, creating a novel large-scale dataset called Tracets4J (TRACE TeSt for Java). Models fine-tuned on Tracets4J outperform those trained on the Methods2Test dataset, as shown by BLEU-4 and CodeBLEU. This demonstrates the superiority of Tracets4J and the effectiveness of Coach in improving test case generation.},
+	urldate = {2025-12-04},
+	booktitle = {2025 {IEEE} {International} {Conference} on {Software} {Analysis}, {Evolution} and {Reengineering} ({SANER})},
+	author = {Jin, Xuancheng and Liu, Zhuang and Zhang, Junwei and Hu, Xing and Xia, Xin},
+	month = mar,
+	year = {2025},
+	note = {ISSN: 2640-7574},
+	keywords = {Accuracy, Computer languages, Dataset Collection, Java, Machine Learning, Machine learning, Reliability, Software, Software Testing, Software development management, Software testing, Test pattern generators, Traceability, Training},
+	pages = {757--767},
+}
+
+@article{guo_understanding_2025,
+	title = {Understanding and {Identifying} {Technical} {Debt} in the {Co}-{Evolution} of {Production} and {Test} {Code}},
+	volume = {51},
+	issn = {1939-3520},
+	url = {https://ieeexplore.ieee.org/document/10934744/},
+	doi = {10.1109/TSE.2025.3553112},
+	abstract = {The co-evolution of production and test code (PT co-evolution) has received increasing attention in recent years. However, we found that existing work did not comprehensively study various PT co-evolution scenarios, such as the qualification and persistence of their effects on software. Inspired by technical debt (TD), we refer to TD generated during the co-evolution between production and test code as PT co-evolution technical debt (PTCoTD). To better understand PT co-evolution, we first conducted an exploratory study on its characteristics on 15 open-source projects, finding unbalanced PT co-evolution prevalent and summarizing five potential PT flaws. Then we proposed an approach to identify and quantify PTCoTDs of these flaw patterns, considering evolutionary and structural relationships. We also built prediction models to describe cost trajectories and rank all PTCoTDs to prioritize expensive ones. The evaluation on the 15 projects shows that our approach can identify PTCoTDs that deserve attention. The identified PTCoTDs account for about half of the project's total maintenance costs, and the cost proportion of the expensive Top-5 is 1.8x more than the file proportion they contain. Almost all covered maintenance costs persist as PTCoTD in the future, with an average increase of 6.8\% between the last two releases. Our approach also accurately predicts the costs of PTCoTD with an average prediction deviation of only 8.3\%. Our study provides valuable insights into PT co-evolution scenarios and their effects, which can guide practices and inspire future work on software testing and maintenance.},
+	number = {5},
+	urldate = {2025-12-04},
+	journal = {IEEE Transactions on Software Engineering},
+	author = {Guo, Yimeng and Chen, Zhifei and Xiao, Lu and Chen, Lin and Li, Yanhui and Zhou, Yuming},
+	month = may,
+	year = {2025},
+	keywords = {Codes, Costs, Fault diagnosis, History, Maintenance, Predictive models, Production, Reviews, Software, Technical debt, Trajectory, software evolution, software maintenance, software testing},
+	pages = {1415--1436},
+}
+
+@article{liu_cote_2025,
+	title = {{COTE}: {Predicting} {Code}-to-{Test} {Co}-{Evolution} by {Integrating} {Link} {Analysis} and {Pre}-{Trained} {Language} {Model} {Techniques}},
+	volume = {51},
+	issn = {1939-3520},
+	shorttitle = {{COTE}},
+	url = {https://ieeexplore.ieee.org/document/11053682/},
+	doi = {10.1109/TSE.2025.3583027},
+	abstract = {Tests, as an essential artifact, should co-evolve with the production code to ensure that the associated production code satisfies specification. However, developers often postpone or even forget to update tests, making the tests outdated and lag behind the code. To predict which tests need to be updated when production code is changed, it is challenging to identify all related tests and determine their change probabilities due to complex change scenarios. This paper fills the gap and proposes a hybrid approach named COTE to predict code-to-test co-evolution. We first compute the linked test candidates based on different code-to-test dependencies. After that, we identify common co-change patterns by building a method-level dependence graph. For the remaining ambiguous patterns, we leverage a pre-trained language model which captures the semantic features of code and the change reasons contained in commit messages to judge one test’s likelihood of being updated. Experiments on our datasets consisting of 6,314 samples extracted from 5,000 Java projects show that COTE outperforms state-of-the-art approaches, achieving a precision of 89.0\% and a recall of 71.6\%. This work can help practitioners reduce test maintenance costs and improve software quality.},
+	number = {8},
+	urldate = {2025-12-04},
+	journal = {IEEE Transactions on Software Engineering},
+	author = {Liu, Yuyong and Chen, Zhifei and Chen, Lin and Li, Yanhui and Li, Xuansong and Song, Wei},
+	month = aug,
+	year = {2025},
+	keywords = {Codes, Computational modeling, Feature extraction, Java, Maintenance, Measurement, Natural language processing, Predictive models, Production, Software testing, Source coding, co-change pattern, code-to-test co-evolution, pre-trained language model, test maintenance},
+	pages = {2232--2253},
+}
+
+@inproceedings{hurdugaci_aiding_2012,
+	title = {Aiding {Software} {Developers} to {Maintain} {Developer} {Tests}},
+	url = {https://ieeexplore.ieee.org/document/6178872/},
+	doi = {10.1109/CSMR.2012.12},
+	abstract = {Unit and integration tests can be invaluable during software maintenance as they help to understand pieces of code, they help with quality assurance and they build up confidence amongst developers. Unfortunately then, previous research has shown that unit tests do not always co-evolve nicely with the production code, thus leaving the software vulnerable. This paper presents Test N Force, a tool that helps developers to identify the unit tests that need to be altered and executed after a code change, thereby reducing the effort needed to keep the unit tests in sync with the changes to the production code. In order to evaluate Test N Force, we perform a user study that evaluates the adequacy, usefulness and completeness of Test N Force.},
+	urldate = {2025-12-04},
+	booktitle = {2012 16th {European} {Conference} on {Software} {Maintenance} and {Reengineering}},
+	author = {Hurdugaci, Victor and Zaidman, Andy},
+	month = mar,
+	year = {2012},
+	note = {ISSN: 1534-5351},
+	keywords = {Educational institutions, Indexes, Production, Programming, Software, Testing, Visualization},
+	pages = {11--20},
+}
+
+@inproceedings{ghafari_automatically_2015,
+	title = {Automatically identifying focal methods under test in unit test cases},
+	url = {https://ieeexplore.ieee.org/document/7335402/},
+	doi = {10.1109/SCAM.2015.7335402},
+	abstract = {Modern iterative and incremental software development relies on continuous testing. The knowledge of test-to-code traceability links facilitates test-driven development and improves software evolution. Previous research identified traceability links between test cases and classes under test. Though this information is helpful, a finer granularity technique can provide more useful information beyond the knowledge of the class under test. In this paper, we focus on Java classes that instantiate stateful objects and propose an automated technique for precise detection of the focal methods under test in unit test cases. Focal methods represent the core of a test scenario inside a unit test case. Their main purpose is to affect an object's state that is then checked by other inspector methods whose purpose is ancillary and needs to be identified as such. Distinguishing focal from other (non-focal) methods is hard to accomplish manually. We propose an approach to detect focal methods under test automatically. An experimental assessment with real-world software shows that our approach identifies focal methods under test in more than 85\% of cases, providing a ground for precise automatic recovery of test-to-code traceability links.},
+	urldate = {2025-12-04},
+	booktitle = {2015 {IEEE} 15th {International} {Working} {Conference} on {Source} {Code} {Analysis} and {Manipulation} ({SCAM})},
+	author = {Ghafari, Mohammad and Ghezzi, Carlo and Rubinov, Konstantin},
+	month = sep,
+	year = {2015},
+	keywords = {Debugging, Java, Maintenance engineering, Object oriented modeling, Production, Software, Testing, Traceability, method under test, unit testing},
+	pages = {61--70},
+}
+
+@inproceedings{white_establishing_2020,
+	address = {Seoul South Korea},
+	title = {Establishing multilevel test-to-code traceability links},
+	isbn = {9781450371216},
+	url = {https://dl.acm.org/doi/10.1145/3377811.3380921},
+	doi = {10.1145/3377811.3380921},
+	language = {en},
+	urldate = {2025-12-04},
+	booktitle = {Proceedings of the {ACM}/{IEEE} 42nd {International} {Conference} on {Software} {Engineering}},
+	publisher = {ACM},
+	author = {White, Robert and Krinke, Jens and Tan, Raymond},
+	month = jun,
+	year = {2020},
+	pages = {861--872},
+}
+
+@article{sun_method-level_2024,
+	title = {Method-{Level} {Test}-to-{Code} {Traceability} {Link} {Construction} by {Semantic} {Correlation} {Learning}},
+	volume = {50},
+	issn = {1939-3520},
+	url = {https://ieeexplore.ieee.org/document/10648982/},
+	doi = {10.1109/TSE.2024.3449917},
+	abstract = {Test-to-code traceability links (TCTLs) establish links between test artifacts and code artifacts. These links enable developers and testers to quickly identify the specific pieces of code tested by particular test cases, thus facilitating more efficient debugging, regression testing, and maintenance activities. Various approaches, based on distinct concepts, have been proposed to establish method-level TCTLs, specifically linking unit tests to corresponding focal methods. Static methods, such as naming-convention-based methods, use heuristic- and similarity-based strategies. However, such methods face the following challenges: ① Developers, driven by specific scenarios and development requirements, may deviate from naming conventions, leading to TCTL identification failures. ② Static methods often overlook the rich semantics embedded within tests, leading to erroneous associations between tests and semantically unrelated code fragments. Although dynamic methods achieve promising results, they require the project to be compilable and the tests to be executable, limiting their usability. This limitation is significant for downstream tasks requiring massive test-code pairs, as not all projects can meet these requirements. To tackle the abovementioned limitations, we propose a novel static method-level TCTL approach, named TestLinker. For the first challenge of existing static approaches, TestLinker introduces a two-phase TCTL framework to accommodate different project types in a triage manner. As for the second challenge, we employ the semantic correlation learning, which learns and establishes the semantic correlations between tests and focal methods based on Pre-trained Code Models (PCMs). TestLinker further establishes mapping rules to accurately link the recommended function name to the concrete production function declaration. Empirical evaluation on a meticulously labeled dataset reveals that TestLinker significantly outperforms traditional static techniques, showing average F1-score improvements ranging from 73.48\% to 202.00\%. Moreover, compared to state-of-the-art dynamic methods, TestLinker, which only leverages static information, demonstrates comparable or even better performance, with an average F1-score increase of 37.40\%.},
+	number = {10},
+	urldate = {2025-12-04},
+	journal = {IEEE Transactions on Software Engineering},
+	author = {Sun, Weifeng and Guo, Zhenting and Yan, Meng and Liu, Zhongxin and Lei, Yan and Zhang, Hongyu},
+	month = oct,
+	year = {2024},
+	keywords = {Codes, Correlation, Phase change materials, Production, Semantics, Software, Software engineering, Task analysis, pre-trained code model, software testing, traceability},
+	pages = {2656--2676},
+}

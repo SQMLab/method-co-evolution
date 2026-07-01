@@ -1,0 +1,26 @@
+\chapter{Understanding Method-Level Test Code Evolution}
+\label{ch:t2p}
+
+
+\section*{Abstract}
+% Accurately tracking test code change history at the method level is crucial for effective test maintenance and evolution research including understanding test suite evolution, obsolete test detection, and automated test repair. 
+% Software evolution histories are crucial for understanding software maintenance and developing maintenance tools and models.
+Although recent advances in method-level history tracking enabled fine-grained studies of production code evolution, research on test code evolution remains constrained by two challenges: the lack of validated approaches for reconstructing test method histories and limited knowledge of the most effective techniques for method-level production-to-test mapping. In this paper, we address both challenges to enable accurate studies of test code evolution. We first evaluate state-of-the-art method history tracking tools using a manually constructed oracle of 120 test methods from 40 open-source Java projects. We then assess static analysis-based production-to-test mapping techniques using existing benchmarks and a newly created oracle. Leveraging the most suitable approaches, we conduct a large-scale empirical study of test method evolution by comparing the revision frequencies of test methods and the production methods they exercise.
+
+Our results show that nearly 55\% of test methods undergo as many or more revisions than their corresponding production methods, challenging the common assumption that test code primarily evolves in response to production code changes. Further analysis reveals that highly change-prone yet small test methods exhibit substantially higher concentrations of test smells than other test methods. In general, our study shows a more accurate approach to capturing test code change history that can help future studies on test suite evolution, test deletion and obsolescence, and automated test repairs.
+
+
+\input{1-introduction}
+\input{2-related-work}
+\input{3-study-setup}
+
+\section{Approach and Results}
+\label{sec:approach-results}
+We now discuss the approach and results of each RQ. 
+\input{4.1-rq1-method-history-oracle}
+\input{4.2-rq2-method-linking}
+\input{4.3-rq3-test-vs-production-method-revision}
+\input{4.4-rq4-test-smell-association}
+\input{5-discussion}
+\input{6-threat-to-validity}
+\input{7-conclusion}

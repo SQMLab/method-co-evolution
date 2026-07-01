@@ -1,0 +1,53 @@
+\section{Experimental Setup}
+\label{setup}
+\subsection{Project selection}
+For RQ1, where we evaluate tools for constructing test method histories, we selected all 40 projects used in the most recent study, \emph{HistoryFinder}~\cite{islam_historyfinder_2025}. These 40 projects subsume the 20 projects previously used to evaluate both \emph{CodeShovel}~\cite{grund:2021} and \emph{CodeTracker}~\cite{jodavi_accurate_2022}. For RQ2, where we constructed the ground truth for production-to-test mappings, the annotation effort was substantially greater than for RQ1. To keep the manual effort manageable, we used the 20 projects used in \emph{CodeShovel} and \emph{CodeTracker} studies, rather than all 40 projects from \emph{HistoryFinder}. Despite this reduction, our benchmark is considerably larger than those used in prior work. For example, the state-of-the-art \emph{TestLinker}~\cite{sun_method-level_2024} was evaluated on only six projects. For RQ3 and RQ4, which rely exclusively on quantitative analysis, we combined all projects used in recent method-level evolution studies~\cite{grund:2021,islam_historyfinder_2025,chowdhury2024method,friesen_repeat_2025}, resulting in a dataset of 110 projects.    
+
+% We selected open-source Java projects that have been used in prior
+% method-level software evolution and maintenance studies, including studies on
+% method-history construction, maintainable method size, self-admitted technical
+% debt, revision-prone methods, and recurrently bug-prone methods
+% \cite{grund:2021,islam_historyfinder_2025,chowdhury:2022,chowdhury_evidence_2025,friesen_repeat_2025}.
+% Specifically, the dataset includes 49 projects from Friesen et
+% al.~\cite{friesen_repeat_2025}, 20 projects from Islam et
+% al.~\cite{islam_historyfinder_2025}, 20 projects from Grund et
+% al.~\cite{grund:2021}, and 49 projects from Chowdhury et
+% al.~\cite{chowdhury:2022}. These study sets are not disjoint: 20 projects
+% overlap between the Grund et al. and Chowdhury et al. study sets, six projects
+% overlap between the Friesen et al. and Islam et al. study sets, and three
+% projects overlap between the Chowdhury et al. and Islam et al. study sets.
+% Because we cloned each project at its latest available commit at the time of data collection, the original \texttt{lucene-solr} repository used in the Grund et al. and Chowdhury et al. study sets is represented in our dataset as two separate projects, \texttt{lucene} and \texttt{solr}, since these components are now maintained as separate repositories in the current version-control system. After accounting for project overlaps and this repository split, the final dataset contains 110 unique projects.
+
+% For RQ1, we use 40 projects drawn from the CodeShovel and HistoryFinder study sets~\cite{grund:2021,islam_historyfinder_2025}. These projects have previously been used to evaluate method-history generation and therefore provide an appropriate basis for investigating whether existing tools can effectively generate revision histories for test methods. We exclude \texttt{okhttp} from the CodeShovel study set because the project migrated its implementation from Java to Kotlin.
+
+
+% For RQ2, we evaluate test-to-production method linking approaches against
+% ground truths developed and extended by multiple studies.  The initial ground
+% truth introduced by TCTracer 2020 contains \texttt{commons-io},
+% \texttt{commons-lang}, and \texttt{jfreechart}
+% \cite{white_establishing_2020}.  TCTracer 2022 extended this ground truth by
+% adding \texttt{gson} \cite{white_tctracer_2022}, and TestLinker further
+% extended it by adding \texttt{dubbo} and \texttt{jenkins}
+% \cite{sun_method-level_2024}.  In addition to these previously published ground
+% truths, we constructed a new ground truth using the 20 CodeShovel projects.
+% The new ground truth contains 4,258 labeled candidate links: 449 confirmed
+% test-to-production method links.
+
+% Two projects, \texttt{commons-io} and \texttt{commons-lang}, appear in both the prior-study ground truths and our new ground truth. We retain both instances because they correspond to different repository snapshots, and the samples in our new ground truth were selected independently at random. After accounting for this project-level overlap, the RQ2 evaluation
+% covers 24 unique projects.  Using both previously published and newly
+% constructed ground truths allows us to assess the linking approaches across
+% independently created datasets while substantially increasing project
+% coverage.
+
+% For RQ3 and RQ4, we begin with the complete corpus of 110 projects.  The larger
+% corpus provides broader evidence for characterizing the evolution of test
+% methods and their corresponding methods under test.
+
+\subsection{Test and production method detection}
+
+% We initially identified test and production files using an approach similar to that of Sun et al.~\cite{sun_method-level_2024}, who treat files under \texttt{src/test} as part of the test suite rather than production code. However, we found that not all projects follow this convention. 
+To identify all the production and test files, we initially used the standard test and production source-root conventions. For example, in both Maven and Gradle Java projects, the default production and test source roots are \texttt{src/main/java} and \texttt{src/test/java}, respectively. Since projects can override or extend these defaults, we also analyzed build configuration files to identify project-specific source-root declarations, such as the \texttt{sourceDirectory} and \texttt{testSourceDirectory} elements in Maven \texttt{pom.xml} files and the \texttt{sourceSets} properties in Gradle build files. Finally, we manually inspected each project's layout and found that some projects place test files under the default production source root, especially when an entire module is intended for testing. In these cases, we considered the corresponding files as test files. 
+
+After identifying the test files, we classified methods within the file as either test methods or test-helper methods. Following prior work that detects JUnit tests using framework-specific annotations and naming conventions~\cite{zaidman2011studying,tufano2022methods2test}, we first identified methods annotated with test annotations. These include, for example, \texttt{org.junit.jupiter.api.Test} for JUnit, \texttt{org.testng.annotations.Test} for TestNG, and \texttt{net.jqwik.api.Property} for jqwik. To detect pre-JUnit 4.x tests, we identified public, parameterless \texttt{void} methods whose names begin with \texttt{test} as test methods when their declaring class extends \texttt{junit.framework.TestCase} or one of its descendants. All other methods declared in test files are classified as test-helper methods---methods that are not directly testing any production methods. This identification was important as these methods were filtered out during production-to-test mapping.  
+
+We labelled other files as production that were not identified as test, and extracted all methods as production methods. Similar to prior works~\cite{Heitlager:2007, Fontana:2015, chowdhury2022empirical}, we filtered out \texttt{getters} and \texttt{setters}; these methods are often auto-generated and create noise in software maintenance research. 

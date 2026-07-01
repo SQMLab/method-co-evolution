@@ -1,0 +1,18 @@
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+\multirow{2}{*}{\textbf{Tool}} &
+\multicolumn{6}{c}{\textbf{\emph{Commit-Level}}} &
+\multicolumn{3}{c}{\textbf{\emph{Method-Level}}} \\
+\cmidrule(lr){2-7} \cmidrule(lr){8-10}
+& \textbf{TP} & \textbf{FP} & \textbf{FN} &
+\textbf{Precision} & \textbf{Recall} & \textbf{F1} &
+\textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
+\midrule
+CodeShovel    & 644          & \textbf{3} & 16         & \textbf{99.54} & 97.58          & 98.55          & 99.35          & 97.82          & 98.27 \\
+CodeTracker   & 667          & 11         & 18         & 98.38          & 97.37          & 97.87          & 97.56          & 96.57          & 97.72 \\
+HistoryFinder & \textbf{721} & 5          & \textbf{1} & 99.31          & \textbf{99.86} & \textbf{99.59} & \textbf{99.63} & \textbf{99.65} & \textbf{99.60} \\
+IntelliJ      & 549          & 180        & 171        & 75.31          & 76.25          & 75.78          & 87.90          & 76.96          & 79.72 \\
+GitLineRange  & 343          & 58         & 350        & 85.54          & 49.49          & 62.71          & 92.56          & 51.40          & 61.80 \\
+GitFuncName   & 86           & 8          & 611        & 91.49          & 12.34          & 21.74          & 98.90          & 10.69          & 11.35 \\
+\bottomrule
+\end{tabular}

@@ -18,6 +18,7 @@
 \usepackage{pdfpages} % Optional: include published PDFs in appendices if permitted
 \usepackage[numbers,sort&compress]{natbib} % Change style if your department/journal requires another one
 \usepackage{import}
+\usepackage{adjustbox}
 
 %------------------
 %  HistoryFinder
@@ -33,7 +34,7 @@
 %--------------------
 % Technical Debt
 %--------------------
-\usepackage{ulem}
+% \usepackage{ulem}
 \usepackage{enumitem}
 \usepackage{listings}
 \usepackage{xcolor}
@@ -54,6 +55,24 @@
 \usepackage{framed}
 \usepackage{amssymb}
 \usepackage{pifont}
+
+%--------------------
+% Test Code Evolution (T2P)
+%--------------------
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{enumitem}
+\usepackage{framed}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{adjustbox}
+\usepackage{caption}
+% \usepackage{subfigure}
 
 % -------------------------
 % Thesis metadata: edit these
@@ -96,15 +115,24 @@
 
 \tableofcontents
 \clearpage
+
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
 \listoftables
-\clearpage
+
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
 \listoffigures
-\clearpage
+
+\cleardoublepage
 
 \input{frontmatter/contributions-of-authors}
 \clearpage
 \input{frontmatter/ai-training-statement}
 \clearpage
+
 
 % Body of thesis
 \pagenumbering{arabic}
@@ -113,11 +141,14 @@
 \subimport{chapter/intro/}{introduction}
 \subimport{chapter/td/}{td}
 \subimport{chapter/hf/}{hf}
+\subimport{chapter/t2p/}{t2p}
 \subimport{chapter/con/}{conclusion}
 
 
 \bibliographystyle{IEEEtranN}
-\bibliography{references, chapter/hf/references, chapter/hf/references_primary, chapter/td/references, chapter/td/references-more}
+\bibliography{references, chapter/hf/references, chapter/hf/references_primary, chapter/td/references, chapter/td/references-more, chapter/t2p/references_final}
+
+
 
 \appendix
 \include{appendices/appendix-a-additional-material}

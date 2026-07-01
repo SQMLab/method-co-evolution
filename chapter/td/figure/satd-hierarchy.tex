@@ -1,5 +1,5 @@
 \begin{figure*}[!ht]
-\resizebox{\textwidth}{!}{%
+\begin{adjustbox}{max width=\textwidth}
 %\scalebox{1.2}{
 \centering
 \begin{tikzpicture}[
@@ -9,7 +9,7 @@
   every node/.style = {draw,  fill=gray!20, align=center, %rounded corners,
   % inner sep=3pt,
   %text width=1.3cm,
-  font=\small
+  font=\scriptsize
   }, % Reduced text width and made font smaller
   edge from parent/.style = {draw, -latex, edge from parent fork down},
   level 1/.style={sibling distance=2.1cm}, % Adjusted sibling distance for smaller boxes
@@ -24,13 +24,13 @@
   child {node[xshift=0pt] {Documentation\\debt (\documentationCount)}}
   child {node[xshift=5pt] {Design debt\\(\designCount)}}
   child {node (build-debt) [xshift=4pt] {Build debt\\(\buildCount)}}
-  child {node (test-debt) [fill=black!80, text=white, xshift=-5pt, inner xsep=6pt] {Test\\(\newTypeCountB)}
+  child {node (test-debt) [fill=black!80, text=white, xshift=-5pt, inner xsep=6pt] {Test\\(\newTypeCount)}
     % [level distance=18mm]
     % child {node[fill=black!80, text=white, xshift=-130pt] {Composite\\(\compositeCount)}}
-    child {node (uncertainty-test) [fill=black!80, text=white, xshift=-65pt] {Uncertainty\\(\uncertaintyCountB)}}
-    child {node[fill=black!80, text=white, xshift=-55pt] {On-hold\\(\onHoldCountB)}}
-    child {node[fill=black!80, text=white, xshift=-50pt] {Skip test\\(\skipTestCountB)}}
-    child {node (limited-test) [fill=black!80, text=white, xshift=-37pt] {Limited test\\(\limitedTestCountB)}}
+    child {node (uncertainty-test) [fill=black!80, text=white, xshift=-65pt] {Uncertainty\\(\uncertaintyCount)}}
+    child {node[fill=black!80, text=white, xshift=-55pt] {On-hold\\(\onHoldCount)}}
+    child {node[fill=black!80, text=white, xshift=-50pt] {Skip test\\(\skipTestCount)}}
+    child {node (limited-test) [fill=black!80, text=white, xshift=-37pt] {Limited test\\(\limitedTestCount)}}
   }
   child {node (other-debt) [xshift=-15pt] {Other debt\\(\otherCount)}};
 \coordinate (boundary-top) at ($(build-debt.east)!0.5!(test-debt.west)$);
@@ -47,7 +47,7 @@
   -- (boundary-top |- boundary-bend)
   -- cycle;
 \end{tikzpicture}
-}
+\end{adjustbox}
 \caption{Manual categorization of the \totalSatdCount{} self-admitted technical debt instances in test code. The categories shown within the dotted red boundary contain SATDs that did not align with any of the existing categories found in the source-code SATD taxonomies we compared against. Because some SATD comments were assigned to more than one type, the count shown in a parent node is not necessarily the sum of the counts shown in its descendant nodes.}
 \label{fig:satd-hierarchy}
 \end{figure*}

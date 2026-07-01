@@ -1,0 +1,14 @@
+\section{Threats to Validity}
+% \textit{Internal Validity.}
+% The construction of the method-history oracle and the test-to-production method-mapping ground truths is impacted by human judgment. This threat was mitigated to some extent as we used two different annotators. 
+
+% \textit{External Validity.}
+% The main external threat is project selection. Because our study used open-source Java projects, the results may not fully generalize to closed-source or industrial systems, or to projects written in other programming languages. 
+
+\emph{Construct Validity.} Our study relied on method-level history generation, production-to-test mapping, and test-smell detection. We mitigated some of the relevant threats by first evaluating existing history-generation and mapping techniques on manually constructed oracles and then using the best-performing approaches in the subsequent analyses. 
+
+\emph{Internal Validity.} Our change-history and production-to-test mapping oracles involved human judgment. To mitigate this threat, two authors independently performed the annotations and resolved disagreements through discussion.
+
+\emph{External Validity.} Our study used 110 open-source Java projects. Although this is substantially larger than the datasets used in prior work, our findings may not generalize to closed-source systems and other programming languages. Also, due to focusing on a precision-oriented approach for mapping between production and test, we missed many examples, which may harm generalizability. 
+
+\emph{Conclusion Validity.} We used appropriate non-parametric statistical tests, effect sizes, confidence intervals, and false-discovery-rate correction where applicable. However, as with many observational studies, our findings confirm associations rather than guaranteed causal relationships.

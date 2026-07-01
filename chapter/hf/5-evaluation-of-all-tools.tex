@@ -17,7 +17,7 @@ Compared to the original \textit{CodeShovel} oracle, the histories of 40 methods
 \centering
 \caption{Comparison between the corrected and original oracles. As the corrected oracle includes changes related to annotations, JavaDocs, and formatting, we show the differences both including (\emph{Incl.}) and excluding (\emph{Excl.}) those changes.}
 \label{tab:oracle-update-statistics}
-\resizebox{\linewidth}{!}{%
+% \resizebox{\linewidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 \multirow{3}{*}{\textbf{Oracle}}
@@ -32,7 +32,7 @@ CodeShovel & 142 & 40 &  429 & 59 & 186 \\
 CodeTracker & 133 & 43 &  445 & 134 & 67 \\
 \bottomrule
 \end{tabular}
-}
+% }
 \end{table}
 
 
@@ -59,7 +59,9 @@ We calculated the precision, recall, and F1 score for all the tools against the 
 \textbf{FP} (False Positives) refers to incorrectly included commits; 
 \textbf{FN} (False Negatives) denotes missed commits that should have been identified. \textbf{Bolded values indicate the best performance in each metric within an oracle.}}
 \label{tab:method-tracking-score}
-% \resizebox{\textwidth}{!}{%
+\resizebox{\textwidth}{!}{%
+% \small
+% \setlength{\tabcolsep}{3pt}
 \begin{tabular}{llrrrrrrrrr}
 \toprule
 \multirow{2}{*}{\textbf{Oracle}} & \multirow{2}{*}{\textbf{Tool}} & \multicolumn{6}{c}{\textbf{\emph{Commit-Level}}} & \multicolumn{3}{c}{\textbf{\emph{Method-Level}}} \\
@@ -93,7 +95,7 @@ We calculated the precision, recall, and F1 score for all the tools against the 
     & GitFuncName & 1858 & 2638 & 835 & 41.33 & 68.99 & 51.69 & 65.08 & 72.67 & 59.50 \\
 \bottomrule
 \end{tabular}
-% }
+}
 \end{table*}
 
 Table~\ref{tab:method-tracking-score} shows that all research-based tools—\textit{CodeShovel}, \textit{CodeTracker}, and \textit{HistoryFinder}—significantly outperform \textit{IntelliJ} and \texttt{Git-based} tools. Overall, \textit{HistoryFinder} achieves the highest F1 score. In terms of precision, \textit{HistoryFinder} and \textit{CodeTracker} slightly outperform \textit{CodeShovel}. For recall, \textit{CodeShovel} performs best on its own training oracle; however, on the other two oracles, \textit{HistoryFinder} achieves the highest recall. \textit{CodeShovel’s} notably lower recall on the \textit{HistoryFinder} oracle is primarily due to its failure to generate the complete history for several methods. For example, it was unable to produce complete histories for all 10 methods from the Cassandra project. Additionally, it failed entirely for two methods in the Fastjson project due to \texttt{JavaParser} errors that prevented successful file parsing. Overall, across all three oracles, \textit{HistoryFinder} demonstrates the most consistent and superior performance. Results at the \emph{method-level} scores closely correlate with \emph{commit-level} scores, with minor variations. For instance, \textit{CodeShovel's} precision against the \textit{HistoryFinder} oracle is approximately 2\% higher at the \emph{method-level} compared to the \emph{commit-level}. 
@@ -124,7 +126,7 @@ We executed the tools in a controlled environment on a machine equipped with \em
 \caption{Execution times (in seconds) for the five tools. \textit{IntelliJ} is excluded because of the need for manual execution.}
 % \Description{Mean, median, minimum, and maximum execution times (in seconds) for five tools. 
 % \textbf{Bold} values indicate the best (lowest) execution time for both research-based and \texttt{Git}-based tools. \textit{IntelliJ} is excluded because method histories for this tool were generated manually using the \texttt{IDEA} interface.}
-\resizebox{\linewidth}{!}{%
+% \resizebox{\linewidth}{!}{%
 \begin{tabular}{llrrrr}
 \toprule
 \textbf{Oracle} & \textbf{Tool} & \textbf{Mean} & \textbf{Median} & \textbf{Min} & \textbf{Max} \\ \midrule
@@ -154,7 +156,7 @@ We executed the tools in a controlled environment on a machine equipped with \em
 \bottomrule
 
 \end{tabular}
-}
+% }
 \label{tab:execution-time-statistic}
 \end{table}
 
