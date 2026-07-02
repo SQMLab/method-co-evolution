@@ -1,5 +1,26 @@
-\chapter{HistoryFinder: Advancing Method-Level Source Code History Generation with Accurate Oracles and Enhanced Algorithm}
+\chapter{HistoryFinder: Reliable Oracle Construction and Method-History Generation}
 \label{ch:hf}
+
+This chapter begins Part~\ref{part:test-method-evolution} and presents the second contribution of this thesis: improving the reliability of method-level history generation. Many software-evolution studies rely on accurate histories of individual methods, including studies of change-proneness, bug-proneness, technical debt, and test-code evolution. In this thesis, such histories are also required for Chapter~\ref{ch:t2p}, where we evaluate test-method history construction and then study test-method evolution. Therefore, this chapter addresses two related methodological problems: constructing reliable method-history oracles and improving tool support for method-history generation.
+
+This chapter is based on the following manuscript:
+\begin{itemize}
+\item S. Islam, A. Aowal, M. S. Uddin, and S. Chowdhury, ``HistoryFinder: Advancing Method-Level Source Code History Generation with Accurate Oracles and Enhanced Algorithm,'' in Proceedings of the 48th IEEE/ACM International Conference on Software Engineering (ICSE 2026), Rio de Janeiro, Brazil, Apr. 2026.
+\end{itemize}
+
+The study revisits the evaluation of method-level history generation tools by constructing two systematically validated oracles: a corrected \textit{CodeShovel} oracle and a new \textit{HistoryFinder} oracle. Using these oracles, the study evaluates existing tools to identify their strengths and limitations before introducing \textit{HistoryFinder}. The evaluation uses 400 methods from 40 open-source Java repositories and compares \textit{HistoryFinder} with \textit{CodeShovel}, \textit{CodeTracker}, \textit{IntelliJ}, and \texttt{Git}-based baselines in terms of precision, recall, F1 score, and runtime.
+
+The main takeaways from this chapter are as follows:
+\begin{itemize}
+\item Existing method-history oracles contain missing and incorrect method revisions, which can affect conclusions about tool performance.
+\item Systematically validated oracles provide a more reliable basis for evaluating method-history generation tools.
+\item Existing tools have different strengths and limitations when evaluated against more reliable oracles.
+\item \textit{HistoryFinder} provides the strongest overall balance of precision, recall, F1 score, and runtime among the evaluated research tools.
+\item The oracles and tool developed in this chapter support Chapter~\ref{ch:t2p}, where \textit{HistoryFinder} is evaluated on test-method history construction and then applied to method-level test-code evolution.
+\end{itemize}
+
+\textbf{Impact:} This work has been published in the Proceedings of the 48th IEEE/ACM International Conference on Software Engineering (ICSE 2026). Within this thesis, this chapter improves both benchmark quality and tool support for method-history generation. More broadly, its validated oracles and \textit{HistoryFinder} tool can support empirical studies that require accurate method histories, including studies of change-proneness, bug-proneness, technical debt, maintenance effort, code ownership, and software evolution. In this thesis, the contribution is further used in Chapter~\ref{ch:t2p} to study test-code evolution at the method level.
+
 
 
 \section*{Abstract}
