@@ -1,6 +1,40 @@
-\chapter*{Abstract}
+\clearpage
+\phantomsection
 \addcontentsline{toc}{chapter}{Abstract}
-\textcolor{red}{Add Advisor and Author name}
+\thispagestyle{plain}
+
+\vspace*{0.2cm}
+
+\begingroup
+\singlespacing
+\noindent
+\begin{minipage}[t]{0.45\textwidth}
+\raggedright
+{\small Thesis advisor\par}
+\vspace{0.12cm}
+{\normalsize\bfseries \AdvisorName\par}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+\raggedleft
+{\small Author\par}
+\vspace{0.12cm}
+{\normalsize\bfseries \AuthorName\par}
+\end{minipage}
+\endgroup
+
+\vspace{0.6cm}
+
+\begin{center}
+\begingroup
+\singlespacing
+{\normalsize\bfseries \ThesisTitle\par}
+\vspace{0.45cm}
+{\normalsize\bfseries Abstract}
+\endgroup
+\end{center}
+
+\vspace{0.35cm}
 
 Test code is essential for software quality, yet software maintenance research has focused mainly on production code, leaving important aspects of test-code quality and evolution underexplored. This work examines two dimensions of test-code maintenance: self-admitted technical debt (SATD) and method-level evolution.
 To understand explicit maintenance concerns, comments from open-source Java projects were manually analyzed. SATD comments were identified and classified into categories, including test-specific ones. Existing SATD detection tools and both open-source and proprietary large language models were unreliable for detecting test-code SATD.
