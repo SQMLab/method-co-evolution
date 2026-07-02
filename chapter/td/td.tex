@@ -1,4 +1,4 @@
-\chapter{A First Look at the Self-Admitted Technical Debt in Test Code: Taxonomy and Detection}
+\chapter{Self-Admitted Technical Debt in Test Code: Taxonomy and Detection}
 \label{ch:td}
 
 
@@ -60,6 +60,25 @@
 
 % \definecolor{commentColor}{RGB}{106,135,89}
 \definecolor{commentColor}{rgb}{0.0, 0.35, 0.0}
+
+
+This chapter contributes to the first part of this thesis, which examines technical debt in test code. It focuses on self-admitted technical debt (SATD), a form of technical debt explicitly documented by developers in source-code comments. In the context of test code, these comments capture maintenance concerns such as incomplete tests, postponed improvements, limitations, workarounds, and known quality issues. This chapter investigates how SATD appears in test code, develops a taxonomy of test-code SATD, and evaluates whether existing SATD detection techniques can effectively identify such debt.
+
+This chapter is based on the following manuscript:
+\begin{itemize}
+\item S. Islam, M. N. I. Opu, S. Wang, and S. Chowdhury, ``A First Look at Self-Admitted Technical Debt in Test Code: Taxonomy and Detection,'' manuscript under review, 2026.
+\end{itemize}
+
+The study analyzes 50,000 comments sampled from 1.6 million test-code comments across 1,000 open-source Java projects. It constructs a taxonomy of SATD in test code and evaluates the effectiveness of existing SATD detectors, as well as open-source and proprietary large language models, for detecting test-code SATD.
+
+The main takeaways from this chapter are as follows:
+\begin{itemize}
+\item SATD in test code is relatively uncommon but diverse, covering both general maintenance concerns and test-specific issues.
+\item Existing SATD detectors and large language models are not yet reliable enough for test-code SATD detection without further test-aware adaptation.
+\item The curated test-code SATD dataset and taxonomy provide a foundation for future studies on test-code quality, technical debt, and automated SATD detection.
+\end{itemize}
+
+\textbf{Impact:} Since the manuscript is currently under review, its publication impact cannot yet be assessed. Within this thesis, this chapter establishes the technical-debt part by showing that SATD in test code includes test-specific categories and expressions that are not fully captured by production-code SATD knowledge. It also provides a curated dataset and taxonomy that can support future research on test-code quality, technical debt, and automated SATD detection.
 
 
 
