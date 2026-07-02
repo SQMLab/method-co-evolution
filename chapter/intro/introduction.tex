@@ -1,5 +1,5 @@
 \chapter{Introduction}
-\label{ch}
+\label{ch:intro}
 
 Software maintenance is a continuous and expensive part of the software life cycle. After initial development, software systems must be corrected, adapted, improved, and extended to keep them operational, reliable, and aligned with changing requirements, platforms, dependencies, and user expectations~\cite{kafura_use_1987, borstler_role_2016, sokolowski2022change, zhang2024developers}. This maintenance effort applies not only to production code but also to test code. Since test code is used to check the correctness of production code, its own correctness and maintainability are equally important. If tests are incorrect, outdated, or difficult to maintain, they may fail to detect regressions, report false failures, or provide developers with misleading confidence. Therefore, test code should not be treated as a secondary artifact; it deserves research and maintenance attention comparable to production code.
 
@@ -48,19 +48,19 @@ This thesis makes three main contributions, corresponding to the three research 
 
 \subsection{Self-Admitted Technical Debt in Test Code}
 
-The first contribution is a large-scale empirical study of SATD in test code. Chapter~\ref{ch} manually analyzes 50,000 test-code comments sampled from 1.6 million comments across 1,000 open-source Java projects. The study identifies SATD comments in test code, classifies them into a taxonomy that includes test-specific categories, and evaluates existing SATD detection tools as well as open-source and proprietary large language models.
+The first contribution is a large-scale empirical study of SATD in test code. Chapter~\ref{ch:td} manually analyzes 50,000 test-code comments sampled from 1.6 million comments across 1,000 open-source Java projects. The study identifies SATD comments in test code, classifies them into a taxonomy that includes test-specific categories, and evaluates existing SATD detection tools as well as open-source and proprietary large language models.
 
 The results show that test-code SATD has characteristics that are not fully captured by production-code SATD taxonomies or detectors. Existing SATD tools can provide useful precision but limited recall, while the evaluated large language models struggle to provide reliable precision-recall trade-offs for this task. This contribution provides a manually curated dataset, a test-code SATD taxonomy, and empirical evidence that can support future research on test-aware SATD detection and classification.
 
 \subsection{Accurate Method-Level History Generation}
 
-The second contribution is a methodological foundation for accurate method-level evolution research. Chapter~\ref{ch} constructs systematically developed method-history oracles using a semi-automated process that combines multiple state-of-the-art tools with expert manual validation. It also introduces \textit{HistoryFinder}, a method-level history generation tool designed to improve accuracy while maintaining competitive runtime performance.
+The second contribution is a methodological foundation for accurate method-level evolution research. Chapter~\ref{ch:hf} constructs systematically developed method-history oracles using a semi-automated process that combines multiple state-of-the-art tools with expert manual validation. It also introduces \textit{HistoryFinder}, a method-level history generation tool designed to improve accuracy while maintaining competitive runtime performance.
 
 The evaluation shows that \textit{HistoryFinder} provides a strong overall balance of precision, recall, F1 score, and runtime among the evaluated research tools. This contribution improves both the benchmark data and the tool support needed for method-level maintenance studies, including studies of change-proneness, bug-proneness, technical debt, and test-code evolution.
 
 \subsection{Method-Level Test-Code Evolution}
 
-The third contribution is a method-level empirical study of test-code evolution. Chapter~\ref{ch} first evaluates whether state-of-the-art method-history tools can accurately track test method histories using a manually constructed oracle of 120 test methods from 40 open-source Java projects. It then evaluates method-level production-to-test mapping approaches using existing benchmarks and a newly constructed oracle. Using the most suitable history-tracking and mapping approaches, the study compares the revision frequencies of test methods and their corresponding production methods and examines whether test smells are associated with highly revised test methods.
+The third contribution is a method-level empirical study of test-code evolution. Chapter~\ref{ch:t2p} first evaluates whether state-of-the-art method-history tools can accurately track test method histories using a manually constructed oracle of 120 test methods from 40 open-source Java projects. It then evaluates method-level production-to-test mapping approaches using existing benchmarks and a newly constructed oracle. Using the most suitable history-tracking and mapping approaches, the study compares the revision frequencies of test methods and their corresponding production methods and examines whether test smells are associated with highly revised test methods.
 
 The results challenge the common assumption that test code primarily changes in response to production code. A substantial portion of test methods undergo as many or more revisions than their corresponding production methods, and highly revised small test methods show stronger associations with test smells. This contribution provides a more precise empirical basis for future research on test maintenance, regression testing, obsolete test detection, test repair, and test smell management.
 
@@ -77,11 +77,10 @@ Overall, this thesis makes the following contributions:
 
 The remainder of this thesis is organized as follows.
 
-Chapter~\ref{ch} presents the study of self-admitted technical debt in test code. It describes the collection and manual analysis of test-code comments, presents a taxonomy of test-code SATD, and evaluates existing SATD detectors and large language models for identifying SATD in test comments.
+Chapter~\ref{ch:td} presents the study of self-admitted technical debt in test code. It describes the collection and manual analysis of test-code comments, presents a taxonomy of test-code SATD, and evaluates existing SATD detectors and large language models for identifying SATD in test comments.
 
-Chapter~\ref{ch} presents the work on method-level history generation. It discusses limitations in existing method-history oracles, describes the construction of new oracles, introduces \textit{HistoryFinder}, and evaluates method-history tools in terms of precision, recall, F1 score, and runtime.
+Chapter~\ref{ch:hf} presents the work on method-level history generation. It discusses limitations in existing method-history oracles, describes the construction of new oracles, introduces \textit{HistoryFinder}, and evaluates method-history tools in terms of precision, recall, F1 score, and runtime.
 
-Chapter~\ref{ch} presents the study of method-level test-code evolution. It evaluates method-history tools on test methods, evaluates production-to-test method linking approaches, compares the revision frequencies of test and production methods, and analyzes the association between test smells and highly revised test methods.
+Chapter~\ref{ch:t2p} presents the study of method-level test-code evolution. It evaluates method-history tools on test methods, evaluates production-to-test method linking approaches, compares the revision frequencies of test and production methods, and analyzes the association between test smells and highly revised test methods.
 
-Chapter~\ref{ch} concludes the thesis by summarizing the findings, discussing their implications for test-code maintenance research, and outlining directions for future work.
-
+Chapter~\ref{ch:conclusion} concludes the thesis by summarizing the findings, discussing their implications for test-code maintenance research, and outlining directions for future work.
