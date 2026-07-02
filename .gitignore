@@ -8,8 +8,11 @@
 *.out
 /*.pdf
 *.abs
-
+*.lof
+*.lot
+*.toc
 # macOS
 .DS_Store
 others/
 .idea/
+build/
