@@ -87,6 +87,8 @@
 \newcommand{\AdvisorName}{Shaiful Chowdhury}
 \newcommand{\AuthorShortName}{Md Shahidul Islam}
 
+\renewcommand{\thepart}{\Roman{part}}
+
 % Optional helper for manuscript chapters
 \newcommand{\manuscriptnote}[4]{%
 \noindent\textbf{Publication status:} #1\\
@@ -141,7 +143,11 @@
 \setcounter{page}{1}
 
 \subimport{chapter/intro/}{introduction}
+\part{Self-Admitted Technical Debt in Test Code}
+\label{part:technical-debt}
 \subimport{chapter/td/}{td}
+\part{Method-History Generation and Test Method Evolution}
+\label{part:test-method-evolution}
 \subimport{chapter/hf/}{hf}
 \subimport{chapter/t2p/}{t2p}
 \subimport{chapter/con/}{conclusion}
