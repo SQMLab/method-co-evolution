@@ -1,2 +1,52 @@
 \chapter{Conclusion and Future Work}
 \label{ch:conclusion}
+
+\section{Summary of Contributions}
+
+This thesis advances test-code maintenance research by treating test code as a first-class software maintenance artifact. It examines test-code maintenance through developer-admitted technical debt, reliable method-history generation, and method-level test-code evolution. Together, these perspectives show that test code has its own maintenance signals, detection challenges, and evolution patterns.
+
+Taken together, the findings broaden how test-code maintenance can be studied. They show that understanding test code requires attention to what developers explicitly admit, how individual methods change over time, and how test methods relate to production code and internal test quality. The thesis provides empirical evidence, datasets, oracles, and tool support that can support future research on test-code quality, technical debt, and evolution.
+
+\subsection{Characterizing Self-Admitted Technical Debt in Test Code}
+
+The SATD study characterizes technical debt in test code by manually analyzing 50,000 comments sampled from 1.6 million test-code comments across 1,000 open-source Java projects. The study identifies 615 SATD comments and classifies them into 12 categories, including four categories not captured by the source-code SATD taxonomies considered in the study.
+
+The findings show that test-code SATD is uncommon but diverse. Some comments resemble known production-code debt categories, while others reflect test-specific concerns such as skipped tests, limited tests, incomplete validation, test-environment constraints, and compromises made to keep tests executable. The study also shows that existing SATD detectors and large language models are not yet reliable enough for test-code SATD detection. This contribution therefore provides both a taxonomy and a curated dataset for future research on test-code technical debt.
+
+\subsection{Building Reliable Method-History Evidence}
+
+The method-history work improves the reliability of method-level history generation. It shows that existing method-history oracles contain missing or incorrect revisions, which can affect conclusions about tool accuracy. To address this problem, the thesis constructs systematically validated oracles by combining the outputs of multiple tools with manual validation.
+
+Using these oracles, the evaluation revisits existing method-history tools and introduces \textit{HistoryFinder}. The results show that \textit{HistoryFinder} provides the strongest overall balance of precision, recall, F1 score, and runtime among the evaluated research tools. This contribution strengthens the empirical foundation for method-level maintenance research and provides reusable support for studying how individual methods evolve.
+
+\subsection{Studying Method-Level Test-Code Evolution}
+
+The test-method evolution study uses reliable method-history evidence to study test-code evolution at method-level granularity. The study first constructs a manually validated oracle of 120 test-method histories from 40 open-source Java projects and shows that method-history tools can generalize to test methods, with \textit{HistoryFinder} achieving the strongest overall performance.
+
+The study then combines method-history tracking with method-level production-to-test mapping and conducts a large-scale analysis across 110 projects. The findings show that many test methods evolve as much as or more than their corresponding production methods, and that highly revised small test methods are more strongly associated with test smells. This contribution shows that test methods can have their own evolution patterns and maintenance pressures, rather than serving only as passive reflections of production-code change.
+
+\section{Future Work}
+
+\subsection{Improving Test-Code SATD Detection}
+
+Future work should develop SATD detection and classification approaches that are explicitly trained and evaluated for test code. These approaches should account for test-specific cues, such as skipped tests, incomplete assertions, unstable environments, temporary workarounds, and limited validation. They should also distinguish real SATD from ordinary explanatory comments, especially when using large language models that may overinterpret test comments as debt.
+
+Another direction is to connect SATD comments with method histories. This would make it possible to study whether SATD-bearing test methods persist longer, change more frequently, accumulate more smells, or require more maintenance effort than other test methods.
+
+\subsection{Extending Method-History Generation}
+
+Future work should extend method-history generation beyond Java and evaluate whether current approaches generalize to other languages, build systems, test frameworks, and refactoring practices. This may require language-agnostic representations, hybrid matching strategies, or learned models that can better handle method moves, renames, extraction, inlining, splitting, and merging.
+
+Scalability and robustness also remain important. Method-history tools should better handle large repositories, frequent file changes, and syntactically invalid intermediate revisions. Future benchmarks should therefore include more languages, project domains, test methods, and complex evolution scenarios.
+
+\subsection{Building History-Aware Test Maintenance Tools}
+
+The findings of this thesis can support practical tools that combine SATD comments, method histories, production-to-test mappings, and test smells. Such tools could help developers identify tests that contain admitted debt, change frequently, drift away from related production code, or accumulate quality problems.
+
+History-aware tools could also support regression testing, obsolete test detection, test repair, and refactoring prioritization. Future developer studies should evaluate whether these signals help practitioners understand risky tests and make better maintenance decisions during real software evolution tasks.
+
+\section{Concluding Remarks}
+
+This thesis shows that test code deserves direct attention in software maintenance research. By studying SATD in test code, building reliable method-history evidence, and analyzing method-level test-code evolution, the thesis demonstrates that test code contains maintenance concerns and evolution patterns that cannot be fully understood through production-code assumptions alone.
+
+Overall, the thesis contributes to a broader view of software maintenance in which tests are treated as first-class artifacts. Advancing this view can help researchers build stronger empirical models and help practitioners maintain test suites that remain reliable, useful, and trustworthy over time.
