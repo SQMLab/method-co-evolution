@@ -3,7 +3,7 @@ Prior studies have shown that test code does not evolve as consistently as produ
 
 \subsubsection{Approach}
 As \emph{HistoryFinder} achieved the best performance for tracking both production code~\cite{islam_historyfinder_2025} and test code (RQ1), we used it to collect revision histories for all methods in the 110 projects described in Section~\ref{setup}. After filtering helper test methods as well as getter and setter methods from the production code (Section~\ref{setup}), we collected the revision histories of 1,760,423 production methods and 567,904 test methods. Although \emph{HistoryFinder} reports a revision when the containing file of a method is renamed, even if the method itself remains unchanged, we excluded such revisions from our dataset. The complete project-level statistics are available in the replication repository (\texttt{data/rqs/rq3/method-count.csv}).
-% \footnote{\href{https://anonymous.4open.science/r/test-evolution/data/rqs/rq3/method-count.csv}{/data/rqs/rq3/method-count.csv}}
+% \footnote{\href{https://github.com/SQMLab/method-co-evolution/blob/main/data/rqs/rq3/method-count.csv}{/data/rqs/rq3/method-count.csv}}
 
 
 % \begin{figure*}[htbp]
@@ -107,7 +107,7 @@ When production-to-test mappings were required, we prioritized precision over re
 \subsubsection{Result}
 Figure~\ref{fig:revisions} (a) shows the cumulative distribution function (CDF) of revisions for production and test methods after aggregating data across all projects. Surprisingly, test methods underwent more revisions than production methods when comparing low change-prone methods (0 to 2 revisions). For example, more than 62\% of test methods were revised at least once, compared with approximately 56\% of production methods. The non-parametric Wilcoxon rank-sum test~\cite{dzidek2008realistic,chowdhury_evidence_2025} shows this difference to be significant ($p$-value $\leq 0.05$). 
 We also performed the analysis at the project level and found that test methods were revised more frequently than production methods in 65 projects, with statistically significant differences in 55 projects. The corresponding Cliff's delta effect sizes~\cite{Zhang:2013} were negligible, small, medium, and large in 41.8\%, 40\%, 12.7\%, and 5.5\% of the projects, respectively. In contrast, production methods were revised more frequently in 43 projects, with statistically significant differences in 36 projects. The full table is available with our replication package (\texttt{/data/rqs/rq3/revision-statistics.pdf}).
-% \footnote{\href{https://anonymous.4open.science/r/test-evolution/data/rqs/rq3/revision-statistics.pdf}{/data/rqs/rq3/revision-statistics.pdf}}
+% \footnote{\href{https://github.com/SQMLab/method-co-evolution/blob/main/data/rqs/rq3/revision-statistics.pdf}{/data/rqs/rq3/revision-statistics.pdf}}
 
 For each project separately, using the mapped production-to-test examples, we calculated Kendall's $\tau$ correlation coefficient~\cite{Inozemtseva:2014} between the number of revisions of test methods and the number of revisions of their corresponding production methods. Figure~\ref{fig:revisions} (b) shows that, for 60\% of the projects, the coefficients are below 0.3. This finding contrasts with the common assumption that test methods are revised primarily in response to changes in their corresponding production methods. Under this assumption, one would expect co-evolution between production and test methods and, consequently, a strong correlation in their revision frequencies.
 
