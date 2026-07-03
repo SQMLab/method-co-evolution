@@ -1,24 +1,24 @@
 \subsection{RQ1: What are the different types of SATD in test code?}
-\textbf{Motivation.} A categorization of SATD will provide a high-level understanding of the types of challenges developers encounter when writing and maintaining tests. This can help reveal which issues are most prevalent or critical in test code, and thus could be prioritized for maintenance and quality improvement efforts. We hypothesize that these categories may differ from those observed in source code, reflecting the unique role and structure of tests within the software development process. 
+\textbf{Motivation.} A categorization of SATD will provide a high-level understanding of the types of challenges developers encounter when writing and maintaining tests. This can help reveal which issues are most prevalent or critical in test code, and thus could be prioritized for maintenance and quality improvement efforts. We hypothesize that these categories may differ from those observed in source code, reflecting the unique role and structure of tests within the software development process.
 
 \textbf{Approach.} Manually categorizing SATD comments at a granular level is challenging for several reasons.
 (i) Prior classifications sometimes distribute the same phenomenon across multiple categories. For instance, Alves et al.~\cite{alves_towards_2014} classify duplicated code as both code debt and design debt, creating ambiguity during assignment.
 (ii) Certain comments can encompass more than one category. For example, the comment, \texttt{// TODO: tweak the tests when FLINK-13604 is fixed}, simultaneously reflects a dependent defect (awaiting a bug fix) and a requirement (a need to revise the tests). In other cases, interpretation may be subjective, such as with \texttt{// An unlikely exception — if this occurs, we can't proceed with the test}, which could reasonably be considered either a defect or a superficial test.
 (iii) Many SATD comments are terse or lack context (e.g., a standalone \texttt{TODO}), making it difficult to infer the underlying issue without examining surrounding code.
-(iv). Some comments describe scenarios or concerns not captured by current taxonomies, necessitating extensions to the existing classification scheme. For example, consider the comment \texttt{// Probably incorrect - comparing Object[] arrays with Arrays.equals}. This comment cannot be confidently classified as defect debt, nor does it closely align with other existing categories, since the developer expresses uncertainty about whether the issue is truly a defect. Given these challenges—including subjectivity, overlapping categories, and ambiguous content—we approached the categorization of the \totalSatdCount{} SATD comments in a structured manner by following established guidelines~\cite{alves_towards_2014,bavota_large-scale_2016} and joint classification sessions to reach consensus on ambiguous cases. Our goal was to preserve diverse categories rather than merge multiple types into broader labels, ensuring subtle distinctions in SATD were captured. 
+(iv). Some comments describe scenarios or concerns not captured by current taxonomies, necessitating extensions to the existing classification scheme. For example, consider the comment \texttt{// Probably incorrect - comparing Object[] arrays with Arrays.equals}. This comment cannot be confidently classified as defect debt, nor does it closely align with other existing categories, since the developer expresses uncertainty about whether the issue is truly a defect. Given these challenges—including subjectivity, overlapping categories, and ambiguous content—the categorization of the \totalSatdCount{} SATD comments followed established guidelines~\cite{alves_towards_2014,bavota_large-scale_2016} and joint classification sessions to reach consensus on ambiguous cases. The goal was to preserve diverse categories rather than merge multiple types into broader labels, ensuring subtle distinctions in SATD were captured.
 
-Initially, the first, second, and last author jointly conducted three online meetings to examine each comment one by one, assessing the nature of the technical debt they represented. This process followed the guidelines proposed by Alves et al.~\cite{alves_towards_2014}, and Bavota and Russo~\cite{bavota_large-scale_2016}, assigning each comment to a specific category based on its characteristics. For each comment, we first attempted to assign it to one of the existing categories, as found from ~\cite{alves_towards_2014,bavota_large-scale_2016}. If a comment did not fit any existing category, we created a new category to reflect its unique characteristics. The first 200 comments were classified collaboratively by the three authors during those three meetings. However, by the time the first 142 comments had been reviewed, \categoryCount{} distinct categories had emerged, and no new category was found after reviewing the remaining 58 samples, possibly indicating that a saturation point was reached. 
-The remaining \the\numexpr \totalSatdCount - 200 \relax{} comments were then categorized by the first author independently. In addition to 10+ years of industry experience, this author was also successful in manual labeling in recent times~\cite{islam2025historyfinder,opu2025understanding}.   
+Initially, the first, second, and last author jointly conducted three online meetings to examine each comment one by one, assessing the nature of the technical debt they represented. This process followed the guidelines proposed by Alves et al.~\cite{alves_towards_2014}, and Bavota and Russo~\cite{bavota_large-scale_2016}, assigning each comment to a specific category based on its characteristics. For each comment, the existing categories from ~\cite{alves_towards_2014,bavota_large-scale_2016} were considered first. If a comment did not fit any existing category, a new category was created to reflect its unique characteristics. The first 200 comments were classified collaboratively by the three authors during those three meetings. However, by the time the first 142 comments had been reviewed, \categoryCount{} distinct categories had emerged, and no new category was found after reviewing the remaining 58 samples, possibly indicating that a saturation point was reached.
+The remaining \the\numexpr \totalSatdCount - 200 \relax{} comments were then categorized by the first author independently. In addition to 10+ years of industry experience, this author was also successful in manual labeling in recent times~\cite{islam2025historyfinder,opu2025understanding}.
 \input{figure/satd-hierarchy}
 
-\textbf{Results.} Figure~\ref{fig:satd-hierarchy} presents the complete hierarchy of these categories and their corresponding sub-categories found in the test code. Four new groups of technical debt were identified, each with unique characteristics, and shown under \textit{Test}.  
-% Categories displayed in gray rectangles represent those reused from existing literature, while black rectangles under \textit{New types} indicate newly created categories. 
-The number of instances identified in each category is also shown within the respective rectangles. Each example presented in this section is traceable to its original source file, with corresponding links available in our replication package.\footnote{\url{https://github.com/SQMLab/technical-debt/blob/main/data/satd_comment_example.csv}}
+\textbf{Results.} Figure~\ref{fig:satd-hierarchy} presents the complete hierarchy of these categories and their corresponding sub-categories found in the test code. Four new groups of technical debt were identified, each with unique characteristics, and shown under \textit{Test}.
+% Categories displayed in gray rectangles represent those reused from existing literature, while black rectangles under \textit{New types} indicate newly created categories.
+The number of instances identified in each category is also shown within the respective rectangles. Each example presented in this section is traceable to its original source file, with corresponding links available in the replication package.\footnote{\url{https://github.com/SQMLab/technical-debt/blob/main/data/satd_comment_example.csv}}
 
 
 
 
-% Among these, \textit{low internal quality} (\lowQualityCount{} instances) and \textit{workaround} (\temporaryFixCount{} instances) were previously identified by Bavota and Russo et al.~\cite{bavota_large-scale_2016}. 
+% Among these, \textit{low internal quality} (\lowQualityCount{} instances) and \textit{workaround} (\temporaryFixCount{} instances) were previously identified by Bavota and Russo et al.~\cite{bavota_large-scale_2016}.
 \textbf{Code debt (\codeCount{}):} \textit{``Problems found in the source code which can negatively affect the legibility of the code, making it more difficult to be maintained''} \cite{alves_towards_2014}. Two sub-categories of this type of technical debt were identified. The first sub-category, \textit{workaround}, describes intentionally written suboptimal temporary fixes that are justified by the need to meet specific functional or non-functional requirements, often representing a trade-off between code quality and project goals~\cite{bavota_large-scale_2016}. Representative examples of this sub-category are provided below:
 \begin{itemize}[itemsep=-2pt]
     \item \textcolor{commentColor}{//hacky workaround using the toString method to avoid mocking the Ruby runtime}
@@ -84,7 +84,7 @@ The second sub-category, \textit{low internal quality}, refers to deficiencies i
     // see https://connect2id.com/products/server/\allowbreak docs/guides/login-page}
     \item \textcolor{commentColor}{// mostly waiting for https://github.com/testcontainers/\allowbreak testcontainers-java/issues/3537}
     % \item \textcolor{commentColor}{\deleted{// both exceptions are reported to JUnit:}}
-    
+
 \end{itemize}
 
 \textbf{Skip test (\skipTestCount{}):} Arises when certain tests are skipped or explicitly disabled, often due to environmental limitations or unresolved issues. A few examples are:
@@ -99,7 +99,7 @@ The second sub-category, \textit{low internal quality}, refers to deficiencies i
     // a library with a stable function <-> ordinal value is needed.}
     \item \textcolor{commentColor}{//  CLDR No Longer uses complex currency symbols.
     //  Skipping this test.}
-  
+
 \end{itemize}
 
 \textbf{Limited test (\limitedTestCount{}):} Refers to cases where tests provide incomplete or low-value validation, limiting their ability to establish confidence in the behavior under test. Limited tests appeared in two forms. In the first form, only a small, representative portion of the input space is tested, usually for the sake of time efficiency or resource constraints. Examples of this form are:
@@ -177,7 +177,7 @@ In the second form, tests exercise code without meaningfully validating its func
 \end{itemize}
 
 
-\textbf{Other debt (\otherCount{}):} This is the most generic form of SATD, and, in general, we labelled an SATD as other only if the SATD did not fit with any other specific type. A total of \otherCount{} instances of other debt were identified, with approximately 77\% of them beginning with the \textit{TODO} marker—a pattern that is not very common in other categories. Representative examples of other debt are shown below:
+\textbf{Other debt (\otherCount{}):} This is the most generic form of SATD, and, in general, an SATD was labelled as other only if it did not fit with any other specific type. A total of \otherCount{} instances of other debt were identified, with approximately 77\% of them beginning with the \textit{TODO} marker—a pattern that is not very common in other categories. Representative examples of other debt are shown below:
 \begin{itemize}[itemsep=-2pt]
     \item \textcolor{commentColor}{// TODO this test needs a lot of work}
     \item \textcolor{commentColor}{// TODO implement}
@@ -198,6 +198,6 @@ In the second form, tests exercise code without meaningfully validating its func
 % \end{itemize}
 
 \begin{tcolorbox}
-\textbf{\underline{RQ1 summary}:} 
-We identified \categoryCount{} SATD types in test code, including \newCategoryCount{} new test-specific categories such as skipped and limited tests. Also, for the categories that were found in source code SATD, the distributions are significantly different than ours. For example, the percentage of requirement debts was 20\% in \cite{bavota_large-scale_2016}, but in our case, it is 37\%. These findings reveal that test code exhibits unique technical debt patterns not fully captured by existing classifications from application code.
+\textbf{\underline{RQ1 summary}:}
+The analysis identified \categoryCount{} SATD types in test code, including \newCategoryCount{} new test-specific categories such as skipped and limited tests. Also, for the categories that were found in source code SATD, the distributions are significantly different from the distribution observed here. For example, the percentage of requirement debts was 20\% in \cite{bavota_large-scale_2016}, but in this dataset, it is 37\%. These findings reveal that test code exhibits unique technical debt patterns not fully captured by existing classifications from application code.
 \end{tcolorbox}
