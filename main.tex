@@ -14,7 +14,6 @@
 \usepackage{subcaption}
 \usepackage{amsmath,amssymb}
 \usepackage{url}
-\usepackage[hidelinks]{hyperref}
 \usepackage{pdfpages} % Optional: include published PDFs in appendices if permitted
 \usepackage[numbers,sort&compress]{natbib} % Change style if your department/journal requires another one
 \usepackage{import}
@@ -50,7 +49,6 @@
 \usetikzlibrary{shapes,arrows.meta,positioning,calc,fit}
 \usepackage{url}
 \usepackage{booktabs}
-\usepackage{hyperref}
 \usepackage{float}
 \usepackage{framed}
 \usepackage{amssymb}
@@ -66,14 +64,19 @@
 \usepackage{enumitem}
 \usepackage{framed}
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{hyperref}
-\usepackage{bookmark}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{placeins}
 \usepackage{adjustbox}
 \usepackage{caption}
 % \usepackage{subfigure}
+\usepackage[
+  hidelinks,
+  pdfpagemode=UseOutlines,
+  bookmarksopen=true,
+  bookmarksnumbered=true
+]{hyperref}
+\usepackage{bookmark}
 
 % -------------------------
 % Thesis metadata: edit these
@@ -118,6 +121,8 @@
 \input{frontmatter/dedication}
 \clearpage
 
+\phantomsection
+\pdfbookmark[0]{Table of Contents}{toc}
 \tableofcontents
 \clearpage
 
@@ -149,6 +154,10 @@
 \subimport{chapter/con/}{conclusion}
 
 
+\cleardoublepage
+\phantomsection
+\bookmarksetup{startatroot}
+\addcontentsline{toc}{chapter}{Bibliography}
 \bibliographystyle{IEEEtranN}
 \bibliography{references, chapter/hf/references, chapter/hf/references_primary, chapter/td/references, chapter/td/references-more, chapter/t2p/references_final}
 
