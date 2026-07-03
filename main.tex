@@ -18,6 +18,23 @@
 \usepackage[numbers,sort&compress]{natbib} % Change style if your department/journal requires another one
 \usepackage{import}
 \usepackage{adjustbox}
+\usepackage{etoolbox}
+
+\renewcommand{\thepart}{\Roman{part}}
+
+\makeatletter
+% Format ToC/PDF-navigation labels without changing printed headings.
+\patchcmd{\@part}
+  {\addcontentsline{toc}{part}{\thepart\hspace{1em}#1}}
+  {\addcontentsline{toc}{part}{\partname\space\thepart:\space #1}}
+  {}
+  {\PackageWarning{masters-research}{Could not patch \string\@part\space for ToC labels}}
+\patchcmd{\@chapter}
+  {\protect\numberline{\thechapter}#1}
+  {\@chapapp\space\thechapter:\space #1}
+  {}
+  {\PackageWarning{masters-research}{Could not patch \string\@chapter\space for ToC labels}}
+\makeatother
 
 %------------------
 %  HistoryFinder
@@ -90,8 +107,6 @@
 \newcommand{\CopyrightYear}{2026}
 \newcommand{\AdvisorName}{Shaiful Chowdhury}
 \newcommand{\AuthorShortName}{Md Shahidul Islam}
-
-\renewcommand{\thepart}{\texorpdfstring{\Roman{part}}{Part \Roman{part}:}}
 
 % Optional helper for manuscript chapters
 \newcommand{\manuscriptnote}[4]{%
