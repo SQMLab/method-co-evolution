@@ -69,7 +69,7 @@ This chapter is based on the following manuscript:
 \item S. Islam, M. N. I. Opu, S. Wang, and S. Chowdhury, ``A First Look at Self-Admitted Technical Debt in Test Code: Taxonomy and Detection,'' manuscript under review, 2026.
 \end{itemize}
 
-The study analyzes 50,000 comments sampled from 1.6 million test-code comments across 1,000 open-source Java projects. It constructs a taxonomy of SATD in test code and evaluates the effectiveness of existing SATD detectors, as well as open-source and proprietary large language models, for detecting test-code SATD.
+A sample of 50,000 comments from 1.6 million test-code comments across 1,000 open-source Java projects is analyzed. A taxonomy of SATD in test code is constructed, and existing SATD detectors, as well as open-source and proprietary large language models, are evaluated for detecting test-code SATD.
 
 The main takeaways from this chapter are as follows:
 \begin{itemize}
@@ -78,16 +78,16 @@ The main takeaways from this chapter are as follows:
 \item The curated test-code SATD dataset and taxonomy provide a foundation for future studies on test-code quality, technical debt, and automated SATD detection.
 \end{itemize}
 
-\textbf{Impact:} Since the manuscript is currently under review, its publication impact cannot yet be assessed. Within this thesis, this chapter establishes the technical-debt part by showing that SATD in test code includes test-specific categories and expressions that are not fully captured by production-code SATD knowledge. It also provides a curated dataset and taxonomy that can support future research on test-code quality, technical debt, and automated SATD detection.
+\textbf{Impact:} Since the manuscript is currently under review, its publication impact cannot yet be assessed. Within this thesis, the contribution establishes the technical-debt part by showing that SATD in test code includes test-specific categories and expressions that are not fully captured by production-code SATD knowledge. It also provides a curated dataset and taxonomy that can support future research on test-code quality, technical debt, and automated SATD detection.
 
 
 
 \section*{Abstract}
-Self-admitted technical debt (SATD) refers to comments in which developers explicitly acknowledge code issues, workarounds, or suboptimal solutions. SATD is known to significantly increase software maintenance effort. While extensive research has examined SATD in source code, its presence and impact in test code have received no focused attention, leaving a significant gap in our understanding of how SATD manifests in testing contexts.
+Self-admitted technical debt (SATD) refers to comments in which developers explicitly acknowledge code issues, workarounds, or suboptimal solutions. SATD is known to significantly increase software maintenance effort. While extensive research has examined SATD in source code, its presence and impact in test code have received no focused attention, leaving a significant gap in understanding how SATD manifests in testing contexts.
 
-This study investigates SATD in test code by manually analyzing 50,000 comments randomly sampled from 1.6 million comments across 1,000 open-source Java projects. From this sample, after manual analysis and filtering, we identified \totalSatdCount{} SATD comments and classified them into \categoryCount{} distinct categories, building a taxonomy of test code SATD. To investigate whether test code SATD can be detected automatically, we evaluated existing SATD detection tools, as well as both open-source and proprietary LLMs. Among the existing tools, MAT performed the best, albeit with moderate recall. To our surprise, both open-source and proprietary LLMs exhibited poor detection accuracy, primarily due to low precision. These results indicate that neither existing approaches nor current LLMs can reliably detect SATD in test code.
+SATD in test code is investigated by manually analyzing 50,000 comments randomly sampled from 1.6 million comments across 1,000 open-source Java projects. From this sample, after manual analysis and filtering, \totalSatdCount{} SATD comments were identified and classified into \categoryCount{} distinct categories, building a taxonomy of test code SATD. To investigate whether test code SATD can be detected automatically, existing SATD detection tools, as well as both open-source and proprietary LLMs, are evaluated. Among the existing tools, MAT performed the best, albeit with moderate recall. Both open-source and proprietary LLMs exhibited poor detection accuracy, primarily due to low precision. These results indicate that neither existing approaches nor current LLMs can reliably detect SATD in test code.
 
-Overall, this work provides the results of a large-scale analysis of SATD in test code, a nuanced understanding of its types, and the limitations of current SATD detection methods. Our findings lay the groundwork for future research on test code-specific SATD.
+Overall, these results provide a large-scale analysis of SATD in test code, a nuanced understanding of its types, and the limitations of current SATD detection methods. The findings lay the groundwork for future research on test code-specific SATD.
 
 
 \input{section/1_Introduction}
