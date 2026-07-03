@@ -11,14 +11,20 @@
 \begin{adjustbox}{max width=\textwidth, max height=\textheight}
 \begin{tabular}{ccccccccccccccc}
 \toprule
-\multirow{2}{*}{\textbf{Dataset}} & \multirow{2}{*}{\textbf{Prompt}} & \multirow{2}{*}{\textbf{Model}} 
+% \multirow{2}{*}{\textbf{Dataset}} & \multirow{2}{*}{\textbf{Prompt}} & \multirow{2}{*}{\textbf{Model}} 
+% & \multicolumn{4}{c}{\textbf{0-shot}} 
+% & \multicolumn{4}{c}{\textbf{2-shots}} 
+% & \multicolumn{4}{c}{\textbf{4-shots}} \\
+\multirow{2}{*}{\rotatebox[origin=c]{45}{\textbf{Dataset}}} 
+& \multirow{2}{*}{\rotatebox[origin=c]{45}{\textbf{Prompt}}} 
+& \multirow{2}{*}{\textbf{Model}} 
 & \multicolumn{4}{c}{\textbf{0-shot}} 
 & \multicolumn{4}{c}{\textbf{2-shots}} 
 & \multicolumn{4}{c}{\textbf{4-shots}} \\
 \cmidrule(lr){4-7} \cmidrule(lr){8-11} \cmidrule(lr){12-15}
  &  &  & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{MCC}
  & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{MCC} 
- & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{MCC} \\ 
+ & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{MCC} \\[0.8em]
 \midrule
 \multirow{25}{*}{\rotatebox[origin=c]{90}{Original}}&\multirow{5}{*}{\centering Ours} & T5-SMALL  & 0.00 & 0.02 & 0.01 & -0.02  & 0.00 & 0.00 & 0.00 & -0.01  & 0.00 & 0.00 & 0.00 & -0.01  \\
 & & T5-BASE  & 0.01 & 0.31 & 0.02 & -0.03  & 0.02 & 0.51 & 0.03 & 0.01  & 0.01 & 0.45 & 0.03 & 0.01  \\

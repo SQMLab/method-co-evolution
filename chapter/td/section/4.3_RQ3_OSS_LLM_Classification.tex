@@ -2,7 +2,9 @@
 \textbf{Motivation.} Although SATD often contains keywords such as \textit{TODO}, many comments do not follow such patterns. In these cases, even sophisticated pattern-based methods (e.g., TM, NLP) fail to detect SATD, highlighting the need for approaches that capture semantic meaning. Consequently, we investigate Large Language Models (LLMs), given their strong capability in understanding both natural language and source code~\cite{brown_language_2020}. Recent studies have also found promising results with LLMs for detecting source code SATD~\cite{sheikhaei_empirical_2024, lambert_identification_2024}, outperforming conventional approaches.
 \begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{figure/satd-detection-prompt-template.pdf}
+    \includegraphics[width=\textwidth,
+        height=0.95\textheight,
+        keepaspectratio]{figure/satd-detection-prompt-template.pdf}
     \caption{LLM prompt template for detecting SATD comment.}
     \label{fig:satd-detection-prompt-template}
     % \Description{LLMs template for detecting SATD comment with structured UI-style layout.}
