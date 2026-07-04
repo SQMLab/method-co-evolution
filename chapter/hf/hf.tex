@@ -22,9 +22,12 @@ The main takeaways from this chapter are as follows:
 \textbf{Impact:} This work has been published in the Proceedings of the 48th IEEE/ACM International Conference on Software Engineering (ICSE 2026). Within this thesis, this chapter improves both benchmark quality and tool support for method-history generation. More broadly, its validated oracles and \textit{HistoryFinder} tool can support empirical studies that require accurate method histories, including studies of change-proneness, bug-proneness, technical debt, maintenance effort, code ownership, and software evolution. In this thesis, the contribution is further used in Chapter~\ref{ch:t2p} to study test-code evolution at the method level.
 
 
+\clearpage
 
 \section*{Abstract}
 Reconstructing a method’s change history efficiently and accurately is critical for many software engineering tasks, including maintenance, refactoring, and comprehension. Despite the availability of method history generation tools such as \textit{CodeShovel} and \textit{CodeTracker}, existing evaluations of their effectiveness are limited by inaccuracies in the ground truth oracles used. Two new oracles—the corrected \textit{CodeShovel} oracle and a newly developed \emph{HistoryFinder oracle}—are systematically constructed by combining automated analysis with expert-guided manual validation. \textit{HistoryFinder} is also introduced as a new method history generation tool designed to improve not only the accuracy and completeness of method change histories but also to offer competitive runtime performance. The evaluation across 400 methods from 40 open-source repositories shows that \textit{HistoryFinder} consistently outperforms \textit{CodeShovel}, \textit{CodeTracker}, \textit{IntelliJ}, and \texttt{Git-based} baselines in terms of precision, recall, and F1 score. Moreover, \textit{HistoryFinder} achieves competitive runtime performance, offering the lowest mean and median execution times among all the research-based tools. While \texttt{Git-based} tools exhibit the fastest runtimes, this efficiency comes at the cost of significantly lower precision and recall—leaving \textit{HistoryFinder} as the best overall choice when both accuracy and efficiency are important. To facilitate adoption, a web interface, CLI, and Java library are provided for flexible usage.
+
+\clearpage
 
 \input{1-introduction}
 \input{2-background-and-related-work}
