@@ -33,15 +33,13 @@ Once test-code SATD can be detected more reliably, future work should also devel
 
 \subsection{Extending Method-History Generation}
 
-Future work should extend method-history generation beyond Java and evaluate whether current approaches generalize to other languages. This may require language-agnostic representations, hybrid matching strategies, or learned models.
+Scalability can be improved by reducing the cost of method extraction during history construction. \textit{HistoryFinder} currently relies on \texttt{JavaParser} to extract method-level information from \texttt{Git} revisions. Because this parsing is repeated across many revisions and methods, it can increase construction time for large repositories or when histories are generated for hundreds of thousands of methods. A more efficient alternative is low-level direct parsing, which would extract only the method information needed for tracking.
 
-Scalability and robustness also remain important. Method-history tools should better handle large repositories, frequent file changes, and syntactically invalid intermediate revisions. Future benchmarks should therefore include more languages, project domains, test methods, and complex evolution scenarios.
+Method-history generation should also be extended beyond Java to evaluate whether current approaches generalize to other programming languages. This extension may require adjusting similarity thresholds for language-specific matching or exploring machine-learning-based models for similarity matching.
 
 \subsection{Building History-Aware Test Maintenance Tools}
 
-The findings of this thesis can support practical tools that combine SATD comments, method histories, production-to-test mappings, and test smells. Such tools could help developers identify tests that contain admitted debt, change frequently, drift away from related production code, or accumulate quality problems.
-
-History-aware tools could also support regression testing, obsolete test detection, test repair, and refactoring prioritization. Future developer studies should evaluate whether these signals help practitioners understand risky tests and make better maintenance decisions during real software evolution tasks.
+The findings of this thesis can inform practical tools that combine SATD comments, method histories, production-to-test mappings, and test smells. Such tools could help developers identify tests that contain self-admitted debt, are revised frequently, evolve differently from the production methods they exercise, or show signs of quality problems. History-aware tools could also support test maintenance tasks such as regression-test prioritization and obsolete test detection.
 
 \section{Concluding Remarks}
 
