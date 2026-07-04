@@ -83,7 +83,9 @@ The main takeaways from this chapter are as follows:
 
 \clearpage
 
-\section*{Abstract}
+\begin{center}
+{\Large\bfseries Abstract}
+\end{center}
 Self-admitted technical debt (SATD) refers to comments in which developers explicitly acknowledge code issues, workarounds, or suboptimal solutions. SATD is known to significantly increase software maintenance effort. While extensive research has examined SATD in source code, its presence and impact in test code have received no focused attention, leaving a significant gap in understanding how SATD manifests in testing contexts.
 
 SATD in test code is investigated by manually analyzing 50,000 comments randomly sampled from 1.6 million comments across 1,000 open-source Java projects. From this sample, after manual analysis and filtering, \totalSatdCount{} SATD comments were identified and classified into \categoryCount{} distinct categories, building a taxonomy of test code SATD. To investigate whether test code SATD can be detected automatically, existing SATD detection tools, as well as both open-source and proprietary LLMs, are evaluated. Among the existing tools, MAT performed the best, albeit with moderate recall. Both open-source and proprietary LLMs exhibited poor detection accuracy, primarily due to low precision. These results indicate that neither existing approaches nor current LLMs can reliably detect SATD in test code.
