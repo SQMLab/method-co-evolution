@@ -19,22 +19,21 @@ Using these oracles, the evaluation revisits existing method-history tools and i
 
 \subsection{Understanding Test Method Evolution}
 
-Test-code evolution at the method level requires reliable evidence about how individual test methods change over time. Prior method-history tools developed for production methods can also be applied to test methods, with \textit{HistoryFinder} achieving the strongest overall performance.
+To assess whether existing method-history tools can support test-method evolution analysis, a manually validated oracle of test-method histories is constructed. The evaluation shows that tools developed for production code can also generalize to test code, with \textit{HistoryFinder} achieving the strongest overall performance. Method-level production-to-test mapping techniques are also evaluated, showing that no single approach dominates: some provide higher precision, whereas others provide broader recall.
 
-Building on this method-history support, method-level history tracking is combined with production-to-test mapping to analyze how test methods evolve in relation to the production methods they exercise. The findings show that many test methods evolve as much as, or more than, their corresponding production methods. They also show that highly revised small test methods are more strongly associated with test smells. These results indicate that test methods can have their own evolution patterns, rather than serving only as passive reflections of production-code change.
-
+The evolution analysis shows that test methods are not merely passive reflections of production-code change. Many test methods are revised as often as, or more often than, their corresponding production methods. Highly revised test methods also tend to contain more test smells, with the strongest association observed among small methods. These findings indicate that test methods have their own maintenance dynamics and should be studied as independently evolving software artifacts.
 
 \section{Future Work}
 
 \subsection{Improving Test-Code SATD Detection}
 
-Future work should develop SATD detection and classification approaches that are explicitly trained and evaluated for test code. These approaches should account for test-specific cues, such as skipped tests, incomplete assertions, unstable environments, temporary workarounds, and limited validation. They should also distinguish real SATD from ordinary explanatory comments, especially when using large language models that may overinterpret test comments as debt.
+Future work should develop SATD detection approaches that are designed specifically for test comments and capable of learning test-specific expressions. Large language models also require more test-aware adaptation. It should investigate richer contextual inputs, such as surrounding test code, to better distinguish genuine SATD from ordinary explanatory comments.
 
-Another direction is to connect SATD comments with method histories. This would make it possible to study whether SATD-bearing test methods persist longer, change more frequently, accumulate more smells, or require more maintenance effort than other test methods.
+Once test-code SATD can be detected more reliably, future work should also develop automated classification techniques based on the proposed taxonomy. Reliable detection and classification would enable larger-scale studies of the long-term maintenance impact of test-code SATD, such as whether affected tests are more likely to be changed or associated with later defects than comparable tests without SATD.
 
 \subsection{Extending Method-History Generation}
 
-Future work should extend method-history generation beyond Java and evaluate whether current approaches generalize to other languages, build systems, test frameworks, and refactoring practices. This may require language-agnostic representations, hybrid matching strategies, or learned models that can better handle method moves, renames, extractions, inlining, splitting, and merging.
+Future work should extend method-history generation beyond Java and evaluate whether current approaches generalize to other languages. This may require language-agnostic representations, hybrid matching strategies, or learned models.
 
 Scalability and robustness also remain important. Method-history tools should better handle large repositories, frequent file changes, and syntactically invalid intermediate revisions. Future benchmarks should therefore include more languages, project domains, test methods, and complex evolution scenarios.
 
