@@ -14,6 +14,6 @@ Compared to the Flan-T5 series (RQ3), proprietary models exhibit distinct perfor
 % \textcolor{red}{We were surprised by the overall poor performance of the LLMs, particularly the proprietary ones. This unexpected result prompted a closer examination, although a comprehensive analysis lies beyond the scope of this work. Nonetheless, even our limited investigation yielded several interesting observations. For instance, GPT-5 classified the comment \textit{“// implement the fake service”} as SATD, even though it merely describes the implementation of an anonymous service in the subsequent line. The model misinterpreted it as a placeholder for unfinished work. Such errors arise because LLMs do not rely solely on syntactic cues (e.g., keywords like TODO or FIXME) but attempt to infer semantic meaning. Even neutral or descriptive comments that express intentions, suggestions, or imperatives are frequently misclassified, inflating recall while substantially reducing precision.}
 
 \begin{tcolorbox}
-\textbf{\underline{RQ4 summary}:}
+\noindent\textbf{\underline{RQ4 summary}:}
 In general, proprietary LLMs, particularly GPT-5, outperform open-source models in recall. However, their much lower precision indicates a tendency to over-predict SATD instances. These results suggest that while proprietary models may offer stronger contextual reasoning to exhibit high recall, significant improvements are needed to address their limitations with precision.
 \end{tcolorbox}

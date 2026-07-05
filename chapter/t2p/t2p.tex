@@ -1,11 +1,11 @@
 \chapter{Test Method Evolution: Histories, Production-to-Test Mapping, and Test Smells}
 \label{ch:t2p}
 
-The third contribution of this thesis builds on the method-history support developed in Chapter~\ref{ch:hf} and applies it to test-code evolution. Rather than examining test code only at the file or class level, this chapter analyzes how individual test methods evolve over time. It combines method-history generation with method-level production-to-test mapping to examine whether test methods mainly change in response to the production methods they exercise or whether they also exhibit independent maintenance patterns.
+The third contribution of this thesis builds on the method-history support developed in Chapter~\ref{ch:hf} and applies it to test-code evolution. Rather than examining test code only at the file or class level, this chapter analyzes how test methods evolve over time. It combines method-history generation with method-level production-to-test mapping to examine whether test methods mainly change in response to the production methods they exercise or whether they also exhibit independent maintenance patterns.
 
 This chapter is based on the following manuscript:
 \begin{itemize}
-\item S. Islam, A. Waseem, and S. Chowdhury, ``Understanding Method-Level Test Code Evolution,'' manuscript under review, 2026.
+\item S. Islam, A. Waseem, M. N. I. Opu, and S. Chowdhury, ``Understanding Method-Level Test Code Evolution,'' manuscript under review, 2026.
 \end{itemize}
 
 This chapter first evaluates whether existing method-history generation tools can accurately reconstruct test-method histories using a manually constructed oracle of 120 test methods from 40 open-source Java projects. It then evaluates method-level production-to-test mapping techniques using existing benchmarks and a newly constructed oracle. Using the most suitable history-tracking and mapping approaches, this chapter conducts a large-scale analysis across 110 projects to compare the revision frequencies of test methods and their corresponding production methods and to examine the association between test smells and highly revised test methods.
@@ -13,7 +13,7 @@ This chapter first evaluates whether existing method-history generation tools ca
 The main takeaways from this chapter are as follows:
 \begin{itemize}
 \item Existing method-history tools can effectively track test-method histories, with \emph{HistoryFinder} providing the strongest overall performance.
-\item Static method-level production-to-test mapping techniques involve precision-recall trade-offs, so the most suitable approach depends on the downstream study goal.
+\item Static method-level production-to-test mapping techniques involve precision-recall trade-offs, so the most suitable approach depends on the downstream tasks.
 \item Many test methods evolve as much as or more than their corresponding production methods, suggesting that test methods are not always changed only as a reaction to production-code changes.
 \item Highly revised small test methods show stronger associations with test smells, indicating that some test-code evolution may be related to test-specific maintenance concerns.
 \end{itemize}

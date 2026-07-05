@@ -204,8 +204,8 @@ These findings indicate that the choice of linking approach should depend on the
 % Comparing the ground truths presents an important challenge in generalization. The  TCTracer and TestLinker datasets tend to favor approaches based on naming similarity, combined heuristics, and ranking signals. In contrast, our new ground truth exposes more false positives for several of these approaches, especially Tarantula, TFIDF, LCS-B, and LCS-U. NC remains more stable across ground truths, but its consistently low recall limits its coverage. OMC and OMC+NC improve coverage over NC, but their precision also varies more on our dataset than on the published datasets. Overall, the combined results show that conclusions drawn from a single ground truth can be misleading: approaches that appear strong on published datasets may not generalize equally well to broader independently labeled project sets.
 
 
-\begin{framed}
+\begin{tcolorbox}
 \noindent\textbf{\underline{RQ2 summary}:}
 There is no single best approach for linking production and test methods. The choice of linking technique should be guided by the requirements of the downstream analysis.
 Approaches such as \emph{NC} and \emph{OMC+NC} are preferable when high precision is critical, whereas \emph{Tarantula} is better suited for scenarios that prioritize high recall and can tolerate lower precision.
-\end{framed}
+\end{tcolorbox}
