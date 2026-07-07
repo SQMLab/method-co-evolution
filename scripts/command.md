@@ -17,7 +17,7 @@ The parser-backed collection commands require the Java parser executable JAR. Bu
 scripts/build-method-parser.sh
 ```
 
-For the jNose test-smell workflow, also build `jnose-core` and `jnose-adapter`; see [jnose-adapter/README.md](../jnose-adapter/README.md).
+For the jNose test-smell workflow, also build `jnose-core` and `jnose-adapter`; see [jnose-adapter/jnose.md](../jnose-adapter/jnose.md).
 
 ## Command Reference
 

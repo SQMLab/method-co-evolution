@@ -46,16 +46,15 @@ Use [replication-package.md](replication-package.md) for instructions on copying
 
 ## Project Layout
 
-| Path | Role |
-|------|------|
-| `method-history-collector/` | Python package exposing `mhc`, the main collection CLI |
-| `method-parser/` | JavaParser-based Maven module for method, class, and callgraph extraction |
-| `co-evolution/` | Python package exposing `ptc-llm`, `ptc-history-viewer`, `ptc-testlinker`, and `ptc-sbatch` |
-| `jnose-adapter/` | Executable wrapper used by the `mhc test-smell` workflow |
-| `scripts/` | Build, Slurm, and maintenance helpers |
-| `config/` | Artifact-detection and experiment configuration references |
+| Path | Role                                                                                                                                                                                                              |
+|------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `method-history-collector/` | Python package exposing `mhc`; orchestrates repository scanning, method/class extraction, method history collection, callgraph generation, method-code export, complexity metrics, and test-smell workflows.      |
+| `method-parser/` | JavaParser-based Maven module that backs several `mhc` commands; `mhc` uses its JAR to extract Java methods, classes, call graphs, etc.                                                                           |
+| `co-evolution/` | Python package where the main experiment and result-generation workflows are implemented; includes production-to-test linking, TestLinker integrations, evaluation, plotting, notebooks, ground truth labeling UI. |
+| `jnose-adapter/` | Executable wrapper around `jnose-core` used by the `mhc test-smell` workflow.                                                                                                                                     |
+| `scripts/` | Helper scripts and wrappers for different command.                                                                                                                                                                |
+| `config/` | Artifact-detection, logging, and experiment configuration references used by data collection and analysis workflows.                                                                                    |
 
-Each tracked README is a focused reference for its module. Generated cache READMEs, such as `.pytest_cache/README.md`, are not part of the project documentation.
 
 ## Workspace Layout
 
@@ -166,4 +165,4 @@ co-evolution/src/ptc/run/rq_plot_run.ipynb
 - [co-evolution/README.md](co-evolution/README.md) for LLM linking, history viewer, TestLinker entrypoints, and Slurm command expansion.
 - [co-evolution/src/ptc/testlinker/README.md](co-evolution/src/ptc/testlinker/README.md) for neural TestLinker setup and model artifacts.
 - [scripts/command.md](scripts/command.md) for helper scripts and Slurm usage.
-- [jnose-adapter/README.md](jnose-adapter/README.md) for test-smell adapter build steps.
+- [jnose-adapter/jnose.md](jnose-adapter/jnose.md) for test-smell adapter build steps.

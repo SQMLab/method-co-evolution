@@ -7,16 +7,6 @@ Java 21 / Maven module that extracts Java methods, classes, and call graphs with
 - Java 21. The module is compiled with `--release 21`.
 - Maven 3.6+.
 
-On HPC or Slurm environments, load Java and Maven before building:
-
-```bash
-module load java/21.0.1
-module load maven
-mvn -version
-```
-
-On a local machine, install Java 21 and Maven with your package manager and confirm both are on `PATH`.
-
 ## Build
 
 From the repository root:
@@ -27,7 +17,7 @@ mvn clean install -DskipTests
 cd ..
 ```
 
-The Maven build writes a fat JAR under `method-parser/target/`. The helper script builds the module and copies the executable JAR into the shared workspace JAR directory:
+The Maven build writes a fat JAR under `method-parser/target/`.  Alternatively, the helper script builds the module and copies the executable JAR dependency from the shared workspace JAR directory.
 
 ```bash
 scripts/build-method-parser.sh
@@ -126,7 +116,7 @@ Important signature distinction:
 - `to_tctracer_fqs` is derived from the called method declaration.
 - `to_testlinker_fqs` is derived from actual argument types at the call site when available. It may contain `null`, `<UNKNOWN>`, or a resolved argument type.
 - `from_testlinker_fqs` is identical to `from_tctracer_fqs` because the calling method is a declaration context.
-
+<!--
 ## JavaParser Fallback Resolution
 
 When JavaParser cannot resolve a call, the callgraph generator uses a CSV-bounded fallback. The fallback requires both:
@@ -147,3 +137,4 @@ The resolver infers the owner from call syntax such as `obj.m()`, `this.m()`, un
 3. Nearest superclasses or interfaces, closest first.
 
 Within the same class-distance level, known arity mismatches are rejected, then the best `fqn`/`fqs` match is selected. Remaining ties are resolved by CSV order so generation remains deterministic. Generic type arguments are erased before owner/signature comparison.
+-->
