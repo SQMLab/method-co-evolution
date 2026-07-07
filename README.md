@@ -165,4 +165,4 @@ co-evolution/src/ptc/run/rq_plot_run.ipynb
 - [co-evolution/README.md](co-evolution/README.md) for LLM linking, history viewer, TestLinker entrypoints, and Slurm command expansion.
 - [co-evolution/src/ptc/testlinker/README.md](co-evolution/src/ptc/testlinker/README.md) for neural TestLinker setup and model artifacts.
 - [scripts/command.md](scripts/command.md) for helper scripts and Slurm usage.
-- [jnose-adapter/README.md](jnose-adapter/README.md) for test-smell adapter build steps.
+- [jnose-adapter/jnose.md](jnose-adapter/jnose.md) for test-smell adapter build steps.

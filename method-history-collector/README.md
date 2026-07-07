@@ -207,7 +207,7 @@ mhc method-complexity \
 
 ### `mhc test-smell`
 
-Runs the jNose-based test-smell workflow. It requires the executable `jnose-adapter` JAR in `WORKSPACE_DIRECTORY/jar`; see [../jnose-adapter/README.md](../jnose-adapter/README.md).
+Runs the jNose-based test-smell workflow. It requires the executable `jnose-adapter` JAR in `WORKSPACE_DIRECTORY/jar`; see [../jnose-adapter/jnose.md](../jnose-adapter/jnose.md).
 
 ```bash
 mhc test-smell \
