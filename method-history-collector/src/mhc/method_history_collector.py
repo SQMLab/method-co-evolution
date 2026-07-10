@@ -1,6 +1,7 @@
 from mhc.method_history_jar_runner import *
 from mhc.callgraph import execute_callgraph_per_file
 from mhc.class_scanner import scan_class as _scan_class
+from mhc.method_metadata_scanner import scan_method_metadata as _scan_method_metadata
 from mhc.artifact_update import update_artifacts as _update_artifacts
 from mhc.complexity_analyzer import ComplexityAnalyzer
 from mhc.test_smell import run_test_smell as _run_test_smell
@@ -330,6 +331,54 @@ class MethodHistoryCollector:
             merge_interval_seconds,
             max_workers,
         )
+
+    def generate_method_metadata(
+        self,
+        repositories: list[str],
+        java_options: str | None = None,
+        replace: bool = False,
+        shards: int = 1,
+        shard: int = 1,
+        merge_only: bool = False,
+        merge_only_delete_empty: bool = False,
+        merge_only_delete_tmp: bool = False,
+        merge_only_delete_lock: bool = False,
+        retry_errors: bool = True,
+        merge_threshold: int = DEFAULT_MERGE_THRESHOLD,
+        merge_interval_seconds: int | None = None,
+        max_workers: int = 1,
+        init_reset_interval_files: int = 2000,
+    ):
+        try:
+            if not merge_only:
+                ms.start_java_jar(
+                    [self.jar_file_map["methodParser"]],
+                    util.java_options_with_logback_config(
+                        java_options,
+                        self.workspace_directory,
+                    ),
+                )
+            return _scan_method_metadata(
+                self.repository_df[self.repository_df["project"].isin(repositories)],
+                self.repository_directory,
+                self.data_directory,
+                self.experiment_directory,
+                replace,
+                shards,
+                shard,
+                merge_only,
+                merge_only_delete_empty,
+                merge_only_delete_tmp,
+                merge_only_delete_lock,
+                retry_errors,
+                merge_threshold,
+                merge_interval_seconds,
+                max_workers,
+                init_reset_interval_files,
+            )
+        finally:
+            if not merge_only:
+                ms.stop_java_jar()
 
     def update_artifacts(
         self,

@@ -11,6 +11,7 @@ Usage:
   job.sh --command method-history --tool-name codeShovel --merge-only --projects "checkstyle,commons-io"
   job.sh --command method-history --tool-name codeShovel --shards 10
   job.sh --command method-code --projects "commons-io"
+  job.sh --command method-metadata --projects "commons-io"
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --prompt-format text --batch-size 1 --max-new-tokens 256 --resume none --projects "commons-io" --input-kind t2p
   job.sh --command llm-m2m-link --api-type huggingface --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --batch-size 1 --resume error --projects "commons-io" --input-kind t2p
   job.sh --command llm-m2m-link --stage parse --model-name-or-path openai/gpt-oss-20b --short-model-name gpt_oss_20b --projects "commons-io"
@@ -18,20 +19,20 @@ Usage:
   job.sh --command test-smell --tool-name jnose --stage all --strategies nc --projects "commons-io"
 
 Options:
-  --command               Command to run: method-history, method-callgraph, method-scan, class-scan, method-code, artifact-update, method-complexity, llm-m2m-link, testlinker, test-smell
+  --command               Command to run: method-history, method-callgraph, method-scan, class-scan, method-code, method-metadata, artifact-update, method-complexity, llm-m2m-link, testlinker, test-smell
   --tool-name             Tool name for non-LLM commands
   --java-options          Optional JVM arguments for Java-backed commands, e.g. "-Xmx4g"
   --timeout-seconds       Optional method-history command timeout in seconds (default: 30*60 = 1800)
   --merge-threshold       History JSON merge threshold; for scan/code commands, pending rows before flushing (default: 10000; history negative disables final merge; scan/code 0/-1 disables threshold trigger)
-  --merge-interval-seconds Optional cache flush interval for method-scan, class-scan, method-code, and method-callgraph (default: 900; 0 disables time trigger)
+  --merge-interval-seconds Optional cache flush interval for method-scan, class-scan, method-code, method-metadata, and method-callgraph (default: 900; 0 disables time trigger)
   --max-cache-size        Generic in-memory cache budget in MB for supported commands (default: 256; 0 disables optional caches)
   --max-workers           Maximum worker threads for supported MHC commands (default: 1)
   --merge-only            Merge existing loose history JSON files without generating new history
-  --retry-errors          Whether method-scan, class-scan, method-code, and method-callgraph retry previous __error_marker__ rows (default: true)
+  --retry-errors          Whether method-scan, class-scan, method-code, method-metadata, and method-callgraph retry previous __error_marker__ rows (default: true)
   --enable-symbol-solver  Whether supported commands use JavaParser symbol resolution for FQN/FQS (default: true)
   --cache-evict-interval-seconds Method-scan JavaParser cache eviction interval in seconds (default: 0 disables)
   --cache-evict-interval-files Method-scan JavaParser cache eviction interval in completed files (default: 0 disables)
-  --init-reset-interval-files Method-scan/method-callgraph scanner reinitialization interval in completed files (default: 2000; 0 disables)
+  --init-reset-interval-files Method-scan/method-metadata/method-callgraph scanner reinitialization interval in completed files (default: 2000; 0 disables)
   --artifact-config-path  Artifact detection YAML file or directory
   --command-options       Optional extra arguments forwarded to the selected command
   --stage                 LLM stage execute/parse, or test-smell stage preprocess/execute/postprocess/all
@@ -45,7 +46,7 @@ Options:
   --project               Single project name
   --projects              Comma-separated project list for the array job
   --project-index         Python-style project index or slice from project.csv, for example 10, -1, 10:20, :10, 10:, or :
-  --shards                Total per-project shards for method-history, method-scan, class-scan, method-code, or method-callgraph (default: 1)
+  --shards                Total per-project shards for method-history, method-scan, class-scan, method-code, method-metadata, or method-callgraph (default: 1)
   --job-index-shift       Offset added to SLURM_ARRAY_TASK_ID before deriving project/shard indexes (default: 0)
   --input-kind            LLM input kind: t2p or p2t (default: t2p)
   --top-k                 TestLinker top-k invocation count (default: 1)
@@ -104,7 +105,7 @@ ARTIFACT_CONFIG_PATH=""
 
 is_sharded_command() {
     case "$1" in
-        method-history|method-callgraph|method-scan|class-scan|method-code)
+        method-history|method-callgraph|method-scan|class-scan|method-code|method-metadata)
             return 0
             ;;
         *)
@@ -451,7 +452,7 @@ if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
         usage
         exit 1
     fi
-elif [[ "$COMMAND_NAME" != "method-scan" && "$COMMAND_NAME" != "class-scan" && "$COMMAND_NAME" != "method-code" && "$COMMAND_NAME" != "artifact-update" && "$COMMAND_NAME" != "index" && "$COMMAND_NAME" != "testlinker" ]]; then
+elif [[ "$COMMAND_NAME" != "method-scan" && "$COMMAND_NAME" != "class-scan" && "$COMMAND_NAME" != "method-code" && "$COMMAND_NAME" != "method-metadata" && "$COMMAND_NAME" != "artifact-update" && "$COMMAND_NAME" != "index" && "$COMMAND_NAME" != "testlinker" ]]; then
     if [[ -z "$TOOL_NAME" ]]; then
         echo "Error: --tool-name is required for $COMMAND_NAME."
         usage
@@ -565,13 +566,13 @@ else
     if [[ -n "$HISTORY_DIRECTORY" ]]; then
         MHC_ARGS+=(--history-directory "$HISTORY_DIRECTORY")
     fi
-    if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-callgraph" ]]; then
+    if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-metadata" || "$COMMAND_NAME" == "method-callgraph" ]]; then
         MHC_ARGS+=(--merge-interval-seconds "$MERGE_INTERVAL_SECONDS")
     fi
     if [[ "$COMMAND_NAME" == "method-callgraph" ]]; then
         MHC_ARGS+=(--max-cache-size "$MAX_CACHE_SIZE")
     fi
-    if [[ "$COMMAND_NAME" == "method-history" || "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-callgraph" || "$COMMAND_NAME" == "artifact-update" || "$COMMAND_NAME" == "test-smell" ]]; then
+    if [[ "$COMMAND_NAME" == "method-history" || "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-metadata" || "$COMMAND_NAME" == "method-callgraph" || "$COMMAND_NAME" == "artifact-update" || "$COMMAND_NAME" == "test-smell" ]]; then
         MHC_ARGS+=(--max-workers "$MAX_WORKERS")
     fi
     if [[ -n "$TOOL_NAME" ]]; then
@@ -589,13 +590,13 @@ else
     if [[ -n "$COMMAND_OPTIONS" ]]; then
         MHC_ARGS+=(--command-options "$COMMAND_OPTIONS")
     fi
-    if [[ "$COMMAND_NAME" == "method-history" || "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-callgraph" ]]; then
+    if [[ "$COMMAND_NAME" == "method-history" || "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-metadata" || "$COMMAND_NAME" == "method-callgraph" ]]; then
         MHC_ARGS+=(--shards "$SHARDS" --shard "$SHARD")
         if [[ "$MERGE_ONLY" == "true" ]]; then
             MHC_ARGS+=(--merge-only)
         fi
     fi
-    if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-callgraph" ]]; then
+    if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "class-scan" || "$COMMAND_NAME" == "method-code" || "$COMMAND_NAME" == "method-metadata" || "$COMMAND_NAME" == "method-callgraph" ]]; then
         MHC_ARGS+=(--retry-errors "$RETRY_ERRORS")
     fi
     if [[ "$COMMAND_NAME" == "method-scan" ]]; then
@@ -603,7 +604,7 @@ else
         MHC_ARGS+=(--cache-evict-interval-seconds "$CACHE_EVICT_INTERVAL_SECONDS")
         MHC_ARGS+=(--cache-evict-interval-files "$CACHE_EVICT_INTERVAL_FILES")
     fi
-    if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "method-callgraph" ]]; then
+    if [[ "$COMMAND_NAME" == "method-scan" || "$COMMAND_NAME" == "method-metadata" || "$COMMAND_NAME" == "method-callgraph" ]]; then
         MHC_ARGS+=(--init-reset-interval-files "$INIT_RESET_INTERVAL_FILES")
     fi
     if [[ -n "$ARTIFACT_CONFIG_PATH" ]]; then

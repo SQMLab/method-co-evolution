@@ -104,6 +104,10 @@ def format_method_code_file(data_directory: str, repository_name: str) -> str:
     return os.path.join(f"{data_directory}/method-code", f"{repository_name}.csv")
 
 
+def format_method_metadata_file(data_directory: str, repository_name: str) -> str:
+    return os.path.join(f"{data_directory}/method-metadata", f"{repository_name}.csv")
+
+
 def format_class_list_file(data_directory: str, repository_name: str) -> str:
     return os.path.join(f"{data_directory}/class", f"{repository_name}.csv")
 

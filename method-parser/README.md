@@ -23,7 +23,7 @@ The Maven build writes a fat JAR under `method-parser/target/`.  Alternatively, 
 scripts/build-method-parser.sh
 ```
 
-`mhc method-scan`, `mhc class-scan`, `mhc method-callgraph`, and `mhc method-complexity` resolve the parser JAR from:
+`mhc method-scan`, `mhc method-metadata`, `mhc class-scan`, `mhc method-callgraph`, and `mhc method-complexity` resolve the parser JAR from:
 
 ```text
 WORKSPACE_DIRECTORY/jar/
@@ -44,6 +44,7 @@ The main outputs are:
 | Dataset | Producer | Purpose |
 |---------|----------|---------|
 | `method/<project>.csv` | `mhc method-scan` | Method and constructor index |
+| `method-metadata/<project>.csv` | `mhc method-metadata` | Method and constructor annotations and Javadoc |
 | `class/<project>.csv` | `mhc class-scan` | Class/type boundary used by artifact detection and fallback resolution |
 | `callgraph/<project>.csv` | `mhc method-callgraph` | Fan-out call edges, usually test-to-production candidates |
 | `fanin/<project>.csv` | `mhc method-callgraph` | Reverse call edges, usually production-to-test candidates |
@@ -75,6 +76,19 @@ One row per method or constructor extracted from the repository at the indexed c
 | `hash` | string | Git commit hash used for the index |
 
 The `url` column is the primary method identifier used throughout the pipeline.
+
+## `method-metadata/<project>.csv`
+
+One row per method or constructor extracted from the repository at the indexed commit.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `project` | string | Repository name |
+| `name` | string | Simple method or constructor name |
+| `url` | string | GitHub blob URL with file and line anchor |
+| `annotations` | JSON array | Full declaration annotation expressions without leading `@` |
+| `annotations_fqn` | JSON array | Resolved annotation names without leading `@`; unresolved entries are empty strings |
+| `javadoc` | string | Raw attached Javadoc block, or empty when absent |
 
 Artifact tags in `method/<project>.csv` and `class/<project>.csv` are documented
 in [artifact-detection.md](artifact-detection.md).

@@ -72,6 +72,7 @@ workspace/
       project.csv                    Project index and repository metadata for the experiment.
       method/                        Method index CSVs extracted from each project.
       method-code/                   Method source and code metadata for downstream linking and filtering.
+      method-metadata/               Method annotations and Javadoc extracted by JavaParser.
       method-history/                Method revision count.
       method-history-gz/             Compressed method history archives.
       class/                         Class index CSVs extracted from each project.

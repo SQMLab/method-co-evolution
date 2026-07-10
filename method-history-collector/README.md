@@ -57,7 +57,7 @@ Use exactly one selector unless otherwise stated:
 
 ### Sharding and Merging
 
-`method-history`, `method-scan`, `class-scan`, `method-code`, and `method-callgraph` support deterministic sharding:
+`method-history`, `method-scan`, `class-scan`, `method-code`, `method-metadata`, and `method-callgraph` support deterministic sharding:
 
 ```bash
 mhc method-history ... --project "checkstyle" --shards 20 --shard 7
@@ -72,7 +72,7 @@ mhc method-history ... --project "checkstyle" --shards 20 --shard 7
 | `method-history` | Loose JSON files are merged into `.tar.gz` archives when the threshold is reached. `0` disables intermediate merges; negative values also disable final merge. |
 | Scan/code/callgraph commands | Pending cache rows are flushed when the threshold is reached. `0` or negative disables threshold-triggered intermediate flushes, but final output finalization still runs. |
 
-For `method-scan`, `class-scan`, `method-code`, and `method-callgraph`, `--merge-interval-seconds` also flushes pending rows after the configured interval. Use `0` to disable time-triggered intermediate flushing.
+For `method-scan`, `class-scan`, `method-code`, `method-metadata`, and `method-callgraph`, `--merge-interval-seconds` also flushes pending rows after the configured interval. Use `0` to disable time-triggered intermediate flushing.
 
 `method-history` supports merge-only cleanup:
 
@@ -85,7 +85,7 @@ Use `delete-tmp` and `delete-lock` only when no worker is running against the sa
 
 ### Retry Behavior
 
-`method-scan`, `class-scan`, `method-code`, and `method-callgraph` retry previous `__error_marker__` rows by default. Pass:
+`method-scan`, `class-scan`, `method-code`, `method-metadata`, and `method-callgraph` retry previous `__error_marker__` rows by default. Pass:
 
 ```bash
 --retry-errors false
@@ -113,6 +113,30 @@ mhc method-scan \
 ```
 
 Use `--replace` to regenerate existing output. If `WORKSPACE_DIRECTORY/config/logback.xml` exists, it is passed to the JVM as `-Dlogback.configurationFile=...`.
+
+### `mhc method-metadata`
+
+Extracts annotations and raw Javadoc for all methods and constructors and writes:
+
+```text
+WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/method-metadata/<project>.csv
+```
+
+```bash
+mhc method-metadata \
+  --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
+  --experiment-name "$ME_EXPERIMENT_NAME" \
+  --jar-directory "$ME_WORKSPACE_DIRECTORY/jar" \
+  --project "checkstyle"
+```
+
+Output columns are:
+
+```text
+project,name,url,annotations,annotations_fqn,javadoc
+```
+
+Both annotation columns are JSON arrays without leading `@` characters. `annotations` preserves complete expressions and arguments; `annotations_fqn` contains resolved names with an empty string in the corresponding position when resolution fails.
 
 ### `mhc class-scan`
 

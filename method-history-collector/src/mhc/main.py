@@ -196,7 +196,7 @@ def main(argv: list[str] | None = None):
         type=int,
         default=15 * 60,
         help=(
-            "For method-scan, class-scan, method-code, and method-callgraph, flush pending cache rows after this many seconds "
+            "For method-scan, class-scan, method-code, method-metadata, and method-callgraph, flush pending cache rows after this many seconds "
             "(default: 900; 0 or negative disables time-triggered intermediate flushes)."
         ),
     )
@@ -214,7 +214,7 @@ def main(argv: list[str] | None = None):
         choices=("delete-empty", "delete-tmp", "delete-lock"),
         help=(
             "For method-history, merge existing loose history JSON files without generating new history. "
-            "For method-callgraph, finalize shared callgraph cache into callgraph/fanin CSVs. "
+            "For scan, metadata, code, and callgraph commands, finalize shared cache files. "
             "Optional cleanup modes: delete-empty, delete-tmp, delete-lock."
         ),
     )
@@ -241,7 +241,7 @@ def main(argv: list[str] | None = None):
         dest="shards",
         type=int,
         default=1,
-        help="Total number of method-history, method-scan, class-scan, method-code, or method-callgraph shards to split work into (default: 1).",
+        help="Total number of method-history, method-scan, class-scan, method-code, method-metadata, or method-callgraph shards to split work into (default: 1).",
     )
     parser.add_argument(
         "--shard",
@@ -254,7 +254,7 @@ def main(argv: list[str] | None = None):
         "--replace",
         dest="replace",
         action="store_true",
-        help="Regenerate outputs even when existing output/cache files are present. Supported by method-scan and method-callgraph.",
+        help="Regenerate outputs even when existing output/cache files are present. Supported by scan, metadata, code, and callgraph commands.",
     )
     parser.add_argument(
         "--retry-errors",
@@ -297,7 +297,7 @@ def main(argv: list[str] | None = None):
         type=int,
         default=2000,
         help=(
-            "For method-scan and method-callgraph, recreate each thread's Java scanner instance after this "
+            "For method-scan, method-metadata, and method-callgraph, recreate each thread's Java scanner instance after this "
             "many files to reset JavaParser/type-solver state. 0 disables init resets. Default: 2000."
         ),
     )
@@ -526,6 +526,23 @@ def main(argv: list[str] | None = None):
             args.merge_threshold,
             args.merge_interval_seconds,
             args.max_workers,
+        )
+    elif command == "method-metadata":
+        mhc.generate_method_metadata(
+            resolve_selected_projects(),
+            args.java_options,
+            args.replace,
+            args.shards,
+            args.shard,
+            args.merge_only is not None,
+            "delete-empty" in (args.merge_only or []),
+            "delete-tmp" in (args.merge_only or []),
+            "delete-lock" in (args.merge_only or []),
+            args.retry_errors,
+            args.merge_threshold,
+            args.merge_interval_seconds,
+            args.max_workers,
+            args.init_reset_interval_files,
         )
     elif command == "index":
         mhc.update_repository_index()

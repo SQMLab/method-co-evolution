@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../.env"
+
+if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+fi
+
+: "${ME_WORKSPACE_DIRECTORY:?ME_WORKSPACE_DIRECTORY must be set in .env}"
+ME_EXPERIMENT_NAME="${ME_EXPERIMENT_NAME:-main}"
+
+mhc method-metadata \
+    --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
+    --experiment-name "$ME_EXPERIMENT_NAME" \
+    --jar-directory "$ME_WORKSPACE_DIRECTORY/jar" \
+    --java-options "-Xmx4g -Xss16m -Dlogback.configurationFile=$ME_WORKSPACE_DIRECTORY/config/logback.xml" \
+    --max-workers "4" \
+    --project-index ":" \
+    --retry-errors true \
+    --merge-threshold 1000 \
+    --shards 1 \
+    --shard 1 \
+    --merge-interval-seconds 0 \
+    "$@"

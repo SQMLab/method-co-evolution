@@ -41,6 +41,7 @@ Common prerequisites:
 MHC command index:
 
 - [`mhc method-scan`](#mhc-method-scan)
+- [`mhc method-metadata`](#mhc-method-metadata)
 - [`mhc class-scan`](#mhc-class-scan)
 - [`mhc method-callgraph`](#mhc-method-callgraph)
 - [`mhc method-code`](#mhc-method-code)
@@ -58,26 +59,26 @@ MHC command index:
 | `--workspace-directory` | `--workspace-directory "$ME_WORKSPACE_DIRECTORY"` | Shared workspace root containing experiment data. | All `mhc` commands |
 | `--experiment-name` | `--experiment-name "$ME_EXPERIMENT_NAME"` | Experiment folder under `workspace/experiment/`. | All `mhc` commands |
 | `--repository-directory` | `--repository-directory "$TMPDIR/repository"` | Checkout/cache location for repositories during collection. | Repository-backed `mhc` commands, especially Slurm runs |
-| `--jar-directory` | `--jar-directory "$ME_WORKSPACE_DIRECTORY/jar"` | Directory containing Java parser, history-tool, and adapter JARs. | `method-scan`, `class-scan`, `method-callgraph`, `method-complexity`, `test-smell`; optional for Java-backed commands |
+| `--jar-directory` | `--jar-directory "$ME_WORKSPACE_DIRECTORY/jar"` | Directory containing Java parser, history-tool, and adapter JARs. | `method-scan`, `method-metadata`, `class-scan`, `method-callgraph`, `method-complexity`, `test-smell`; optional for Java-backed commands |
 | `--history-directory` | `--history-directory /scratch/history` | Optional external root for method history outputs. | `method-history`; commands that consume external history when configured |
 | `--project` | `--project "checkstyle"` | Run one project by name. | All project-scoped commands |
 | `--projects` | `--projects "checkstyle,commons-io"` | Run a comma-separated project list. | Batch and wrapper usage for project-scoped commands |
 | `--project-index` | `--project-index "10:20"` | Select projects by index or slice from `project.csv`. | Batch and wrapper usage for project-scoped commands |
-| `--shards` | `--shards 10` | Split supported commands into per-project shards. | `method-history`, `method-scan`, `class-scan`, `method-code`, `method-callgraph` |
-| `--shard` | `--shard 2` | Select the shard number for a sharded direct run. | `method-history`, `method-scan`, `class-scan`, `method-code`, `method-callgraph` |
-| `--merge-only` | `--merge-only` | Merge existing shard/cache outputs without collecting new rows. | `method-history`, `method-scan`, `class-scan`, `method-code`, `method-callgraph` |
+| `--shards` | `--shards 10` | Split supported commands into per-project shards. | `method-history`, `method-scan`, `method-metadata`, `class-scan`, `method-code`, `method-callgraph` |
+| `--shard` | `--shard 2` | Select the shard number for a sharded direct run. | `method-history`, `method-scan`, `method-metadata`, `class-scan`, `method-code`, `method-callgraph` |
+| `--merge-only` | `--merge-only` | Merge existing shard/cache outputs without collecting new rows. | `method-history`, `method-scan`, `method-metadata`, `class-scan`, `method-code`, `method-callgraph` |
 | `--tool-name` | `--tool-name methodParser` | Select the tool backend. | Required by `method-history`, `method-callgraph`, `method-complexity`, `test-smell` |
-| `--java-options` | `--java-options "-Xmx4g"` | Extra JVM arguments for Java-backed commands. | `method-history`, `method-scan`, `class-scan`, `method-callgraph`, `method-complexity`, `test-smell` |
+| `--java-options` | `--java-options "-Xmx4g"` | Extra JVM arguments for Java-backed commands. | `method-history`, `method-scan`, `method-metadata`, `class-scan`, `method-callgraph`, `method-complexity`, `test-smell` |
 | `--timeout-seconds` | `--timeout-seconds 1800` | Per-task timeout, most often for method history. | Primarily `method-history`; accepted by batch wrapper for `mhc` commands |
-| `--merge-threshold` | `--merge-threshold 10000` | Flush/merge threshold for history JSON or scan/cache rows. | `method-history`, `method-scan`, `class-scan`, `method-code`, `method-callgraph` |
-| `--merge-interval-seconds` | `--merge-interval-seconds 900` | Time-triggered cache flush interval. | `method-scan`, `class-scan`, `method-code`, `method-callgraph` |
+| `--merge-threshold` | `--merge-threshold 10000` | Flush/merge threshold for history JSON or scan/cache rows. | `method-history`, `method-scan`, `method-metadata`, `class-scan`, `method-code`, `method-callgraph` |
+| `--merge-interval-seconds` | `--merge-interval-seconds 900` | Time-triggered cache flush interval. | `method-scan`, `method-metadata`, `class-scan`, `method-code`, `method-callgraph` |
 | `--max-cache-size` | `--max-cache-size 256` | In-memory cache budget in MB. | `method-callgraph` |
-| `--max-workers` | `--max-workers 4` | Worker thread count for supported commands. | `method-history`, `method-scan`, `class-scan`, `method-code`, `method-callgraph`, `artifact-update`, `test-smell` |
-| `--retry-errors` | `--retry-errors false` | Retry or skip rows previously marked with `__error_marker__`. | `method-scan`, `class-scan`, `method-code`, `method-callgraph` |
+| `--max-workers` | `--max-workers 4` | Worker thread count for supported commands. | `method-history`, `method-scan`, `method-metadata`, `class-scan`, `method-code`, `method-callgraph`, `artifact-update`, `test-smell` |
+| `--retry-errors` | `--retry-errors false` | Retry or skip rows previously marked with `__error_marker__`. | `method-scan`, `method-metadata`, `class-scan`, `method-code`, `method-callgraph` |
 | `--enable-symbol-solver` | `--enable-symbol-solver true` | Enable JavaParser symbol resolution during method scanning. | `method-scan` |
 | `--cache-evict-interval-seconds` | `--cache-evict-interval-seconds 300` | Evict JavaParser caches by elapsed time. | `method-scan` |
 | `--cache-evict-interval-files` | `--cache-evict-interval-files 500` | Evict JavaParser caches by completed file count. | `method-scan` |
-| `--init-reset-interval-files` | `--init-reset-interval-files 2000` | Reinitialize scanner after a number of completed files. | `method-scan`, `method-callgraph` |
+| `--init-reset-interval-files` | `--init-reset-interval-files 2000` | Reinitialize scanner after a number of completed files. | `method-scan`, `method-metadata`, `method-callgraph` |
 | `--artifact-config-path` | `--artifact-config-path config/artifact-detection` | Artifact detection YAML file or directory. | `method-scan`, `class-scan`, `artifact-update`; useful before downstream commands |
 | `--command-options` | `--command-options "--replace"` | Extra arguments forwarded through `scripts/job.sh` to the selected command. | Batch wrapper for all forwarded `mhc` commands |
 | `--replace` | `--replace` | Regenerate output even if it already exists. | Commands that write per-project outputs, including scan/code/callgraph/history workflows |
@@ -102,6 +103,17 @@ Extracts `method/<project>.csv`. Prerequisites: parser JAR and `project.csv`. Wr
 
 ```bash
 mhc method-scan \
+  --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
+  --experiment-name "$ME_EXPERIMENT_NAME" \
+  --project "checkstyle"
+```
+
+### `mhc method-metadata`
+
+Writes `method-metadata/<project>.csv` with method and constructor annotations and raw Javadoc. Prerequisites: parser JAR and `project.csv`. Wrapper alternative: [`scripts/method-metadata.sh`](method-metadata.sh).
+
+```bash
+mhc method-metadata \
   --workspace-directory "$ME_WORKSPACE_DIRECTORY" \
   --experiment-name "$ME_EXPERIMENT_NAME" \
   --project "checkstyle"
@@ -219,6 +231,7 @@ Supported commands:
 method-history
 method-callgraph
 method-scan
+method-metadata
 class-scan
 method-code
 artifact-update
