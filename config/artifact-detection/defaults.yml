@@ -61,6 +61,7 @@ defaults:
     - org.junit.experimental.theories.Theory
     - org.testng.annotations.Test
     - org.testng.annotations.Factory
+    - com.pholser.junit.quickcheck.Property
     - net.jqwik.api.Property
     - net.jqwik.api.Example
   fixtureMethodAnnotations:
