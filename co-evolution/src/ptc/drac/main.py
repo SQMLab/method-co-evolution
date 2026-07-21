@@ -257,6 +257,8 @@ def _output_exists(
         return (base / "history" / tool_name / project).is_dir()
     if canonical == "method-code":
         return (base / "method-code" / f"{project}.csv").exists()
+    if canonical == "method-metadata":
+        return (base / "method-metadata" / f"{project}.csv").exists()
     if canonical == "class-scan":
         return (base / "class" / f"{project}.csv").exists()
     if canonical == "test-smell":
