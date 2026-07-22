@@ -10,6 +10,7 @@ import pandas as pd
 from pandas import DataFrame
 
 import mhc.util as util
+from mhc.artifacts import is_test_case_method
 from mhc.method_scanner import (
     DEFAULT_SCAN_MERGE_THRESHOLD,
     SCAN_SLOW_SECONDS,
@@ -31,6 +32,7 @@ METHOD_METADATA_COLUMNS = [
     "url",
     "annotations",
     "annotations_fqn",
+    "frameworks",
     "javadoc",
 ]
 METHOD_METADATA_FILE_COLUMN = "file"
@@ -82,9 +84,22 @@ def _read_metadata_cache(cache_file: str) -> pd.DataFrame:
     if not os.path.exists(cache_file):
         return pd.DataFrame(columns=METHOD_METADATA_CACHE_COLUMNS)
     try:
-        return pd.read_csv(cache_file, dtype=str).reindex(columns=METHOD_METADATA_CACHE_COLUMNS)
+        cache_df = pd.read_csv(cache_file, dtype=str)
+        if not set(METHOD_METADATA_CACHE_COLUMNS).issubset(cache_df.columns):
+            return pd.DataFrame(columns=METHOD_METADATA_CACHE_COLUMNS)
+        return cache_df.reindex(columns=METHOD_METADATA_CACHE_COLUMNS)
     except pd.errors.EmptyDataError:
         return pd.DataFrame(columns=METHOD_METADATA_CACHE_COLUMNS)
+
+
+def _metadata_cache_schema_current(cache_file: str) -> bool:
+    if not os.path.exists(cache_file):
+        return True
+    try:
+        columns = pd.read_csv(cache_file, nrows=0).columns
+    except pd.errors.EmptyDataError:
+        return False
+    return set(METHOD_METADATA_CACHE_COLUMNS).issubset(columns)
 
 
 def _completed_metadata_files(cache_df: pd.DataFrame, retry_errors: bool = True) -> set[str]:
@@ -150,7 +165,7 @@ def _is_metadata_output_current(output_file: str, commit_hash: str) -> bool:
     if not os.path.exists(output_file):
         return False
     try:
-        output_df = pd.read_csv(output_file, usecols=["url"])
+        output_df = pd.read_csv(output_file, usecols=["url", "frameworks"])
     except (ValueError, pd.errors.EmptyDataError):
         return False
     urls = output_df["url"].dropna().astype(str)
@@ -162,6 +177,7 @@ def _finalize_metadata_outputs(
     output_file: str,
     error_output_file: str,
     expected_files: set[str],
+    test_case_urls: set[str],
     lock_path: str | None = None,
     delete_tmp: bool = True,
     delete_lock: bool = True,
@@ -184,6 +200,8 @@ def _finalize_metadata_outputs(
             cache_df[METHOD_METADATA_FILE_COLUMN].isin(failed_files)
         ].copy()
         output_df = cache_df[cache_df[METHOD_METADATA_FLAG_COLUMN].isna()].copy()
+        output_df["frameworks"] = output_df["frameworks"].fillna("")
+        output_df.loc[~output_df["url"].isin(test_case_urls), "frameworks"] = ""
         _write_dataframe_csv(output_file, output_df, METHOD_METADATA_COLUMNS, [])
 
         if not error_rows.empty:
@@ -247,6 +265,7 @@ def _scan_metadata_in_file(
                 "url": metadata.getUrl(),
                 "annotations": metadata.getAnnotations(),
                 "annotations_fqn": metadata.getAnnotationsFqn(),
+                "frameworks": metadata.getFrameworks(),
                 "javadoc": metadata.getJavadoc(),
                 METHOD_METADATA_FILE_COLUMN: file,
                 METHOD_METADATA_HASH_COLUMN: commit_hash,
@@ -343,6 +362,23 @@ def scan_method_metadata(
             repository_name,
         )
         output_file = util.format_method_metadata_file(data_directory, repository_name)
+        method_file = util.format_method_list_file(data_directory, repository_name)
+        if not os.path.exists(method_file):
+            raise FileNotFoundError(
+                f"method-metadata requires method input for {repository_name}: {method_file}"
+            )
+        try:
+            method_df = pd.read_csv(method_file, usecols=["url", "artifact"], dtype=str)
+        except ValueError as error:
+            raise ValueError(
+                f"method-metadata input must contain url and artifact columns: {method_file}"
+            ) from error
+        test_case_urls = set(
+            method_df.loc[
+                method_df["artifact"].map(is_test_case_method),
+                "url",
+            ].dropna().astype(str)
+        )
         cache_dir = os.path.join(workspace_directory, ".method-metadata")
         cache_file = os.path.join(cache_dir, f"{repository_name}.csv")
         lock_path = os.path.join(cache_dir, f"{repository_name}.lock")
@@ -391,6 +427,7 @@ def scan_method_metadata(
                 output_file,
                 error_output_file,
                 expected_files,
+                test_case_urls,
                 lock_path,
                 merge_only_delete_tmp,
                 merge_only_delete_lock,
@@ -404,6 +441,8 @@ def scan_method_metadata(
             continue
 
         os.makedirs(cache_dir, exist_ok=True)
+        if not _metadata_cache_schema_current(cache_file):
+            remove_file_if_exists(cache_file)
         cached_files = _load_cached_metadata_files(cache_file, retry_errors)
         files_to_scan = [
             file for file in relative_files
@@ -524,6 +563,7 @@ def scan_method_metadata(
                 output_file,
                 error_output_file,
                 expected_files,
+                test_case_urls,
                 lock_path,
                 retain_failed_cache=retry_errors,
             ):

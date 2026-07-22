@@ -116,7 +116,7 @@ Use `--replace` to regenerate existing output. If `WORKSPACE_DIRECTORY/config/lo
 
 ### `mhc method-metadata`
 
-Extracts annotations and raw Javadoc for all methods and constructors and writes:
+Extracts test-framework tags, annotations, and raw Javadoc for all methods and constructors and writes:
 
 ```text
 WORKSPACE_DIRECTORY/experiment/EXPERIMENT_NAME/method-metadata/<project>.csv
@@ -130,13 +130,17 @@ mhc method-metadata \
   --project "checkstyle"
 ```
 
+This command requires `method/<project>.csv`. Framework candidates are emitted only for rows whose
+method artifact contains `#test-case-method`.
+
 Output columns are:
 
 ```text
-project,name,url,annotations,annotations_fqn,javadoc
+project,name,url,annotations,annotations_fqn,frameworks,javadoc
 ```
 
 Both annotation columns are JSON arrays without leading `@` characters. `annotations` preserves complete expressions and arguments; `annotations_fqn` contains resolved names with an empty string in the corresponding position when resolution fails.
+`frameworks` is a space-separated tag string such as `#junit #quicktheories`.
 
 ### `mhc class-scan`
 

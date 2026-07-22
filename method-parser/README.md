@@ -88,6 +88,7 @@ One row per method or constructor extracted from the repository at the indexed c
 | `url` | string | GitHub blob URL with file and line anchor |
 | `annotations` | JSON array | Full declaration annotation expressions without leading `@` |
 | `annotations_fqn` | JSON array | Resolved annotation names without leading `@`; unresolved entries are empty strings |
+| `frameworks` | string | Space-separated test-framework tags for `#test-case-method` rows, such as `#junit #quicktheories` |
 | `javadoc` | string | Raw attached Javadoc block, or empty when absent |
 
 Artifact tags in `method/<project>.csv` and `class/<project>.csv` are documented

@@ -11,5 +11,6 @@ public class MethodMetadata {
     String url;
     String annotations;
     String annotationsFqn;
+    String frameworks;
     String javadoc;
 }

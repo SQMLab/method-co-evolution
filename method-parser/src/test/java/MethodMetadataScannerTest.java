@@ -116,6 +116,91 @@ public class MethodMetadataScannerTest {
                 () -> scanner.scanMethodMetadata("Broken.java"));
     }
 
+    @Test
+    void classifiesTestFrameworkCandidatesAndQuickTheoriesChains() throws Exception {
+        Path sourceFile = tempDir.resolve("src/test/java/demo/Frameworks.java");
+        Files.createDirectories(sourceFile.getParent());
+        Files.writeString(
+                sourceFile,
+                """
+                        package demo;
+
+                        import org.junit.jupiter.api.Test;
+                        import static org.quicktheories.QuickTheory.qt;
+
+                        class Frameworks {
+                            @Test void quickTheories() {
+                                qt().withFixedSeed(0).withExamples(5).forAll(source());
+                            }
+
+                            @Test void missingForAll() {
+                                qt().withFixedSeed(0);
+                            }
+
+                            @net.jqwik.api.Property void jqwikProperty() {}
+                            @net.jqwik.api.Example void jqwikExample() {}
+                            @com.pholser.junit.quickcheck.Property void quickcheck() {}
+                            @org.testng.annotations.Test void testNg() {}
+
+                            Object source() { return null; }
+                        }
+
+                        class Legacy extends junit.framework.TestCase {
+                            public void testLegacy() {}
+                        }
+                        """);
+
+        MethodMetadataScannerImpl scanner = MethodMetadataScannerImpl.getInstance();
+        scanner.init(
+                "demo-project",
+                tempDir.toString(),
+                "https://github.com/example/demo",
+                "abc123",
+                false);
+
+        List<MethodMetadata> metadata = scanner.scanMethodMetadata("src/test/java/demo/Frameworks.java");
+        assertFrameworks(metadata, "quickTheories", "#junit #quicktheories");
+        assertFrameworks(metadata, "missingForAll", "#junit");
+        assertFrameworks(metadata, "jqwikProperty", "#jqwik");
+        assertFrameworks(metadata, "jqwikExample", "#jqwik");
+        assertFrameworks(metadata, "quickcheck", "#junit #quickcheck");
+        assertFrameworks(metadata, "testNg", "#testng");
+        assertFrameworks(metadata, "testLegacy", "#junit");
+    }
+
+    @Test
+    void doesNotTreatUnrelatedQtAsQuickTheories() throws Exception {
+        Path sourceFile = tempDir.resolve("LocalQt.java");
+        Files.writeString(
+                sourceFile,
+                """
+                        class LocalQt {
+                            Chain qt() { return new Chain(); }
+                            void property() { qt().forAll(); }
+                        }
+                        class Chain { void forAll() {} }
+                        """);
+
+        MethodMetadataScannerImpl scanner = MethodMetadataScannerImpl.getInstance();
+        scanner.init(
+                "demo-project",
+                tempDir.toString(),
+                "https://github.com/example/demo",
+                "abc123",
+                false);
+
+        List<MethodMetadata> metadata = scanner.scanMethodMetadata("LocalQt.java");
+        assertFrameworks(metadata, "property", "");
+    }
+
+    private static void assertFrameworks(List<MethodMetadata> metadata, String name, String expected) {
+        MethodMetadata row = metadata.stream()
+                .filter(value -> value.getName().equals(name))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(expected, row.getFrameworks());
+    }
+
     private static List<String> parseJsonArray(String value) {
         return List.of(GSON.fromJson(value, String[].class));
     }

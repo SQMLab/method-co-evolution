@@ -4,9 +4,13 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.CallableDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import rnd.method.parser.call.graph.model.MethodMetadata;
@@ -17,7 +21,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 public class MethodMetadataScannerImpl implements MethodMetadataScanner {
@@ -111,6 +118,7 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
                 .flatMap(comment -> comment.getTokenRange())
                 .map(Object::toString)
                 .orElse("");
+        String frameworks = detectFrameworks(declaration, compilationUnit, annotationsFqn);
 
         return MethodMetadata.builder()
                 .repositoryName(repositoryName)
@@ -118,8 +126,144 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
                 .url(url)
                 .annotations(GSON.toJson(annotations))
                 .annotationsFqn(GSON.toJson(annotationsFqn))
+                .frameworks(frameworks)
                 .javadoc(javadoc)
                 .build();
+    }
+
+    private static String detectFrameworks(
+            CallableDeclaration<?> declaration,
+            CompilationUnit compilationUnit,
+            List<String> annotationsFqn) {
+        Set<String> detected = new LinkedHashSet<>();
+        for (String annotation : annotationsFqn) {
+            if (annotation.startsWith("org.junit.") || annotation.startsWith("org.junit.jupiter.")) {
+                detected.add("junit");
+            } else if (annotation.startsWith("org.testng.")) {
+                detected.add("testng");
+            }
+            if (annotation.equals("net.jqwik.api.Property") || annotation.equals("net.jqwik.api.Example")) {
+                detected.add("jqwik");
+            }
+            if (annotation.equals("com.pholser.junit.quickcheck.Property")) {
+                detected.add("junit");
+                detected.add("quickcheck");
+            }
+        }
+        if (isJUnit3Callable(declaration, compilationUnit)) {
+            detected.add("junit");
+        }
+        if (usesQuickTheories(declaration, compilationUnit)) {
+            detected.add("quicktheories");
+        }
+
+        List<String> order = List.of("junit", "testng", "jqwik", "quickcheck", "quicktheories");
+        return order.stream()
+                .filter(detected::contains)
+                .map(value -> "#" + value)
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
+    }
+
+    private static boolean isJUnit3Callable(
+            CallableDeclaration<?> declaration,
+            CompilationUnit compilationUnit) {
+        Optional<ClassOrInterfaceDeclaration> enclosing = declaration.findAncestor(ClassOrInterfaceDeclaration.class);
+        if (enclosing.isEmpty()) {
+            return false;
+        }
+        ClassOrInterfaceDeclaration type = enclosing.get();
+        try {
+            return type.resolve().getAllAncestors().stream()
+                    .anyMatch(ancestor -> ancestor.getQualifiedName().equals("junit.framework.TestCase"));
+        } catch (RuntimeException ignored) {
+            return type.getExtendedTypes().stream().anyMatch(parent -> {
+                String name = parent.getNameWithScope();
+                return name.equals("junit.framework.TestCase")
+                        || (name.equals("TestCase") && hasImport(compilationUnit, "junit.framework.TestCase"));
+            });
+        }
+    }
+
+    private static boolean usesQuickTheories(
+            CallableDeclaration<?> declaration,
+            CompilationUnit compilationUnit) {
+        for (MethodCallExpr forAll : declaration.findAll(MethodCallExpr.class)) {
+            if (!forAll.getNameAsString().equals("forAll") || !belongsToCallable(forAll, declaration)) {
+                continue;
+            }
+            Optional<Expression> scope = forAll.getScope();
+            while (scope.isPresent() && scope.get().isMethodCallExpr()) {
+                MethodCallExpr call = scope.get().asMethodCallExpr();
+                if (call.getNameAsString().equals("qt") && isQuickTheoriesQt(call, declaration, compilationUnit)) {
+                    return true;
+                }
+                scope = call.getScope();
+            }
+        }
+        return false;
+    }
+
+    private static boolean belongsToCallable(MethodCallExpr call, CallableDeclaration<?> declaration) {
+        return call.findAncestor(CallableDeclaration.class)
+                .map(owner -> owner == declaration)
+                .orElse(false);
+    }
+
+    private static boolean isQuickTheoriesQt(
+            MethodCallExpr call,
+            CallableDeclaration<?> declaration,
+            CompilationUnit compilationUnit) {
+        try {
+            String owner = call.resolve().declaringType().getQualifiedName();
+            if (owner.startsWith("org.quicktheories.")) {
+                return true;
+            }
+        } catch (RuntimeException ignored) {
+            // Fall through to import and implemented-interface checks.
+        }
+
+        boolean staticImport = compilationUnit.getImports().stream()
+                .filter(imported -> imported.isStatic())
+                .map(imported -> imported.getNameAsString())
+                .anyMatch(name -> name.equals("org.quicktheories.QuickTheory.qt")
+                        || name.equals("org.quicktheories.QuickTheory"));
+        if (staticImport && call.getScope().isEmpty()) {
+            return true;
+        }
+
+        if (call.getScope().filter(Expression::isNameExpr).map(Expression::asNameExpr)
+                .map(NameExpr::getNameAsString).filter("QuickTheory"::equals).isPresent()
+                && hasImport(compilationUnit, "org.quicktheories.QuickTheory")) {
+            return true;
+        }
+
+        return declaration.findAncestor(ClassOrInterfaceDeclaration.class)
+                .map(type -> implementsWithQuickTheories(type, compilationUnit))
+                .orElse(false);
+    }
+
+    private static boolean implementsWithQuickTheories(
+            ClassOrInterfaceDeclaration type,
+            CompilationUnit compilationUnit) {
+        try {
+            return type.resolve().getAllAncestors().stream()
+                    .anyMatch(ancestor -> ancestor.getQualifiedName().equals("org.quicktheories.WithQuickTheories"));
+        } catch (RuntimeException ignored) {
+            return type.getImplementedTypes().stream().anyMatch(parent -> {
+                String name = parent.getNameWithScope();
+                return name.equals("org.quicktheories.WithQuickTheories")
+                        || (name.equals("WithQuickTheories")
+                        && hasImport(compilationUnit, "org.quicktheories.WithQuickTheories"));
+            });
+        }
+    }
+
+    private static boolean hasImport(CompilationUnit compilationUnit, String qualifiedName) {
+        return compilationUnit.getImports().stream()
+                .filter(imported -> !imported.isAsterisk())
+                .map(imported -> imported.getNameAsString())
+                .anyMatch(qualifiedName::equals);
     }
 
     private static String annotationSourceWithoutPrefix(AnnotationExpr annotation) {
@@ -137,6 +281,9 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
             return annotation.resolve().getQualifiedName();
         } catch (RuntimeException error) {
             String simpleName = annotation.getNameAsString();
+            if (simpleName.contains(".")) {
+                return simpleName;
+            }
             String importedName = compilationUnit.getImports().stream()
                     .filter(importDeclaration -> !importDeclaration.isAsterisk())
                     .map(importDeclaration -> importDeclaration.getNameAsString())

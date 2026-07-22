@@ -110,7 +110,7 @@ mhc method-scan \
 
 ### `mhc method-metadata`
 
-Writes `method-metadata/<project>.csv` with method and constructor annotations and raw Javadoc. Prerequisites: parser JAR and `project.csv`. Wrapper alternative: [`scripts/method-metadata.sh`](method-metadata.sh).
+Writes `method-metadata/<project>.csv` with method and constructor framework tags, annotations, and raw Javadoc. Prerequisites: parser JAR, `project.csv`, and `method/<project>.csv`. Framework tags are populated only for `#test-case-method` rows. Wrapper alternative: [`scripts/method-metadata.sh`](method-metadata.sh).
 
 ```bash
 mhc method-metadata \

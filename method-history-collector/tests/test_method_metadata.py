@@ -23,12 +23,14 @@ class _FakeMetadata:
         url: str,
         annotations: str,
         annotations_fqn: str,
+        frameworks: str,
         javadoc: str,
     ):
         self._name = name
         self._url = url
         self._annotations = annotations
         self._annotations_fqn = annotations_fqn
+        self._frameworks = frameworks
         self._javadoc = javadoc
 
     def getName(self):
@@ -42,6 +44,9 @@ class _FakeMetadata:
 
     def getAnnotationsFqn(self):
         return self._annotations_fqn
+
+    def getFrameworks(self):
+        return self._frameworks
 
     def getJavadoc(self):
         return self._javadoc
@@ -67,6 +72,7 @@ class _FakeScanner:
                 "https://github.com/example/demo/blob/abc123/src/Demo.java#L8",
                 '["Deprecated","Tag(\\"fast\\")"]',
                 '["java.lang.Deprecated","demo.Tag"]',
+                "#junit #quicktheories",
                 "/** Runs. */",
             ),
             _FakeMetadata(
@@ -74,6 +80,7 @@ class _FakeScanner:
                 "https://github.com/example/demo/blob/abc123/src/Demo.java#L12",
                 "[]",
                 "[]",
+                "#junit",
                 "",
             ),
         ]
@@ -95,6 +102,23 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
             ]
         )
 
+    def _write_method_input(self, root: Path, test_case: bool = True):
+        method_dir = root / "method"
+        method_dir.mkdir(parents=True, exist_ok=True)
+        artifact = "#test-code #test-case-method" if test_case else "#main-code"
+        pd.DataFrame(
+            [
+                {
+                    "url": "https://github.com/example/demo/blob/abc123/src/Demo.java#L8",
+                    "artifact": artifact,
+                },
+                {
+                    "url": "https://github.com/example/demo/blob/abc123/src/Demo.java#L12",
+                    "artifact": "#main-code",
+                },
+            ]
+        ).to_csv(method_dir / "demo.csv", index=False)
+
     def test_generates_expected_csv_schema_and_values(self):
         with tempfile.TemporaryDirectory() as temp_directory:
             root = Path(temp_directory)
@@ -102,6 +126,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
             source_file = repository_directory / "demo" / "src" / "Demo.java"
             source_file.parent.mkdir(parents=True)
             source_file.write_text("class Demo {}\n", encoding="utf-8")
+            self._write_method_input(root)
 
             with patch.object(
                 metadata_scanner,
@@ -130,6 +155,8 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
                 json.loads(output_df.loc[0, "annotations_fqn"]),
             )
             self.assertEqual("/** Runs. */", output_df.loc[0, "javadoc"])
+            self.assertEqual("#junit #quicktheories", output_df.loc[0, "frameworks"])
+            self.assertEqual("", output_df.loc[1, "frameworks"])
             self.assertEqual([], json.loads(output_df.loc[1, "annotations"]))
             self.assertEqual(
                 (
@@ -149,6 +176,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
             source_file = repository_directory / "demo" / "src" / "Broken.java"
             source_file.parent.mkdir(parents=True)
             source_file.write_text("class Broken {\n", encoding="utf-8")
+            self._write_method_input(root)
             _FakeScanner.fail = True
 
             with patch.object(
@@ -177,6 +205,54 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
             )
             self.assertIn("Unable to parse", error_df.loc[0, metadata_scanner.METHOD_METADATA_ERROR_COLUMN])
 
+    def test_requires_method_input(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            root = Path(temp_directory)
+            repository_directory = root / "repository"
+            (repository_directory / "demo").mkdir(parents=True)
+
+            with patch.object(metadata_scanner, "clone_and_checkout_commit"), patch(
+                "jpype.JClass", return_value=_FakeScanner
+            ):
+                with self.assertRaisesRegex(FileNotFoundError, "requires method input"):
+                    metadata_scanner.scan_method_metadata(
+                        self._repository_df(),
+                        str(repository_directory),
+                        str(root),
+                        str(root),
+                    )
+
+    def test_suppresses_frameworks_for_non_test_case_method(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            root = Path(temp_directory)
+            repository_directory = root / "repository"
+            source_file = repository_directory / "demo" / "src" / "Demo.java"
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text("class Demo {}\n", encoding="utf-8")
+            self._write_method_input(root, test_case=False)
+
+            with patch.object(
+                metadata_scanner,
+                "clone_and_checkout_commit",
+            ), patch("jpype.JClass", return_value=_FakeScanner):
+                output_files = metadata_scanner.scan_method_metadata(
+                    self._repository_df(),
+                    str(repository_directory),
+                    str(root),
+                    str(root),
+                )
+
+            output_df = pd.read_csv(output_files[0], keep_default_na=False, na_filter=False)
+            self.assertEqual(["", ""], output_df["frameworks"].tolist())
+
+    def test_legacy_cache_schema_is_not_current(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            cache_file = Path(temp_directory) / "legacy.csv"
+            pd.DataFrame(
+                [{"project": "demo", "url": "test", "annotations": "[]"}]
+            ).to_csv(cache_file, index=False)
+            self.assertFalse(metadata_scanner._metadata_cache_schema_current(str(cache_file)))
+
     def test_finalize_waits_for_all_files_and_writes_success_after_retry(self):
         with tempfile.TemporaryDirectory() as temp_directory:
             root = Path(temp_directory)
@@ -197,6 +273,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
                     "url": "https://github.com/example/demo/blob/abc123/src/A.java#L1",
                     "annotations": '["Test"]',
                     "annotations_fqn": '["org.junit.Test"]',
+                    "frameworks": "#junit",
                     "javadoc": "",
                     metadata_scanner.METHOD_METADATA_FILE_COLUMN: "src/A.java",
                     metadata_scanner.METHOD_METADATA_HASH_COLUMN: "abc123",
@@ -220,6 +297,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
                     str(output_file),
                     str(error_file),
                     {"src/A.java", "src/B.java"},
+                    {"https://github.com/example/demo/blob/abc123/src/A.java#L1"},
                     delete_tmp=False,
                 )
             )
@@ -229,6 +307,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
                     str(output_file),
                     str(error_file),
                     {"src/A.java"},
+                    {"https://github.com/example/demo/blob/abc123/src/A.java#L1"},
                     delete_tmp=False,
                 )
             )
@@ -267,6 +346,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
             repository_directory = root / "repository"
             project_directory = repository_directory / "demo" / "src"
             project_directory.mkdir(parents=True)
+            self._write_method_input(root)
 
             files_by_shard = {1: [], 2: []}
             candidate = 0
