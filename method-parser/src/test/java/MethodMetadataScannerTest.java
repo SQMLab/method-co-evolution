@@ -61,7 +61,8 @@ public class MethodMetadataScannerTest {
                 tempDir.toString(),
                 "https://github.com/example/demo",
                 "abc123",
-                false);
+                false,
+                null);
 
         List<MethodMetadata> metadata = scanner.scanMethodMetadata("src/main/java/demo/Demo.java");
         MethodMetadata run = metadata.stream()
@@ -109,7 +110,8 @@ public class MethodMetadataScannerTest {
                 tempDir.toString(),
                 "https://github.com/example/demo",
                 "abc123",
-                false);
+                false,
+                null);
 
         assertThrows(
                 IllegalStateException.class,
@@ -156,7 +158,8 @@ public class MethodMetadataScannerTest {
                 tempDir.toString(),
                 "https://github.com/example/demo",
                 "abc123",
-                false);
+                false,
+                null);
 
         List<MethodMetadata> metadata = scanner.scanMethodMetadata("src/test/java/demo/Frameworks.java");
         assertFrameworks(metadata, "quickTheories", "#junit #quicktheories");
@@ -187,10 +190,107 @@ public class MethodMetadataScannerTest {
                 tempDir.toString(),
                 "https://github.com/example/demo",
                 "abc123",
-                false);
+                false,
+                null);
 
         List<MethodMetadata> metadata = scanner.scanMethodMetadata("LocalQt.java");
         assertFrameworks(metadata, "property", "");
+    }
+
+    @Test
+    void resolvesAnnotationsImportedThroughAWildcard() throws Exception {
+        Path sourceFile = tempDir.resolve("src/propertyTest/java/demo/DtosPropertyTest.java");
+        Path configDirectory = tempDir.resolve("config/artifact-detection");
+        Files.createDirectories(sourceFile.getParent());
+        Files.createDirectories(configDirectory);
+        Files.writeString(
+                configDirectory.resolve("defaults.yml"),
+                """
+                        defaults:
+                          fixtureMethodAnnotations:
+                            - demo.fixtures.CustomFixture
+                        """);
+        Files.writeString(
+                sourceFile,
+                """
+                        package demo;
+
+                        import net.jqwik.api.*;
+                        import demo.fixtures.*;
+                        import org.agrona.*;
+
+                        class DtosPropertyTest {
+                            @Property
+                            void javaDtoEncodeShouldBeTheInverseOfDtoDecode() {}
+
+                            @CustomFixture
+                            void prepareProperty() {}
+                        }
+                        """);
+
+        MethodMetadataScannerImpl scanner = MethodMetadataScannerImpl.getInstance();
+        scanner.init(
+                "demo-project",
+                tempDir.toString(),
+                "https://github.com/example/demo",
+                "abc123",
+                false,
+                configDirectory.toString());
+
+        List<MethodMetadata> metadata = scanner.scanMethodMetadata(
+                "src/propertyTest/java/demo/DtosPropertyTest.java");
+        MethodMetadata property = metadata.stream()
+                .filter(value -> value.getName().equals("javaDtoEncodeShouldBeTheInverseOfDtoDecode"))
+                .findFirst()
+                .orElseThrow();
+        MethodMetadata fixture = metadata.stream()
+                .filter(value -> value.getName().equals("prepareProperty"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(List.of("Property"), parseJsonArray(property.getAnnotations()));
+        assertEquals(List.of("net.jqwik.api.Property"), parseJsonArray(property.getAnnotationsFqn()));
+        assertEquals("#jqwik", property.getFrameworks());
+        assertEquals(List.of("CustomFixture"), parseJsonArray(fixture.getAnnotations()));
+        assertEquals(
+                List.of("demo.fixtures.CustomFixture"),
+                parseJsonArray(fixture.getAnnotationsFqn()));
+    }
+
+    @Test
+    void extractsAnnotationFromPackagePrivateMethodInAbstractClass() throws Exception {
+        Path sourceFile = tempDir.resolve("src/test/java/demo/BLSTest.java");
+        Files.createDirectories(sourceFile.getParent());
+        Files.writeString(
+                sourceFile,
+                """
+                        package demo;
+
+                        import org.junit.jupiter.api.Test;
+
+                        public abstract class BLSTest {
+                            @Test
+                            void succeedsWhenWeCanSignAndVerify() {}
+                        }
+                        """);
+
+        MethodMetadataScannerImpl scanner = MethodMetadataScannerImpl.getInstance();
+        scanner.init(
+                "demo-project",
+                tempDir.toString(),
+                "https://github.com/example/demo",
+                "abc123",
+                false,
+                null);
+
+        MethodMetadata test = scanner.scanMethodMetadata("src/test/java/demo/BLSTest.java").stream()
+                .filter(value -> value.getName().equals("succeedsWhenWeCanSignAndVerify"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(List.of("Test"), parseJsonArray(test.getAnnotations()));
+        assertEquals(List.of("org.junit.jupiter.api.Test"), parseJsonArray(test.getAnnotationsFqn()));
+        assertEquals("#junit", test.getFrameworks());
     }
 
     private static void assertFrameworks(List<MethodMetadata> metadata, String name, String expected) {

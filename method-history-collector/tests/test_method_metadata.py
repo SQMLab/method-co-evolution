@@ -165,6 +165,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
                     "https://github.com/example/demo",
                     "abc123",
                     False,
+                    None,
                 ),
                 _FakeScanner.init_calls[0],
             )
@@ -437,6 +438,7 @@ class MethodMetadataGenerationTestCase(unittest.TestCase):
             10,
             4,
             50,
+            None,
         )
 
     def test_method_code_schema_remains_unchanged(self):

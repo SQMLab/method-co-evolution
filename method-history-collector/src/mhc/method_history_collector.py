@@ -348,6 +348,7 @@ class MethodHistoryCollector:
         merge_interval_seconds: int | None = None,
         max_workers: int = 1,
         init_reset_interval_files: int = 2000,
+        artifact_config_path: str | None = None,
     ):
         try:
             if not merge_only:
@@ -375,6 +376,9 @@ class MethodHistoryCollector:
                 merge_interval_seconds,
                 max_workers,
                 init_reset_interval_files,
+                artifact_config_path or str(
+                    Path(self.workspace_directory) / "config" / "artifact-detection"
+                ),
             )
         finally:
             if not merge_only:

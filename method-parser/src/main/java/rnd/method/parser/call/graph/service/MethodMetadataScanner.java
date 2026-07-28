@@ -10,7 +10,8 @@ public interface MethodMetadataScanner {
             String repoRoot,
             String repoUrl,
             String commitHash,
-            boolean checkoutRepository);
+            boolean checkoutRepository,
+            String artifactConfigPath);
 
     List<MethodMetadata> scanMethodMetadata(String file);
 }

@@ -13,6 +13,8 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
+import rnd.method.parser.call.graph.artifact.ArtifactConfigLoader;
+import rnd.method.parser.call.graph.artifact.ArtifactDetectionConfig;
 import rnd.method.parser.call.graph.model.MethodMetadata;
 import rnd.method.parser.call.graph.util.JavaParserContext;
 import rnd.method.parser.call.graph.util.MethodParserUtil;
@@ -35,6 +37,7 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
     private String commitHash;
     private String repositoryName;
     private JavaParser parserWithSymbolResolver;
+    private Set<String> configuredMethodAnnotationFqns;
 
     private MethodMetadataScannerImpl() {
     }
@@ -49,7 +52,8 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
             String repoRoot,
             String repoUrl,
             String commitHash,
-            boolean checkoutRepository) {
+            boolean checkoutRepository,
+            String artifactConfigPath) {
         if (parserWithSymbolResolver != null) {
             throw new IllegalStateException("MethodMetadataScannerImpl.init must be called exactly once");
         }
@@ -66,6 +70,13 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
         this.commitHash = commitHash;
         this.repositoryName = projectName.trim();
         this.parserWithSymbolResolver = parserContext.parser();
+        ArtifactDetectionConfig config = ArtifactConfigLoader.load(
+                artifactConfigPath == null || artifactConfigPath.isBlank()
+                        ? null
+                        : Path.of(artifactConfigPath));
+        ArtifactDetectionConfig.RuleSet rules = config.rulesForProject(this.repositoryName);
+        this.configuredMethodAnnotationFqns = new LinkedHashSet<>(rules.testMethodAnnotations);
+        this.configuredMethodAnnotationFqns.addAll(rules.fixtureMethodAnnotations);
     }
 
     @Override
@@ -274,7 +285,7 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
         return source.startsWith("@") ? source.substring(1) : source;
     }
 
-    private static String resolveAnnotationFqn(
+    private String resolveAnnotationFqn(
             AnnotationExpr annotation,
             CompilationUnit compilationUnit) {
         try {
@@ -293,6 +304,24 @@ public class MethodMetadataScannerImpl implements MethodMetadataScanner {
             if (!importedName.isEmpty()) {
                 return importedName;
             }
+
+            List<String> wildcardPackages = compilationUnit.getImports().stream()
+                    .filter(importDeclaration ->
+                            importDeclaration.isAsterisk() && !importDeclaration.isStatic())
+                    .map(importDeclaration -> importDeclaration.getNameAsString())
+                    .toList();
+            List<String> knownWildcardMatches = configuredMethodAnnotationFqns.stream()
+                    .filter(name -> name.endsWith("." + simpleName))
+                    .filter(name -> wildcardPackages.stream()
+                            .anyMatch(packageName -> name.equals(packageName + "." + simpleName)))
+                    .toList();
+            if (knownWildcardMatches.size() == 1) {
+                return knownWildcardMatches.getFirst();
+            }
+            if (wildcardPackages.size() == 1) {
+                return wildcardPackages.getFirst() + "." + simpleName;
+            }
+
             log.debug(
                     "method-metadata annotation resolution failed annotation={} error={}",
                     simpleName,

@@ -543,6 +543,7 @@ def main(argv: list[str] | None = None):
             args.merge_interval_seconds,
             args.max_workers,
             args.init_reset_interval_files,
+            args.artifact_config_path,
         )
     elif command == "index":
         mhc.update_repository_index()

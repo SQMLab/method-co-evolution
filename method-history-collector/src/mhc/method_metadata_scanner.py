@@ -230,6 +230,7 @@ def _build_metadata_scanner(
     repository_root: str,
     repository_url: str,
     commit_hash: str,
+    artifact_config_path: str | None,
 ):
     started_at = time.monotonic()
     scanner = MethodMetadataScannerImpl.getInstance()
@@ -239,6 +240,7 @@ def _build_metadata_scanner(
         repository_url,
         commit_hash,
         False,
+        artifact_config_path,
     )
     _log_slow_operation(
         "method-metadata scanner-init finish thread=%s repository_root=%s commit=%s",
@@ -285,6 +287,7 @@ def _scan_metadata_file_task(
     commit_hash: str,
     file: str,
     init_reset_interval_files: int,
+    artifact_config_path: str | None,
 ) -> list[dict]:
     needs_reset = (
         init_reset_interval_files > 0
@@ -301,6 +304,7 @@ def _scan_metadata_file_task(
             repository_root,
             repository_url,
             commit_hash,
+            artifact_config_path,
         )
         thread_local.scanner_file_count = 0
     thread_local.scanner_file_count += 1
@@ -342,6 +346,7 @@ def scan_method_metadata(
     merge_interval_seconds: int | None = None,
     max_workers: int = 1,
     init_reset_interval_files: int = 2000,
+    artifact_config_path: str | None = None,
 ) -> list[str]:
     if merge_interval_seconds is None:
         merge_interval_seconds = METHOD_METADATA_FLUSH_INTERVAL_SECONDS
@@ -478,6 +483,7 @@ def scan_method_metadata(
                     commit_hash,
                     file,
                     init_reset_interval_files,
+                    artifact_config_path,
                 )
             except Exception as error:
                 logging.warning(
