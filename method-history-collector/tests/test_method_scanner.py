@@ -340,8 +340,8 @@ class MethodScannerCacheTestCase(unittest.TestCase):
 
             self.assertEqual("abc123", current_commit)
             self.assertEqual(2, len(clone_calls))
-            repo.git.fetch.assert_called_once_with("origin", "abc123", "--depth", "1")
-            repo.git.checkout.assert_called_once_with("abc123")
+            repo.git.fetch.assert_called_once_with("origin", "abc123")
+            repo.git.checkout.assert_called_once_with("abc123", force=True)
             mock_time.sleep.assert_called_once()
 
     def test_scan_method_uses_method_cache_file_on_resume(self):

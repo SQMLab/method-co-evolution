@@ -50,12 +50,8 @@ def clone_and_checkout_commit(repo_url, repository_directory, commit_hash):
 
         # 2. Force checkout to bypass dirty state or index issues
         print(f"Checking out commit {commit_hash}...")
-        try:
-            repo.git.fetch("origin", commit_hash, "--depth", "1")
-        except GitCommandError:
-            repo.remotes.origin.fetch()
-        repo.git.checkout(commit_hash)
-        # repo.git.checkout(commit_hash, force=True)
+        repo.git.fetch("origin", commit_hash)
+        repo.git.checkout(commit_hash, force=True)
 
         # Verify checkout success
         current_commit = repo.head.object.hexsha
