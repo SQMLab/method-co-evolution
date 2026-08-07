@@ -329,7 +329,7 @@ class MethodScannerCacheTestCase(unittest.TestCase):
                     raise GitCommandError("clone", 128, stderr="early EOF")
                 return repo
 
-            with patch.object(ms.Repo, "clone_from", side_effect=clone_side_effect), patch.object(
+            with patch.object(ms.Repo, "clone_from", side_effect=clone_side_effect) as mock_clone, patch.object(
                 ms, "time"
             ) as mock_time:
                 current_commit = ms.clone_and_checkout_commit(
@@ -340,6 +340,10 @@ class MethodScannerCacheTestCase(unittest.TestCase):
 
             self.assertEqual("abc123", current_commit)
             self.assertEqual(2, len(clone_calls))
+            mock_clone.assert_called_with(
+                "https://github.com/example/demo-project",
+                str(repository_directory),
+            )
             repo.git.fetch.assert_called_once_with("origin", "abc123")
             repo.git.checkout.assert_called_once_with("abc123", force=True)
             mock_time.sleep.assert_called_once()

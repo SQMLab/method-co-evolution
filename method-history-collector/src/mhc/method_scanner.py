@@ -1466,11 +1466,7 @@ def clone_and_checkout_commit(repo_url, repository_directory, commit_hash):
                         raise Exception(f"Error: The repository at {repository_directory} is corrupted or incomplete.")
                 else:
                     print(f"Cloning repository {repo_url} into {repository_directory} (attempt {attempt}/{clone_attempts})...")
-                    repo = Repo.clone_from(
-                        repo_url,
-                        repository_directory,
-                        multi_options=["--filter=blob:none", "--no-tags"],
-                    )
+                    repo = Repo.clone_from(repo_url, repository_directory)
                 break
             except GitCommandError as error:
                 last_error = error
