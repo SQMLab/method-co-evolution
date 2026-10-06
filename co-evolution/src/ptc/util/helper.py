@@ -237,6 +237,22 @@ def method_line_count(row: pd.Series | dict) -> int:
     return len(str(row.get("code", "") or "").splitlines())
 
 
+def initial_method_line_count(history_json: dict) -> int | None:
+    change_details = history_json.get("changeHistoryDetails", {})
+    if not isinstance(change_details, dict):
+        return None
+
+    for detail in change_details.values():
+        if not isinstance(detail, dict) or detail.get("type") != MethodChangeType.INTRODUCTION.value:
+            continue
+        actual_source = detail.get("actualSource")
+        if not isinstance(actual_source, str) or not actual_source:
+            return None
+        return method_line_count({"code": actual_source})
+
+    return None
+
+
 def method_parameter_count(code: str, method_name: str) -> int | None:
     match = re.search(rf"\b{re.escape(method_name)}\s*\((?P<parameters>[^)]*)\)", code, flags=re.S)
     if match is None:

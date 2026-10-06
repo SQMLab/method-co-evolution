@@ -28,6 +28,7 @@ from ptc.generator.t2p_test_smell_prevalence import (
     ALL_LOC_GROUP,
     load_smell_frames,
     loc_group_frame,
+    strategy_output_file_name,
     unique_method_frame,
 )
 from ptc.generator.t2p_test_smell_revision import (
@@ -42,7 +43,8 @@ from ptc.generator.t2p_test_smell_revision import (
 )
 from ptc.plot.t2p_test_smell_boxplot import unique_smell_count
 
-OUTPUT_FILE = "t2p-test-smell-count-mww.csv"
+OUTPUT_FILE_PREFIX = "t2p-test-smell-count-mww"
+OUTPUT_FILE = f"{OUTPUT_FILE_PREFIX}.csv"
 DEFAULT_REVISION_GROUP_PAIRS = [
     (REVISION_GROUP_3, REVISION_GROUP_1),
     (REVISION_GROUP_3, REVISION_GROUP_2),
@@ -269,11 +271,6 @@ def main(argv: list[str] | None = None) -> None:
         getattr(args, "workspace_directory", None),
         args.experiment_name,
     ).experiment_directory
-    output_file = experiment_directory / "aggregate" / OUTPUT_FILE
-    if not should_generate(output_file, replace=args.replace, label=OUTPUT_FILE, stats=stats):
-        stats.print_summary()
-        return
-
     selected_tools, selected_projects, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
         projects=args.projects,
@@ -301,6 +298,12 @@ def main(argv: list[str] | None = None) -> None:
         selected_strategies,
         item_label="strategy",
     )
+    output_name = strategy_output_file_name(OUTPUT_FILE_PREFIX, strategies)
+    output_file = experiment_directory / "aggregate" / output_name
+    if not should_generate(output_file, replace=args.replace, label=output_name, stats=stats):
+        stats.print_summary()
+        return
+
     for strategy in strategies:
         strategy_dir = generated_dir / strategy
         loc_groups = loc_group_frame(

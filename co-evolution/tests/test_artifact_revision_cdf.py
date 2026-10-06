@@ -45,12 +45,58 @@ from ptc.generator.filter_artifact import main as filter_artifact_main
 from ptc.util.helper import (
     filter_revision_method_base_population,
     filter_revision_method_population,
+    initial_method_line_count,
     join_method_code,
     load_method_code_df,
 )
 
 
 class TestArtifactRevisionCdf(unittest.TestCase):
+    def test_initial_method_line_count_uses_introduction_source(self):
+        history = {
+            "changeHistoryDetails": {
+                "newer": {
+                    "type": "Ybodychange",
+                    "actualSource": "void example() {\n  changed();\n}",
+                },
+                "initial": {
+                    "type": "Yintroduced",
+                    "actualSource": "void example() {\n\n  original();\n}",
+                },
+            }
+        }
+
+        self.assertEqual(4, initial_method_line_count(history))
+
+    def test_initial_method_line_count_requires_exact_introduction_with_source(self):
+        histories = [
+            {},
+            {"changeHistoryDetails": []},
+            {"changeHistoryDetails": {"initial": {"type": "Yintroduced"}}},
+            {"changeHistoryDetails": {"initial": {"type": "Yintroduced", "actualSource": ""}}},
+            {
+                "changeHistoryDetails": {
+                    "initial": {
+                        "type": "Yintroduced,Ybodychange",
+                        "actualSource": "void example() {}",
+                    }
+                }
+            },
+        ]
+
+        for history in histories:
+            with self.subTest(history=history):
+                self.assertIsNone(initial_method_line_count(history))
+
+    def test_artifact_revision_loc_init_is_last_column(self):
+        frame = pd.DataFrame(
+            [{"url": "method", "loc_init": 3, "ch_diff": 1, "project": "demo"}]
+        )
+
+        ordered = artifact_revision_generator.order_change_columns(frame)
+
+        self.assertEqual(["url", "project", "ch_diff", "loc_init"], ordered.columns.tolist())
+
     def test_raw_artifact_revision_generator_does_not_load_method_code(self):
         self.assertFalse(hasattr(artifact_revision_generator, "load_method_code_df"))
         self.assertFalse(hasattr(artifact_revision_generator, "method_code_file"))

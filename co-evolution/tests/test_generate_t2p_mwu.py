@@ -48,7 +48,7 @@ class TestGenerateT2PMwu(unittest.TestCase):
                         "tarantula",
                     ])
 
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-mwu.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-correlation--tarantula.csv")
 
             self.assertTrue(output_df.empty)
             warning_messages = [str(warning.message) for warning in caught_warnings]
@@ -83,7 +83,7 @@ class TestGenerateT2PMwu(unittest.TestCase):
                     "tarantula",
                 ])
 
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-mwu.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-correlation--tarantula.csv")
             project_df = output_df[output_df["project"] == "threshold"]
 
             self.assertEqual(1, len(project_df))
@@ -107,7 +107,7 @@ class TestGenerateT2PMwu(unittest.TestCase):
                     "29",
                 ])
 
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-mwu.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-correlation--tarantula.csv")
 
             self.assertIn("small", set(output_df["project"]))
             self.assertEqual([29], output_df.loc[output_df["project"] == "small", "size"].tolist())
@@ -127,7 +127,7 @@ class TestGenerateT2PMwu(unittest.TestCase):
                     "tarantula",
                 ])
 
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-mwu.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-correlation--tarantula.csv")
 
             self.assertIn("small", set(output_df["project"]))
 
@@ -150,7 +150,7 @@ class TestGenerateT2PMwu(unittest.TestCase):
                         "30",
                     ])
 
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-mwu.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-correlation--tarantula.csv")
 
             self.assertTrue(output_df.empty)
             self.assertTrue(
@@ -181,7 +181,7 @@ class TestGenerateT2PMwu(unittest.TestCase):
                         "tarantula",
                     ])
 
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-mwu.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-correlation--tarantula.csv")
 
             self.assertNotIn("small", set(output_df["project"]))
             self.assertIn("large", set(output_df["project"]))

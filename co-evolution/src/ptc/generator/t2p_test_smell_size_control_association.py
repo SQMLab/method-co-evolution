@@ -23,7 +23,7 @@ from ptc.generator.run_stats import GenerationStats, should_generate
 from ptc.generator.t2p_test_smell_association import (
     ALPHA,
     DEFAULT_CHANGE,
-    OUTPUT_FILE_NAME as ASSOCIATION_OUTPUT_FILE_NAME,
+    OUTPUT_FILE_PREFIX as ASSOCIATION_OUTPUT_FILE_PREFIX,
     benjamini_hochberg,
     comparison_unique_method_frame,
     difference_interval,
@@ -36,6 +36,7 @@ from ptc.generator.t2p_test_smell_prevalence import (
     load_generated_frames,
     load_smell_frames,
     split_smells,
+    strategy_output_file_name,
 )
 from ptc.generator.t2p_test_smell_revision import (
     CHANGE_COLUMNS,
@@ -46,7 +47,8 @@ from ptc.generator.t2p_test_smell_revision import (
     normalize_revision_group,
 )
 
-OUTPUT_FILE_NAME = "t2p-test-smell-size-control-association.csv"
+OUTPUT_FILE_PREFIX = "t2p-test-smell-size-control-association"
+OUTPUT_FILE_NAME = f"{OUTPUT_FILE_PREFIX}.csv"
 DEFAULT_REVISION_GROUP_PAIRS = f"{REVISION_GROUP_3},{REVISION_GROUP_1};{REVISION_GROUP_2},{REVISION_GROUP_1}"
 COMBINED_TOP_SMELLS = "TOP5"
 COMBINED_ROBUST_SMELLS = "ROBUST"
@@ -471,11 +473,6 @@ def main(argv: list[str] | None = None) -> None:
         getattr(args, "workspace_directory", None),
         args.experiment_name,
     ).experiment_directory
-    output_file = experiment_directory / "aggregate" / OUTPUT_FILE_NAME
-    if not should_generate(output_file, replace=args.replace, label=OUTPUT_FILE_NAME, stats=stats):
-        stats.print_summary()
-        return
-
     selected_tools, selected_projects, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
         projects=args.projects,
@@ -489,16 +486,6 @@ def main(argv: list[str] | None = None) -> None:
         include_extra=False,
     )
     revision_group_pairs = selected_revision_group_pairs(args.revision_group_pairs)
-    association_file = experiment_directory / "aggregate" / ASSOCIATION_OUTPUT_FILE_NAME
-    if not association_file.exists():
-        warnings.warn(
-            f"File not found, skipping: {association_file}. "
-            "Run ptc.generator.t2p_test_smell_association first."
-        )
-        stats.skipped_missing_input += 1
-        stats.print_summary()
-        return
-    association_frame = pd.read_csv(association_file, keep_default_na=False)
     generated_dir = experiment_directory / OUTPUT_DIRECTORY_NAME
     if not generated_dir.exists():
         warnings.warn(f"Directory not found, skipping: {generated_dir}")
@@ -513,6 +500,23 @@ def main(argv: list[str] | None = None) -> None:
         item_label="strategy",
         strict=False,
     )
+    association_name = strategy_output_file_name(ASSOCIATION_OUTPUT_FILE_PREFIX, strategies)
+    association_file = experiment_directory / "aggregate" / association_name
+    if not association_file.exists():
+        warnings.warn(
+            f"File not found, skipping: {association_file}. "
+            "Run ptc.generator.t2p_test_smell_association first."
+        )
+        stats.skipped_missing_input += 1
+        stats.print_summary()
+        return
+    association_frame = pd.read_csv(association_file, keep_default_na=False)
+    output_name = strategy_output_file_name(OUTPUT_FILE_PREFIX, strategies)
+    output_file = experiment_directory / "aggregate" / output_name
+    if not should_generate(output_file, replace=args.replace, label=output_name, stats=stats):
+        stats.print_summary()
+        return
+
     for strategy in strategies:
         control_groups = fixed_control_group_frame(
             load_smell_frames(experiment_directory, smell_detector, strategy, selected_projects)

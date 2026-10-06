@@ -11,6 +11,8 @@ import pandas as pd
 
 import mhc.util as util
 from ptc.constants import ALL_REPOSITORY
+from ptc.generator.t2p_correlation import OUTPUT_FILE_PREFIX as CORRELATION_OUTPUT_FILE_PREFIX
+from ptc.generator.t2p_test_smell_prevalence import strategy_output_file_name
 from ptc.plot_util import (
     GRAPH_GAPS,
     GRAPH_MARKER_SIZES,
@@ -165,12 +167,17 @@ def main(argv: list[str] | None = None) -> None:
         experiment_directory,
         args.output_directory,
     )
-    stats_file = experiment_directory / "aggregate" / "t2p-correlation.csv"
     selected_tools, selected_projects, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
         projects=args.projects,
         strategies=args.strategies,
     )
+    stats_name = (
+        strategy_output_file_name(CORRELATION_OUTPUT_FILE_PREFIX, selected_strategies)
+        if selected_strategies is not None
+        else f"{CORRELATION_OUTPUT_FILE_PREFIX}.csv"
+    )
+    stats_file = experiment_directory / "aggregate" / stats_name
 
     if not os.path.exists(stats_file):
         print(f"Stats file not found: {stats_file}")
@@ -332,7 +339,8 @@ def main(argv: list[str] | None = None) -> None:
                 size_ax.legend(fontsize=10)
 
         fig.tight_layout()
-        fig_file = output_directory / f"t2p-correlation-cdf--{tool}.pdf"
+        strategy_suffix = "--".join(strategies)
+        fig_file = output_directory / f"t2p-correlation-cdf--{tool}--{strategy_suffix}.pdf"
         os.makedirs(os.path.dirname(fig_file), exist_ok=True)
         fig.savefig(fig_file, bbox_inches="tight")
         plt.close(fig)

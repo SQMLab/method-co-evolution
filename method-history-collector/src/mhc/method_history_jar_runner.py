@@ -221,5 +221,6 @@ def execute_cmd_method_history_jar(tool_name: str,
             os.replace(tmp_output_file, output_file)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"Execution failed: {tool_name} {file} {e}")
+        finally:
             if os.path.exists(tmp_output_file):
                 os.remove(tmp_output_file)

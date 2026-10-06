@@ -20,7 +20,10 @@ from mhc.command_util import (
     select_named_items,
 )
 from ptc.plot_util import man_utest
-from ptc.generator.run_stats import GenerationStats, should_generate, unlink_stale_output
+from ptc.generator.run_stats import GenerationStats, should_generate
+from ptc.generator.t2p_test_smell_prevalence import strategy_output_file_name
+
+OUTPUT_FILE_PREFIX = "t2p-correlation"
 
 STAT_COLUMNS = [
     "project",
@@ -100,8 +103,6 @@ def main(argv: list[str] | None = None) -> None:
         getattr(args, "workspace_directory", None),
         args.experiment_name,
     ).experiment_directory
-    stats_output_file = experiment_directory / "aggregate" / "t2p-correlation.csv"
-
     selected_tools, selected_projects, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
         projects=args.projects,
@@ -110,33 +111,47 @@ def main(argv: list[str] | None = None) -> None:
     min_t2p_links = args.min_t2p_links
     t2p_change_dir = experiment_directory / "t2p-change"
     if not t2p_change_dir.exists():
-        unlink_stale_output(
-            stats_output_file,
-            reason=f"Directory not found, skipping: {t2p_change_dir}",
-            stats=stats,
-        )
+        warnings.warn(f"Directory not found, skipping: {t2p_change_dir}")
+        stats.skipped_missing_input += 1
         stats.print_summary()
         return
-    if not should_generate(stats_output_file, replace=args.replace, label="t2p-correlation", stats=stats):
-        stats.print_summary()
-        return
-    stats_rows = []
     tools = select_named_items(
         util.sorted_directory_names(t2p_change_dir),
         selected_tools,
         item_label="tool",
     )
+    available_strategies = sorted(
+        {
+            strategy
+            for tool in tools
+            for strategy in util.sorted_directory_names(t2p_change_dir / tool)
+        },
+        key=str.lower,
+    )
+    strategies = select_named_items(
+        available_strategies,
+        selected_strategies,
+        item_label="strategy",
+    )
+    output_name = strategy_output_file_name(OUTPUT_FILE_PREFIX, strategies)
+    stats_output_file = experiment_directory / "aggregate" / output_name
+    if not should_generate(stats_output_file, replace=args.replace, label=output_name, stats=stats):
+        stats.print_summary()
+        return
+
+    stats_rows = []
     for tool in tools:
         tool_dir = t2p_change_dir / tool
         if not tool_dir.exists():
             warnings.warn(f"Tool directory not found, skipping: {tool_dir}")
             continue
-        strategies = select_named_items(
+        tool_strategies = select_named_items(
             util.sorted_directory_names(tool_dir),
-            selected_strategies,
+            strategies,
             item_label="strategy",
+            strict=False,
         )
-        for strategy in strategies:
+        for strategy in tool_strategies:
             csv_files = list_csv_files(
                 t2p_change_dir / tool / strategy,
                 selected_projects,

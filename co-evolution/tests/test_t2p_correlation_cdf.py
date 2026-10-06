@@ -63,7 +63,7 @@ class TestT2PCorrelationCdf(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             experiment_dir = root / "workspace" / "experiment" / "demo"
-            aggregate_file = experiment_dir / "aggregate" / "t2p-correlation.csv"
+            aggregate_file = experiment_dir / "aggregate" / "t2p-correlation--omc--nc.csv"
             aggregate_file.parent.mkdir(parents=True)
             pd.DataFrame(
                 [
@@ -143,6 +143,49 @@ class TestT2PCorrelationCdf(unittest.TestCase):
 
     def test_paper_figure_size_is_aligned_with_rq3_plots(self):
         self.assertEqual((5.8, 4.2), PAPER_FIGURE_SIZE)
+
+    def test_main_writes_standard_plot_with_strategy_in_filename(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            experiment_dir = root / "workspace" / "experiment" / "demo"
+            aggregate_file = experiment_dir / "aggregate" / "t2p-correlation--tarantula.csv"
+            aggregate_file.parent.mkdir(parents=True)
+            pd.DataFrame(
+                [
+                    {
+                        "project": "project-a",
+                        "tool": "historyFinder",
+                        "strategy": "tarantula",
+                        "size": 3,
+                        "change": "diff",
+                        "corr": 0.5,
+                        "corr_p": 0.2,
+                        "mwu_p": 0.3,
+                        "mwu_size": "small",
+                    }
+                ]
+            ).to_csv(aggregate_file, index=False)
+
+            main(
+                [
+                    "--project-directory",
+                    str(root),
+                    "--workspace-directory",
+                    str(root / "workspace"),
+                    "--experiment-name",
+                    "demo",
+                    "--tools",
+                    "historyFinder",
+                    "--strategies",
+                    "tarantula",
+                ]
+            )
+
+            output_directory = experiment_dir / "figure"
+            self.assertTrue(
+                (output_directory / "t2p-correlation-cdf--historyFinder--tarantula.pdf").exists()
+            )
+            self.assertFalse((output_directory / "t2p-correlation-cdf--historyFinder.pdf").exists())
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ if str(SRC_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SRC_DIRECTORY))
 
 from mhc.method_history_jar_runner import (
+    execute_cmd_method_history_jar,
     execute_method_history_if_missing,
     update_repository_index,
 )
@@ -33,6 +34,30 @@ def _write_tar_gz(tar_path: Path, members: dict[str, str] | list[tuple[str, str]
 
 
 class TestIndexOutput(unittest.TestCase):
+    def test_method_history_removes_temp_file_when_java_is_missing(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_file = Path(temp_dir) / "src" / "Foo--a--1.json"
+
+            with patch(
+                "mhc.method_history_jar_runner.subprocess.run",
+                side_effect=FileNotFoundError("java"),
+            ):
+                with self.assertRaises(FileNotFoundError):
+                    execute_cmd_method_history_jar(
+                        "historyFinder",
+                        "historyFinder.jar",
+                        str(Path(temp_dir) / "repository" / "checkstyle"),
+                        "https://example.com/checkstyle",
+                        "abc123",
+                        "src/Foo.java",
+                        "a",
+                        1,
+                        str(output_file),
+                    )
+
+            self.assertFalse(output_file.exists())
+            self.assertEqual([], list(output_file.parent.glob("*.tmp")))
+
     def test_file_lock_falls_back_when_fcntl_locks_are_unavailable(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             lock_path = Path(temp_dir) / "cache.lock"

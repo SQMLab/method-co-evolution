@@ -26,6 +26,7 @@ from ptc.generator.t2p_test_smell_prevalence import (
     load_generated_frames,
     smell_type_order,
     split_smells,
+    strategy_output_file_name,
     unique_method_frame,
 )
 from ptc.generator.t2p_test_smell_revision import (
@@ -36,7 +37,8 @@ from ptc.generator.t2p_test_smell_revision import (
     normalize_revision_group,
 )
 
-OUTPUT_FILE_NAME = "t2p-test-smell-association.csv"
+OUTPUT_FILE_PREFIX = "t2p-test-smell-association"
+OUTPUT_FILE_NAME = f"{OUTPUT_FILE_PREFIX}.csv"
 DEFAULT_CHANGE = "ch_diff"
 ALPHA = 0.05
 REVISION_GROUP_MTR = "MTR"
@@ -444,7 +446,8 @@ def main(argv: list[str] | None = None) -> None:
                         )
                     )
 
-    output_file = experiment_directory / "aggregate" / OUTPUT_FILE_NAME
+    output_name = strategy_output_file_name(OUTPUT_FILE_PREFIX, strategies)
+    output_file = experiment_directory / "aggregate" / output_name
     os.makedirs(output_file.parent, exist_ok=True)
     output_df = pd.DataFrame(rows, columns=OUTPUT_COLUMNS)
     if not output_df.empty:

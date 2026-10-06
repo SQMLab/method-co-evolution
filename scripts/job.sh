@@ -473,6 +473,11 @@ fi
 cd "$PROJECT_DIRECTORY"
 source "$PROJECT_DIRECTORY/.venv/bin/activate"
 
+# Ensure nested srun steps inherit the activated virtual environment and
+# module-provided executables such as Java, even when the job was submitted
+# with a restrictive --export setting.
+export SLURM_EXPORT_ENV=ALL
+
 # Prefer the explicit --java-options value over cluster/module-injected JVM flags.
 if [[ -n "$JAVA_OPTIONS" ]]; then
     unset JAVA_TOOL_OPTIONS _JAVA_OPTIONS
@@ -518,7 +523,7 @@ if [[ "$COMMAND_NAME" == "llm-m2m-link" ]]; then
         usage
         exit 1
     fi
-    srun ptc-llm llm-m2m-link \
+    srun --export=ALL ptc-llm llm-m2m-link \
         --workspace-directory "$WORKSPACE_DIRECTORY" \
         --experiment-name "$EXPERIMENT_NAME" \
         --stage "$STAGE" \
@@ -551,7 +556,7 @@ elif [[ "$COMMAND_NAME" == "testlinker" ]]; then
     elif [[ -n "$PROJECT_INDEX" ]]; then
         TESTLINKER_ARGS+=(--project-index "$PROJECT_INDEX")
     fi
-    srun ptc-testlinker "${TESTLINKER_ARGS[@]}"
+    srun --export=ALL ptc-testlinker "${TESTLINKER_ARGS[@]}"
     echo "Task finished on $(hostname) at $(date) for TestLinker stage $STAGE, project $PROJECT, and top-k $TOP_K"
 else
     MHC_ARGS=(
@@ -621,11 +626,14 @@ else
         MHC_ARGS+=(--project-index "$PROJECT_INDEX")
     fi
 
+    MHC_EXECUTABLE="$(command -v mhc)"
+    echo "Resolved MHC executable: $MHC_EXECUTABLE"
+    echo "Resolved Java executable: $(command -v java || printf '<missing>')"
     echo "Resolved Java options: ${JAVA_OPTIONS:-unset}"
     echo "========================================"
     echo "Running MHC command:"
     echo "mhc" "${MHC_ARGS[@]}"
     echo "========================================"
-    srun mhc "${MHC_ARGS[@]}"
+    srun --export=ALL "$MHC_EXECUTABLE" "${MHC_ARGS[@]}"
     echo "Task finished on $(hostname) at $(date) for tool name $TOOL_NAME, project selection ${PROJECT:-$PROJECTS_CSV$PROJECT_INDEX}, shard $SHARD/$SHARDS"
 fi

@@ -24,7 +24,9 @@ from mhc.command_util import (
 from ptc.generator.t2p_test_smell_size_control_association import (
     COMBINED_ROBUST_SMELLS,
     OUTPUT_FILE_NAME,
+    OUTPUT_FILE_PREFIX as SIZE_CONTROL_OUTPUT_FILE_PREFIX,
 )
+from ptc.generator.t2p_test_smell_prevalence import strategy_output_file_name
 from ptc.generator.t2p_test_smell_revision import CHANGE_COLUMNS
 from ptc.plot.method_history_runtime_table import resolve_path
 from ptc.plot.t2p_test_smell_size_control_effectplot import (
@@ -308,15 +310,20 @@ def main(argv: list[str] | None = None) -> None:
         if args.output_directory is not None
         else experiment_directory / "figure"
     )
-    input_file = experiment_directory / "aggregate" / OUTPUT_FILE_NAME
-    if not input_file.exists():
-        warnings.warn(f"File not found, skipping: {input_file}")
-        return
-
     selected_tools, _, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
         strategies=args.strategies,
     )
+    input_name = (
+        strategy_output_file_name(SIZE_CONTROL_OUTPUT_FILE_PREFIX, selected_strategies)
+        if selected_strategies is not None
+        else OUTPUT_FILE_NAME
+    )
+    input_file = experiment_directory / "aggregate" / input_name
+    if not input_file.exists():
+        warnings.warn(f"File not found, skipping: {input_file}")
+        return
+
     smell_detector = resolve_smell_detector(args.smell_detector)
     revision_types = select_revision_columns(
         CHANGE_COLUMNS,

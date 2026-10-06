@@ -7,6 +7,7 @@ import cliffs_delta
 import pandas as pd
 from scipy.stats import wilcoxon
 
+import mhc.util as util
 from mhc.command_util import (
     build_experiment_parser,
     parse_name_list,
@@ -14,20 +15,27 @@ from mhc.command_util import (
     resolve_experiment_paths,
     resolve_revision_types,
     resolve_smell_detector,
+    select_named_items,
     select_revision_columns,
 )
 from ptc.generator.artifact_revision_mww import SIZE_MARKER_COLUMNS
 from ptc.generator.run_stats import GenerationStats, record_written_csv, should_generate
-from ptc.generator.t2p_test_smell_prevalence import OUTPUT_FILE_NAME, PSEUDO_SMELLS
+from ptc.generator.t2p_test_smell_prevalence import (
+    OUTPUT_FILE_PREFIX as PREVALENCE_OUTPUT_FILE_PREFIX,
+    PSEUDO_SMELLS,
+    strategy_output_file_name,
+)
 from ptc.generator.t2p_test_smell_revision import (
     CHANGE_COLUMNS,
+    OUTPUT_DIRECTORY_NAME,
     REVISION_GROUP_1,
     REVISION_GROUP_3,
     REVISION_GROUP_ORDER,
     normalize_revision_group,
 )
 
-OUTPUT_FILE = "t2p-test-smell-prevalence-wilcoxon-srt.csv"
+OUTPUT_FILE_PREFIX = "t2p-test-smell-prevalence-wilcoxon-srt"
+OUTPUT_FILE = f"{OUTPUT_FILE_PREFIX}.csv"
 DEFAULT_REVISION_GROUPS = [REVISION_GROUP_3, REVISION_GROUP_1]
 STAT_COLUMNS = [
     "groups",
@@ -177,21 +185,38 @@ def main(argv: list[str] | None = None) -> None:
         getattr(args, "workspace_directory", None),
         args.experiment_name,
     ).experiment_directory
-    input_file = experiment_directory / "aggregate" / OUTPUT_FILE_NAME
-    output_file = experiment_directory / "aggregate" / OUTPUT_FILE
+    selected_tools, _, selected_strategies = resolve_experiment_filters(
+        tools=args.tools,
+        strategies=args.strategies,
+    )
+    if selected_strategies is not None:
+        strategies = selected_strategies
+    else:
+        generated_dir = experiment_directory / OUTPUT_DIRECTORY_NAME
+        if not generated_dir.exists():
+            warnings.warn(f"Directory not found, skipping: {generated_dir}")
+            stats.skipped_missing_input += 1
+            stats.print_summary()
+            return
+        strategies = select_named_items(
+            util.sorted_directory_names(generated_dir),
+            selected_strategies,
+            item_label="strategy",
+            strict=False,
+        )
+    input_name = strategy_output_file_name(PREVALENCE_OUTPUT_FILE_PREFIX, strategies)
+    output_name = strategy_output_file_name(OUTPUT_FILE_PREFIX, strategies)
+    input_file = experiment_directory / "aggregate" / input_name
+    output_file = experiment_directory / "aggregate" / output_name
     if not input_file.exists():
         warnings.warn(f"File not found, skipping: {input_file}")
         stats.skipped_missing_input += 1
         stats.print_summary()
         return
-    if not should_generate(output_file, replace=args.replace, label=OUTPUT_FILE, stats=stats):
+    if not should_generate(output_file, replace=args.replace, label=output_name, stats=stats):
         stats.print_summary()
         return
 
-    selected_tools, _, selected_strategies = resolve_experiment_filters(
-        tools=args.tools,
-        strategies=args.strategies,
-    )
     selected_changes = select_revision_columns(
         CHANGE_COLUMNS,
         resolve_revision_types(args.revision_types),

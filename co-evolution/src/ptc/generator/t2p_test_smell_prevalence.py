@@ -28,14 +28,15 @@ from ptc.generator.t2p_test_smell_revision import (
     output_directory,
 )
 from ptc.generator.t2p_test_smell_loc_group import loc_group, percentile_thresholds, valid_loc
-from ptc.generator.run_stats import GenerationStats, should_generate, unlink_stale_output
+from ptc.generator.run_stats import GenerationStats, should_generate
 
 ANY_SMELL = "any"
 NO_SMELL = "none"
 PSEUDO_SMELLS = {ANY_SMELL, NO_SMELL, "all"}
 ALL_SMELLS = "all"
 ALL_LOC_GROUP = "ALL"
-OUTPUT_FILE_NAME = "t2p-test-smell-prevalence.csv"
+OUTPUT_FILE_PREFIX = "t2p-test-smell-prevalence"
+OUTPUT_FILE_NAME = f"{OUTPUT_FILE_PREFIX}.csv"
 PREVALENCE_COLUMNS = [
     "strategy",
     "tool",
@@ -68,6 +69,15 @@ def build_parser():
         help="Minimum generated linked test-production rows required before including a project. Defaults to ME_MIN_T2P_LINKS.",
     )
     return parser
+
+
+def output_file_name(strategies: list[str]) -> str:
+    return strategy_output_file_name(OUTPUT_FILE_PREFIX, strategies)
+
+
+def strategy_output_file_name(prefix: str, strategies: list[str]) -> str:
+    strategy_suffix = "--".join(strategies)
+    return f"{prefix}--{strategy_suffix}.csv"
 
 
 def split_smells(value: str) -> list[str]:
@@ -302,7 +312,6 @@ def main(argv: list[str] | None = None) -> None:
         getattr(args, "workspace_directory", None),
         args.experiment_name,
     ).experiment_directory
-    output_file = experiment_directory / "aggregate" / OUTPUT_FILE_NAME
     selected_tools, selected_projects, selected_strategies = resolve_experiment_filters(
         tools=args.tools,
         projects=args.projects,
@@ -318,24 +327,24 @@ def main(argv: list[str] | None = None) -> None:
 
     generated_dir = experiment_directory / OUTPUT_DIRECTORY_NAME
     if not generated_dir.exists():
-        unlink_stale_output(
-            output_file,
-            reason=f"Directory not found, skipping: {generated_dir}",
-            stats=stats,
-        )
-        stats.print_summary()
-        return
-    if not should_generate(output_file, replace=args.replace, label=OUTPUT_FILE_NAME, stats=stats):
+        warnings.warn(f"Directory not found, skipping: {generated_dir}")
+        stats.skipped_missing_input += 1
         stats.print_summary()
         return
 
-    rows = []
     strategies = select_named_items(
         util.sorted_directory_names(generated_dir),
         selected_strategies,
         item_label="strategy",
         strict=False,
     )
+    output_name = output_file_name(strategies)
+    output_file = experiment_directory / "aggregate" / output_name
+    if not should_generate(output_file, replace=args.replace, label=output_name, stats=stats):
+        stats.print_summary()
+        return
+
+    rows = []
     for strategy in strategies:
         strategy_dir = generated_dir / strategy
         tools = select_named_items(util.sorted_directory_names(strategy_dir), selected_tools, item_label="tool")

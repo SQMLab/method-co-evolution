@@ -636,7 +636,7 @@ class TestT2PTestSmell(unittest.TestCase):
                 )
 
             output_df = pd.read_csv(
-                experiment_dir / "aggregate" / "t2p-test-smell-prevalence.csv",
+                experiment_dir / "aggregate" / "t2p-test-smell-prevalence--nc.csv",
                 keep_default_na=False,
                 na_filter=False,
             )
@@ -1022,7 +1022,7 @@ class TestT2PTestSmell(unittest.TestCase):
                 ]
             )
 
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-association.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-association--nc.csv")
             self.assertEqual(
                 {("HTR", "NTR"), ("ATR", "NTR"), ("MTR", "NTR")},
                 set(zip(output_df["focal_group"], output_df["baseline_group"])),
@@ -1189,7 +1189,7 @@ class TestT2PTestSmell(unittest.TestCase):
                 ],
                 ignore_index=True,
             )
-            table_input.to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
+            table_input.to_csv(aggregate_dir / "t2p-test-smell-association--nc.csv", index=False)
             association_table_main(
                 [
                     "--workspace-directory",
@@ -1274,7 +1274,7 @@ class TestT2PTestSmell(unittest.TestCase):
             experiment_dir = self.create_experiment(tmpdir)
             aggregate_dir = experiment_dir / "aggregate"
             aggregate_dir.mkdir(parents=True, exist_ok=True)
-            frame.to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
+            frame.to_csv(aggregate_dir / "t2p-test-smell-association--nc.csv", index=False)
 
             def fake_compile(tex_file):
                 pdf_file = tex_file.with_suffix(".pdf")
@@ -1405,7 +1405,7 @@ class TestT2PTestSmell(unittest.TestCase):
             experiment_dir = self.create_experiment(tmpdir)
             aggregate_dir = experiment_dir / "aggregate"
             aggregate_dir.mkdir(parents=True, exist_ok=True)
-            frame.to_csv(aggregate_dir / "t2p-test-smell-association.csv", index=False)
+            frame.to_csv(aggregate_dir / "t2p-test-smell-association--nc.csv", index=False)
 
             association_table_main(
                 [
@@ -1842,7 +1842,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_1, "ET", 0, 4, 0),
                     self.prevalence_row("nc", "historyFinder", "jnose", "ch_diff", REVISION_GROUP_1, ALL_SMELLS, 25, 4, 1),
                 ]
-            ).to_csv(aggregate_dir / "t2p-test-smell-prevalence.csv", index=False)
+            ).to_csv(aggregate_dir / "t2p-test-smell-prevalence--nc.csv", index=False)
 
             wilcoxon_main(
                 [
@@ -1865,7 +1865,7 @@ class TestT2PTestSmell(unittest.TestCase):
             )
 
             output_df = pd.read_csv(
-                aggregate_dir / "t2p-test-smell-prevalence-wilcoxon-srt.csv",
+                aggregate_dir / "t2p-test-smell-prevalence-wilcoxon-srt--nc.csv",
                 keep_default_na=False,
             )
             self.assertEqual(["HTR,NTR"], output_df["groups"].tolist())
@@ -2018,7 +2018,7 @@ class TestT2PTestSmell(unittest.TestCase):
             )
 
             output_df = pd.read_csv(
-                experiment_dir / "aggregate" / "t2p-test-smell-count-mww.csv",
+                experiment_dir / "aggregate" / "t2p-test-smell-count-mww--nc.csv",
                 keep_default_na=False,
             )
             self.assertEqual(COUNT_MWW_COLUMNS, output_df.columns.tolist())
@@ -2580,7 +2580,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     self.association_output_row("EH", 4.4, REVISION_GROUP_MTR, REVISION_GROUP_1),
                     self.association_output_row("DA", 3.8, REVISION_GROUP_MTR, REVISION_GROUP_1),
                 ]
-            ).to_csv(experiment_dir / "aggregate" / "t2p-test-smell-association.csv", index=False)
+            ).to_csv(experiment_dir / "aggregate" / "t2p-test-smell-association--nc.csv", index=False)
 
             plot_args = [
                 "--workspace-directory",
@@ -2600,8 +2600,8 @@ class TestT2PTestSmell(unittest.TestCase):
             size_control_association_main([*generator_args, "--min-t2p-links", "0", "--replace"])
             size_control_effectplot_main(plot_args)
 
-            self.assertTrue((experiment_dir / "aggregate" / "t2p-test-smell-size-control-association.csv").exists())
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-size-control-association.csv")
+            self.assertTrue((experiment_dir / "aggregate" / "t2p-test-smell-size-control-association--nc.csv").exists())
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-size-control-association--nc.csv")
             self.assertEqual(21, len(output_df))
             self.assertEqual({"AR", "VT", "MNT", "CTL", "EH", "DA", COMBINED_ROBUST_SMELLS}, set(output_df["smell"]))
             self.assertIn("odds_ratio", output_df.columns)
@@ -2631,7 +2631,7 @@ class TestT2PTestSmell(unittest.TestCase):
                     "--replace",
                 ]
             )
-            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-size-control-association.csv")
+            output_df = pd.read_csv(experiment_dir / "aggregate" / "t2p-test-smell-size-control-association--nc.csv")
             self.assertEqual({(REVISION_GROUP_MTR, REVISION_GROUP_1)}, set(zip(output_df["focal_group"], output_df["baseline_group"])))
             self.assertEqual(21, len(output_df))
             self.assertEqual("--MTR-NTR", size_control_pair_suffix(REVISION_GROUP_MTR, REVISION_GROUP_1))

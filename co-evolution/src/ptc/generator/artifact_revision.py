@@ -15,7 +15,7 @@ from mhc.command_util import (
     select_revision_columns,
 )
 from ptc.constants import MethodChangeType
-from ptc.util.helper import extract_change_count
+from ptc.util.helper import extract_change_count, initial_method_line_count
 from ptc.generator.run_stats import GenerationStats, should_generate, unlink_stale_output
 
 CHANGE_COLUMNS = [
@@ -42,9 +42,13 @@ def move_tool_after_project(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def order_change_columns(df: pd.DataFrame) -> pd.DataFrame:
-    metadata_columns = [column for column in df.columns if not column.startswith("ch_")]
+    metadata_columns = [
+        column for column in df.columns
+        if not column.startswith("ch_") and column != "loc_init"
+    ]
     change_columns = select_revision_columns(df.columns, preferred_order=CHANGE_COLUMNS)
-    return df[metadata_columns + change_columns]
+    trailing_columns = ["loc_init"] if "loc_init" in df.columns else []
+    return df[metadata_columns + change_columns + trailing_columns]
 
 
 def build_parser():
@@ -169,7 +173,8 @@ def main(argv: list[str] | None = None) -> None:
                                 method_history = {
                                     "url": method_url,
                                     "tool": tool_name,
-                                    "method_file": base_file
+                                    "method_file": base_file,
+                                    "loc_init": initial_method_line_count(history_json),
                                 }
                                 method_history.update(change_history)
                                 method_history_list.append(method_history)
