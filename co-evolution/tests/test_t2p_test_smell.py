@@ -37,6 +37,7 @@ from ptc.generator.t2p_test_smell_size_control_association import (
     controlled_association_rows,
     fixed_control_group,
     fixed_control_group_frame,
+    load_initial_loc_frames,
     main as size_control_association_main,
     robust_significant_smells_from_association,
 )
@@ -2036,10 +2037,10 @@ class TestT2PTestSmell(unittest.TestCase):
             [
                 pd.DataFrame(
                     [
-                        {"url": "test://s", "loc": 29},
-                        {"url": "test://m", "loc": 30},
-                        {"url": "test://l", "loc": 61},
-                        {"url": "test://bad", "loc": 0},
+                        {"url": "test://s", "loc_init": 29},
+                        {"url": "test://m", "loc_init": 30},
+                        {"url": "test://l", "loc_init": 61},
+                        {"url": "test://bad", "loc_init": 0},
                     ]
                 )
             ]
@@ -2049,6 +2050,45 @@ class TestT2PTestSmell(unittest.TestCase):
         self.assertEqual("Medium", frame.loc["test://m", "control_group"])
         self.assertEqual("Large", frame.loc["test://l", "control_group"])
         self.assertNotIn("test://bad", frame.index)
+
+    def test_size_control_loads_loc_init_from_tool_method_history(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            self.write_method_history(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://s", "loc_init": 29, "loc": 100},
+                    {"url": "test://m", "loc_init": 30, "loc": 1},
+                ],
+            )
+
+            frames = load_initial_loc_frames(experiment_dir, "historyFinder", ["demo"])
+            controls = fixed_control_group_frame(frames).set_index("from_url")
+
+            self.assertEqual(["url", "loc_init"], frames[0].columns.tolist())
+            self.assertEqual("Small", controls.loc["test://s", "control_group"])
+            self.assertEqual("Medium", controls.loc["test://m", "control_group"])
+
+    def test_size_control_skips_method_history_without_loc_init(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            self.write_method_history(experiment_dir, "demo", [{"url": "test://s", "loc": 29}])
+
+            with self.assertWarnsRegex(UserWarning, "url, loc_init"):
+                frames = load_initial_loc_frames(experiment_dir, "historyFinder", ["demo"])
+
+            self.assertEqual([], frames)
+
+    def test_size_control_warns_when_selected_method_history_file_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            experiment_dir = self.create_experiment(tmpdir)
+            self.write_method_history(experiment_dir, "available", [{"url": "test://s", "loc_init": 29}])
+
+            with self.assertWarnsRegex(UserWarning, "project=missing"):
+                frames = load_initial_loc_frames(experiment_dir, "historyFinder", ["missing"])
+
+            self.assertEqual([], frames)
 
     def test_size_control_rows_use_robust_significant_association_smells(self):
         frame = pd.DataFrame(
@@ -2564,6 +2604,21 @@ class TestT2PTestSmell(unittest.TestCase):
                     {"url": "test://n-large", "smell": "", "loc": 100},
                 ],
             )
+            self.write_method_history(
+                experiment_dir,
+                "demo",
+                [
+                    {"url": "test://h-small", "loc_init": 29},
+                    {"url": "test://m-small", "loc_init": 20},
+                    {"url": "test://n-small", "loc_init": 10},
+                    {"url": "test://h-medium", "loc_init": 30},
+                    {"url": "test://m-medium", "loc_init": 45},
+                    {"url": "test://n-medium", "loc_init": 60},
+                    {"url": "test://h-large", "loc_init": 61},
+                    {"url": "test://m-large", "loc_init": 80},
+                    {"url": "test://n-large", "loc_init": 100},
+                ],
+            )
             (experiment_dir / "aggregate").mkdir(parents=True, exist_ok=True)
             pd.DataFrame(
                 [
@@ -2833,6 +2888,18 @@ class TestT2PTestSmell(unittest.TestCase):
 
     def write_smells(self, experiment_dir: Path, project: str, rows: list[dict]) -> None:
         output_file = experiment_dir / "test-smell" / "jnose" / "nc" / f"{project}.csv"
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_csv(output_file, index=False)
+
+    def write_method_history(
+        self,
+        experiment_dir: Path,
+        project: str,
+        rows: list[dict],
+        *,
+        tool: str = "historyFinder",
+    ) -> None:
+        output_file = experiment_dir / "method-history" / tool / f"{project}.csv"
         output_file.parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(rows).to_csv(output_file, index=False)
 

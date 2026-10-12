@@ -10,6 +10,7 @@ import pandas as pd
 import mhc.util as util
 from mhc.command_util import (
     build_experiment_parser,
+    list_csv_files,
     non_negative_int,
     resolve_experiment_filters,
     resolve_experiment_paths,
@@ -34,7 +35,6 @@ from ptc.generator.t2p_test_smell_loc_group import valid_loc
 from ptc.generator.t2p_test_smell_prevalence import (
     PSEUDO_SMELLS,
     load_generated_frames,
-    load_smell_frames,
     split_smells,
     strategy_output_file_name,
 )
@@ -124,16 +124,16 @@ def fixed_control_group(loc: int) -> str:
     return "Large"
 
 
-def fixed_control_group_frame(smell_frames: list[pd.DataFrame]) -> pd.DataFrame:
+def fixed_control_group_frame(history_frames: list[pd.DataFrame]) -> pd.DataFrame:
     loc_by_url: dict[str, int] = {}
-    for smell_df in smell_frames:
-        if not {"url", "loc"}.issubset(smell_df.columns):
+    for history_df in history_frames:
+        if not {"url", "loc_init"}.issubset(history_df.columns):
             continue
-        for row in smell_df[["url", "loc"]].itertuples(index=False):
+        for row in history_df[["url", "loc_init"]].itertuples(index=False):
             url = str(row.url or "")
             if not url or url in loc_by_url:
                 continue
-            loc = valid_loc(row.loc)
+            loc = valid_loc(row.loc_init)
             if loc is not None:
                 loc_by_url[url] = loc
     rows = [
@@ -145,6 +145,43 @@ def fixed_control_group_frame(smell_frames: list[pd.DataFrame]) -> pd.DataFrame:
         for url, loc in loc_by_url.items()
     ]
     return pd.DataFrame(rows, columns=["from_url", "loc", "control_group"])
+
+
+def load_initial_loc_frames(
+    experiment_directory: Path,
+    tool: str,
+    selected_projects: list[str] | None,
+) -> list[pd.DataFrame]:
+    input_dir = experiment_directory / "method-history" / tool
+    if not input_dir.exists():
+        warnings.warn(f"Directory not found, skipping LOC controls: {input_dir}")
+        return []
+
+    csv_files = list_csv_files(input_dir, selected_projects, strict=False)
+    if selected_projects is not None:
+        available_projects = {csv_file.stem for csv_file in csv_files}
+        for project in selected_projects:
+            if project not in available_projects:
+                warnings.warn(
+                    f"Method-history file not found for tool={tool}, project={project}: "
+                    f"{input_dir / f'{project}.csv'}"
+                )
+
+    frames = []
+    for csv_file in csv_files:
+        frame = pd.read_csv(
+            csv_file,
+            usecols=lambda column: column in {"url", "loc_init"},
+            dtype=str,
+            keep_default_na=False,
+            na_filter=False,
+            low_memory=False,
+        )
+        if not {"url", "loc_init"}.issubset(frame.columns):
+            warnings.warn(f"Skipping {csv_file}: missing required column(s): url, loc_init.")
+            continue
+        frames.append(frame[["url", "loc_init"]].copy())
+    return frames
 
 
 def association_top_smells(
@@ -517,16 +554,23 @@ def main(argv: list[str] | None = None) -> None:
         stats.print_summary()
         return
 
+    control_groups_by_tool: dict[str, pd.DataFrame] = {}
     for strategy in strategies:
-        control_groups = fixed_control_group_frame(
-            load_smell_frames(experiment_directory, smell_detector, strategy, selected_projects)
-        )
         tools = select_named_items(
             util.sorted_directory_names(generated_dir / strategy),
             selected_tools,
             item_label="tool",
         )
         for tool in tools:
+            if tool not in control_groups_by_tool:
+                control_groups_by_tool[tool] = fixed_control_group_frame(
+                    load_initial_loc_frames(experiment_directory, tool, selected_projects)
+                )
+                if control_groups_by_tool[tool].empty:
+                    warnings.warn(
+                        f"No valid loc_init controls found for tool={tool}; size-controlled rows will be skipped."
+                    )
+            control_groups = control_groups_by_tool[tool]
             frame = load_generated_frames(
                 experiment_directory,
                 tool,
