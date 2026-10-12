@@ -1,5 +1,6 @@
 from pathlib import Path
 from contextlib import redirect_stdout
+from datetime import datetime, timezone
 import io
 import sys
 import tempfile
@@ -52,6 +53,73 @@ from ptc.util.helper import (
 
 
 class TestArtifactRevisionCdf(unittest.TestCase):
+    def test_method_age_uses_exact_introduction_and_rounds_partial_days_up(self):
+        snapshot = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        history = {
+            "changeHistoryDetails": {
+                "later": {"type": "Ybodychange", "commitDate": "01/01/26 23:00 PM"},
+                "initial": {"type": "Yintroduced", "commitDate": "01/01/26 18:00 PM"},
+            }
+        }
+
+        self.assertEqual(1, artifact_revision_generator.method_age_days(history, snapshot))
+
+    def test_method_age_supports_list_details_and_exact_whole_days(self):
+        snapshot = datetime(2026, 1, 2, tzinfo=timezone.utc)
+        history = {
+            "changeHistoryDetails": [
+                {"type": "Yintroduced", "commitDate": "01/01/26 00:00 AM"},
+            ]
+        }
+
+        self.assertEqual(1, artifact_revision_generator.method_age_days(history, snapshot))
+
+    def test_method_age_rounds_more_than_one_day_up_to_two(self):
+        snapshot = datetime(2026, 1, 2, 1, tzinfo=timezone.utc)
+        history = {
+            "changeHistoryDetails": {
+                "initial": {"type": "Yintroduced", "commitDate": "01/01/26 00:00 AM"},
+            }
+        }
+
+        self.assertEqual(2, artifact_revision_generator.method_age_days(history, snapshot))
+
+    def test_method_age_is_zero_at_introduction(self):
+        snapshot = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        history = {
+            "changeHistoryDetails": {
+                "initial": {"type": "Yintroduced", "commitDate": "01/01/26 00:00 AM"},
+            }
+        }
+
+        self.assertEqual(0, artifact_revision_generator.method_age_days(history, snapshot))
+
+    def test_method_age_is_missing_for_missing_invalid_or_future_introduction(self):
+        snapshot = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        histories = [
+            {},
+            {"changeHistoryDetails": {"initial": {"type": "Yintroduced"}}},
+            {
+                "changeHistoryDetails": {
+                    "initial": {"type": "Yintroduced", "commitDate": "not a date"}
+                }
+            },
+            {
+                "changeHistoryDetails": {
+                    "initial": {"type": "Yintroduced", "commitDate": "02/01/26 00:00 AM"}
+                }
+            },
+        ]
+
+        for history in histories:
+            with self.subTest(history=history):
+                self.assertIsNone(artifact_revision_generator.method_age_days(history, snapshot))
+
+    def test_project_snapshot_iso_date_is_parsed(self):
+        parsed = artifact_revision_generator.parse_commit_date("2026-01-28T15:34:17+00:00")
+
+        self.assertEqual(datetime(2026, 1, 28, 15, 34, 17, tzinfo=timezone.utc), parsed)
+
     def test_initial_method_line_count_uses_introduction_source(self):
         history = {
             "changeHistoryDetails": {
@@ -96,6 +164,25 @@ class TestArtifactRevisionCdf(unittest.TestCase):
         ordered = artifact_revision_generator.order_change_columns(frame)
 
         self.assertEqual(["url", "project", "ch_diff", "loc_init"], ordered.columns.tolist())
+
+    def test_artifact_revision_age_is_last_column(self):
+        frame = pd.DataFrame(
+            [{"url": "method", "age": 4, "loc_init": 3, "ch_diff": 1, "project": "demo"}]
+        )
+
+        ordered = artifact_revision_generator.order_change_columns(frame)
+
+        self.assertEqual(
+            ["url", "project", "ch_diff", "loc_init", "age"],
+            ordered.columns.tolist(),
+        )
+
+    def test_integer_output_columns_are_written_without_decimal_suffix(self):
+        frame = pd.DataFrame([{"ch_diff": 1.0, "loc_init": 3.0, "age": 6.0}])
+        normalized = artifact_revision_generator.normalize_integer_output_columns(frame)
+        output = normalized.to_csv(index=False)
+
+        self.assertEqual("ch_diff,loc_init,age\n1,3,6\n", output)
 
     def test_raw_artifact_revision_generator_does_not_load_method_code(self):
         self.assertFalse(hasattr(artifact_revision_generator, "load_method_code_df"))

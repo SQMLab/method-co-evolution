@@ -1,8 +1,11 @@
 import json
 import logging
+import math
 import os
+import re
 import tarfile
 import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 import pandas as pd
 import mhc.util as util
@@ -23,6 +26,74 @@ CHANGE_COLUMNS = [
     "ch_diff",
     *[f"ch_{change_type.name.lower()}" for change_type in MethodChangeType],
 ]
+INTEGER_OUTPUT_COLUMNS = {"loc_init", "age"}
+
+
+def parse_commit_date(value: object) -> datetime | None:
+    if value is None or pd.isna(value):
+        return None
+
+    normalized = str(value).replace("\u202f", " ").replace("\xa0", " ").strip()
+    normalized = re.sub(r"\b00:(\d{2})\s*AM\b", r"12:\1 AM", normalized, flags=re.IGNORECASE)
+    match = re.search(r"(\d{1,2}):(\d{2})\s*([AP]M)$", normalized, flags=re.IGNORECASE)
+    if match and int(match.group(1)) > 12:
+        normalized = re.sub(r"\s*([AP]M)$", "", normalized, flags=re.IGNORECASE)
+
+    for pattern in (
+        "%d/%m/%y %I:%M %p",
+        "%d/%m/%y %H:%M",
+        "%d/%m/%Y %I:%M %p",
+        "%d/%m/%Y %H:%M",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+    ):
+        try:
+            parsed = datetime.strptime(normalized, pattern)
+            return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def introduction_detail(history_json: dict) -> dict | None:
+    details = history_json.get("changeHistoryDetails", {})
+    if isinstance(details, dict):
+        candidates = details.values()
+    elif isinstance(details, list):
+        candidates = details
+    else:
+        return None
+
+    return next(
+        (
+            detail
+            for detail in candidates
+            if isinstance(detail, dict) and str(detail.get("type", "")) == "Yintroduced"
+        ),
+        None,
+    )
+
+
+def method_age_days(history_json: dict, snapshot_date: datetime | None) -> int | None:
+    detail = introduction_detail(history_json)
+    introduction_date = parse_commit_date(detail.get("commitDate")) if detail else None
+    if introduction_date is None or snapshot_date is None:
+        return None
+
+    elapsed_seconds = (snapshot_date - introduction_date).total_seconds()
+    if elapsed_seconds < 0:
+        return None
+    if elapsed_seconds == 0:
+        return 0
+    return math.ceil(elapsed_seconds / 86_400)
+
+
+def normalize_integer_output_columns(df: pd.DataFrame) -> pd.DataFrame:
+    normalized = df.copy()
+    for column in normalized.columns:
+        if column.startswith("ch_") or column in INTEGER_OUTPUT_COLUMNS:
+            normalized[column] = pd.to_numeric(normalized[column], errors="coerce").astype("Int64")
+    return normalized
 
 
 def iter_tool_history_directories(history_root: Path) -> list[Path]:
@@ -44,10 +115,10 @@ def move_tool_after_project(df: pd.DataFrame) -> pd.DataFrame:
 def order_change_columns(df: pd.DataFrame) -> pd.DataFrame:
     metadata_columns = [
         column for column in df.columns
-        if not column.startswith("ch_") and column != "loc_init"
+        if not column.startswith("ch_") and column not in {"loc_init", "age"}
     ]
     change_columns = select_revision_columns(df.columns, preferred_order=CHANGE_COLUMNS)
-    trailing_columns = ["loc_init"] if "loc_init" in df.columns else []
+    trailing_columns = [column for column in ("loc_init", "age") if column in df.columns]
     return df[metadata_columns + change_columns + trailing_columns]
 
 
@@ -131,6 +202,8 @@ def main(argv: list[str] | None = None) -> None:
                 print(f"Processing: {repository_name} [{tool_name}]")
                 repository_url = repository_name_map[repository_name]["url"]
                 repository_hash = repository_name_map[repository_name]["updated_hash"]
+                snapshot_date = parse_commit_date(repository_name_map[repository_name].get("updated_at"))
+                missing_age_count = 0
                 try:
                     tar_cm = tarfile.open(zip_file, "r:gz")
                 except Exception:
@@ -175,7 +248,10 @@ def main(argv: list[str] | None = None) -> None:
                                     "tool": tool_name,
                                     "method_file": base_file,
                                     "loc_init": initial_method_line_count(history_json),
+                                    "age": method_age_days(history_json, snapshot_date),
                                 }
+                                if method_history["age"] is None:
+                                    missing_age_count += 1
                                 method_history.update(change_history)
                                 method_history_list.append(method_history)
                 method_list_df = pd.read_csv(
@@ -194,8 +270,10 @@ def main(argv: list[str] | None = None) -> None:
                     on="url",
                     how="inner",
                 )
-                output_df = order_change_columns(
-                    move_tool_after_project(filter_artifact_dataframe(repository_change_history_df))
+                output_df = normalize_integer_output_columns(
+                    order_change_columns(
+                        move_tool_after_project(filter_artifact_dataframe(repository_change_history_df))
+                    )
                 )
                 if output_df.empty:
                     stats.record_empty_output()
@@ -205,6 +283,13 @@ def main(argv: list[str] | None = None) -> None:
                 )
                 stats.record_write(len(output_df))
                 processed_count += 1
+                if missing_age_count:
+                    logging.warning(
+                        "Missing age for %d method histories in %s [%s]",
+                        missing_age_count,
+                        repository_name,
+                        tool_name,
+                    )
         print(
             f"generate_change summary [{tool_name}]: "
             f"processed={processed_count}, skipped={skipped_count}, "
